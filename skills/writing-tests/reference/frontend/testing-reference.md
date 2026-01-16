@@ -135,6 +135,17 @@ Benefits:
 - Easy to override specific fields
 - Single source of truth for data shape
 
+**Use unique, searchable values** in mock data for easier debugging:
+- Bad: `{ name: "Test User" }`
+- Good: `{ name: "user_alice_checkout_test" }`
+
+### spyOn vs vi.mock
+
+Prefer `spyOn` over `vi.mock` when possible:
+- Better type safety
+- Easier to restore original implementation
+- More explicit about what's being mocked
+
 ### Feature Flag Mocking
 
 Options:
@@ -185,6 +196,91 @@ For components with data fetching:
 1. Render the component
 2. Wait for loading state to resolve
 3. Assert on loaded content
+
+---
+
+## Query Priority
+
+Use queries in this priority order (most to least preferred):
+
+1. `getByRole()` — buttons, headings, forms (most accessible)
+2. `getByLabelText()` — form inputs with labels
+3. `getByPlaceholderText()` — inputs without visible labels
+4. `getByText()` — non-interactive content
+5. `getByTestId()` — last resort only
+
+---
+
+## Assertions
+
+### Visibility
+- Use `toBeVisible()` for user-visible elements (respects CSS visibility)
+- Use `toBeInTheDocument()` only when checking DOM presence regardless of visibility
+
+### Specificity
+- Avoid `.toBeDefined()` — assert actual expected values instead
+- Bad: `expect(result).toBeDefined()`
+- Good: `expect(result).toBe('expected value')`
+
+### State Management
+- Don't test Redux/state internals — verify rendered output only
+
+---
+
+## Async Patterns
+
+### Prefer findBy over waitFor
+
+For elements appearing asynchronously:
+```
+// Preferred
+const element = await screen.findByText('Loaded');
+
+// Avoid when findBy works
+await waitFor(() => {
+  expect(screen.getByText('Loaded')).toBeInTheDocument();
+});
+```
+
+### Use Fake Timers
+
+Don't wait in real time — mock time progression:
+```
+vi.useFakeTimers();
+// trigger async operation
+vi.advanceTimersByTime(1000);
+vi.useRealTimers();
+```
+
+---
+
+## User Interactions
+
+Always use `userEvent` over `fireEvent`:
+- `userEvent` simulates realistic browser behavior (focus, blur, typing sequence)
+- `fireEvent` only dispatches DOM events
+
+```
+// Preferred
+await user.click(button);
+await user.type(input, 'text');
+
+// Avoid
+fireEvent.click(button);
+fireEvent.change(input, { target: { value: 'text' } });
+```
+
+---
+
+## Anti-Patterns
+
+| Pattern | Problem | Solution |
+|---------|---------|----------|
+| Conditionals in tests | Hide failures, unclear intent | Write separate tests for each case |
+| Large snapshots | Brittle, hard to review | Use targeted assertions |
+| Class name assertions | Tests implementation, not behavior | Query by role/text, assert visible state |
+| Flaky tests | Erode trust in test suite | Fix immediately or delete |
+| Real timers | Slow tests, race conditions | Use fake timers |
 
 ---
 
