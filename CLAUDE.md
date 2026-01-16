@@ -113,6 +113,17 @@ When discussing which findings to address, reference by `file:line` rather than 
 - **reviewing-code** — Internal resource for code-reviewer agent. Don't invoke directly.
 - **addressing-pr-comments** — Triggered when asked to address PR feedback.
 - **planning-implementations** — Triggered when asked to plan a feature. Creates SPEC.md, DESIGN.md, PLAN.md, TASK*.md.
+- **autoskill** — Learns from session feedback to extract durable preferences and propose skill updates. Use when the user says "learn from this session", "remember this pattern", or invokes /autoskill.
+
+### Autoskill Triggers
+
+Track correction signals during sessions:
+- "No, use X instead of Y"
+- "We always do it this way"
+- "Remember to..." (stated as general rule)
+- Same feedback given 2+ times
+
+When 2+ signals accumulate, ask at a natural breakpoint (task completion, session end): "I noticed some preferences — run /autoskill?"
 
 # Development Guidelines
 - Refer to `~/.claude/rules/development.md`
