@@ -109,7 +109,7 @@ When discussing which findings to address, reference by `file:line` rather than 
 
 ## Skills
 
-- **writing-tests** — Triggered when asked to write tests. Uses Testing Trophy methodology.
+- **writing-tests** — ALWAYS invoke via `/writing-tests` when asked to write tests, add coverage, or create test files. Uses Testing Trophy methodology.
 - **reviewing-code** — Internal resource for code-reviewer agent. Don't invoke directly.
 - **addressing-pr-comments** — Triggered when asked to address PR feedback.
 - **planning-implementations** — Triggered when asked to plan a feature. Creates SPEC.md, DESIGN.md, PLAN.md, TASK*.md.
