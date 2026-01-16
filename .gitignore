@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+
+# Company-specific (not for public repo)
+skills/akupara-api/
+
+# Cache and temporary data
+cache/
+paste-cache/
+image-cache/
+stats-cache.json
+statsig/
+
+# Session/runtime data
+history.jsonl
+file-history/
+session-env/
+shell-snapshots/
+todos/
+plans/
+
+# Debug and telemetry
+debug/
+telemetry/
+downloads/
+
+# IDE and project-specific
+ide/
+plugins/
+projects/
+
+# Machine-specific settings
+settings.local.json
