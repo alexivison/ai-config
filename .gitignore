@@ -1,9 +1,6 @@
 # macOS
 .DS_Store
 
-# Company-specific (not for public repo)
-skills/akupara-api/
-
 # Cache and temporary data
 cache/
 paste-cache/

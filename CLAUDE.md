@@ -114,7 +114,6 @@ Auto-triggered based on context.
 - **reviewing-code** — Review guidelines (internal resource for code-reviewer agent, don't invoke directly)
 - **addressing-pr-comments** — Fetches and addresses PR feedback
 - **planning-implementations** — Creates SPEC.md, DESIGN.md, PLAN.md, TASK*.md
-- **akupara-api** — API layer implementation using akupara-proto schemas (models, repositories, adapters)
 
 # Development Guidelines
 - Refer to `~/.claude/rules/development.md`
