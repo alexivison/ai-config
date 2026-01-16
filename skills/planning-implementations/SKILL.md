@@ -13,7 +13,7 @@ For a new feature:
 1. Create `doc/projects/<feature-name>/`
 2. Write SPEC.md (what should it do?)
 3. Write DESIGN.md (how will it work?)
-4. Write PLAN.md + TASK*.md (implementation steps)
+4. Write PLAN.md + tasks/TASK*.md (implementation steps)
 
 ## When to Use
 
@@ -22,7 +22,7 @@ For a new feature:
 | Small change | SPEC.md only |
 | New feature | SPEC.md + DESIGN.md |
 | Migration | LEGACY_DESIGN.md + DESIGN.md + SPEC.md |
-| Ready to implement | Add PLAN.md + TASK*.md |
+| Ready to implement | Add PLAN.md + tasks/TASK*.md |
 
 **Don't use for**: Bug fixes, quick refactors, or changes under ~50 lines.
 
@@ -47,7 +47,7 @@ Ask the user (if not clear):
 | DESIGN.md | Architecture, file structure, APIs | [design.md](./templates/design.md) |
 | LEGACY_DESIGN.md | Current system (migrations only) | [legacy-design.md](./templates/legacy-design.md) |
 | PLAN.md | Task order, dependencies | [plan.md](./templates/plan.md) |
-| TASK*.md | Step-by-step implementation | [task.md](./templates/task.md) |
+| tasks/TASK*.md | Step-by-step implementation | [task.md](./templates/task.md) |
 
 ## Agent-Optimized Guidelines
 

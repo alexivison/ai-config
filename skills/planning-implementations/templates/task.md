@@ -2,7 +2,14 @@
 
 **Answers:** "What exactly do I do for this step?"
 
-File naming: `TASK1.md`, `TASK2.md`, `TASK3.md`, ...
+**Location:** `tasks/` subfolder
+
+**File naming:** `TASK<N>-<kebab-case-title>.md`
+
+Examples:
+- `tasks/TASK1-setup-database-schema.md`
+- `tasks/TASK2-create-api-endpoints.md`
+- `tasks/TASK3-add-frontend-components.md`
 
 ## Structure
 

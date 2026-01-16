@@ -29,10 +29,10 @@ After each task: run verification, commit, update checkbox here.
 
 ## Tasks
 
-- [ ] [Task 1](./TASK1.md) — <Description> (deps: none)
-- [ ] [Task 2](./TASK2.md) — <Description> (deps: Task 1)
-- [ ] [Task 3](./TASK3.md) — <Description> (deps: Task 1)
-- [ ] [Task 4](./TASK4.md) — <Description> (deps: Task 2, Task 3)
+- [ ] [Task 1](./tasks/TASK1-short-title.md) — <Description> (deps: none)
+- [ ] [Task 2](./tasks/TASK2-short-title.md) — <Description> (deps: Task 1)
+- [ ] [Task 3](./tasks/TASK3-short-title.md) — <Description> (deps: Task 1)
+- [ ] [Task 4](./tasks/TASK4-short-title.md) — <Description> (deps: Task 2, Task 3)
 
 ## Dependency Graph
 
@@ -66,5 +66,6 @@ Task 1 ───┬───> Task 2 ───┐
 ## Notes
 
 - Target ~200 lines per task
+- Task files go in `tasks/` folder with naming: `TASK<N>-<kebab-case-title>.md`
 - Use ASCII for dependency graph (not Mermaid)
 - Each task = one PR, independently mergeable
