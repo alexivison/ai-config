@@ -63,6 +63,7 @@
       "Bash(uniq:*)",
       "Bash(xargs:*)",
       "Bash(xxd:*)",
+      "Bash(mode:*)",
 
       "WebFetch(domain:*)",
       "WebSearch",
