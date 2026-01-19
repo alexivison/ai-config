@@ -16,7 +16,7 @@ Examples:
 ```markdown
 # Task N — <Short Description>
 
-**Estimated LOC:** ~<number> | **Dependencies:** <Task X, Task Y> | **Issue:** <ID>
+**Dependencies:** <Task X, Task Y> | **Issue:** <ID>
 
 ---
 
@@ -24,76 +24,53 @@ Examples:
 
 One paragraph: what this accomplishes and why.
 
-## Required Context
+## Reference
 
-Files agent MUST read before starting:
+Files to study before implementing (single source of truth):
 
-- `src/path/to/related.ts` — Existing pattern
-- `src/path/to/types.ts` — Type definitions
-- `src/path/to/similar.ts:50-120` — Reference implementation
+- `src/path/to/similar.ts` — Reference implementation to follow
+- `src/path/to/types.ts` — Type definitions to reuse
 
-## Files to Modify
+## Files to Create/Modify
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/api/users.ts` | Modify | Add endpoint |
-| `src/types/user.ts` | Modify | Add types |
-| `src/api/__tests__/users.test.ts` | Create | Tests |
+| File | Action |
+|------|--------|
+| `src/api/users.ts` | Modify |
+| `src/types/user.ts` | Create |
 
-## Development Plan
+## Requirements
 
-### Step 1: <Description>
+**Functionality:**
+- Requirement 1
+- Requirement 2
 
-**File:** `src/path/to/file.ts`
+**Key gotchas:**
+- Important caveat or bug fix to incorporate
 
-Before:
-```typescript
-export const existing = () => oldValue;
-```
+## Tests
 
-After:
-```typescript
-export const existing = () => newValue;
-export const newFunc = () => { /* ... */ };
-```
+Test cases (implementer writes the actual test code):
+- Happy path scenario
+- Error handling
+- Edge case
 
-### Step 2: <Description>
-
-**File:** `src/path/to/other.ts`
-
-```typescript
-// Code to add
-```
-
-### Step 3: Write Tests
-
-**File:** `src/__tests__/file.test.ts`
-
-```typescript
-describe('newFunc', () => {
-  it('handles happy path', () => { /* ... */ });
-  it('handles error', () => { /* ... */ });
-});
-```
-
-## Verification Commands
+## Verification
 
 ```bash
-pnpm tsc --noEmit
-pnpm test src/__tests__/file.test.ts
-pnpm lint
+pnpm tsc --noEmit && pnpm lint && pnpm test src/path/to/file
 ```
 
 ## Acceptance Criteria
 
-- [ ] All files updated
-- [ ] Types pass
+- [ ] Requirement 1 works
+- [ ] Requirement 2 works
 - [ ] Tests pass
-- [ ] Lint passes
-
-## Rollback
-
-```bash
-git checkout -- <files>
 ```
-```
+
+## Guidelines
+
+- **Requirements over implementation:** Focus on what, not how
+- **Reference existing code:** Point to implementations, don't duplicate them
+- **Tests as bullet points:** List test cases, not detailed test code
+- **Key gotchas only:** Include critical bugs/caveats, skip obvious details
+- **Max 300 lines per PR:** Split if larger
