@@ -77,9 +77,9 @@ project-researcher → [wait] → /planning-implementations (if substantial) →
 
 ### Delegation Transparency
 
-When a task could potentially involve a sub-agent, briefly state your reasoning:
+It's fine to skip delegation for small/simple tasks, but always state your reasoning:
 - **If delegating:** "Delegating to debug-investigator because this race condition needs systematic investigation across threading code."
-- **If not delegating:** "Handling directly - single-line off-by-one error."
+- **If not delegating:** "Handling directly - simple two-file comparison."
 
 Keep it short - one sentence is enough.
 
