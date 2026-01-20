@@ -1,6 +1,7 @@
 ---
-name: writing-tests
+name: write-tests
 description: Write tests following Testing Trophy methodology. Analyzes code to determine test type (unit/integration/component), applies appropriate granularity. Use when asked to write tests, add test coverage, create test files, increase test coverage, or when starting any testing task.
+user-invocable: true
 ---
 
 # Overview
@@ -9,8 +10,8 @@ Write appropriate tests based on code characteristics and Testing Trophy princip
 
 ## Reference Documentation
 
-- **Frontend (TypeScript/React)**: `~/.claude/skills/writing-tests/reference/frontend/testing-reference.md`
-- **Backend (Go)**: `~/.claude/skills/writing-tests/reference/backend/testing-reference.md`
+- **Frontend (TypeScript/React)**: `~/.claude/skills/write-tests/reference/frontend/testing-reference.md`
+- **Backend (Go)**: `~/.claude/skills/write-tests/reference/backend/testing-reference.md`
 
 ## Workflow
 

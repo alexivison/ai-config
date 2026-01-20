@@ -16,18 +16,6 @@ Sub-agents preserve context by offloading investigation/verification tasks. Loca
 
 **After:** Main agent reads findings file and implements the fix.
 
-### code-reviewer
-**Use when:** User asks to review a PR or code changes. Pre-commit/PR verification, or when a second opinion is needed.
-
-**IMPORTANT:** Always use this agent (not the `/reviewing-code` skill directly) when asked to review PRs. The skill is a resource loaded BY the agent.
-
-**Returns:** Structured review with [must]/[q]/[nit] items and verdict.
-
-### change-minimizer
-**Use when:** User requests a final review for bloat/over-engineering before wrapping up.
-
-**Returns:** Detailed analysis of unnecessary additions, bloat, or code to remove.
-
 ### project-researcher
 **Use when:** Starting work on a new project, need context on project status/team/decisions, or looking for design specs and documentation.
 
@@ -48,8 +36,8 @@ Sub-agents preserve context by offloading investigation/verification tasks. Loca
 | Explore codebase structure | Yes - built-in Explore agent |
 | Starting work on new project | Yes - project-researcher |
 | Need project context/docs/designs | Yes - project-researcher |
-| Review a PR | Yes - code-reviewer |
-| Review for bloat/over-engineering | Yes - change-minimizer (on request) |
+| Review a PR | No - use `/code-review` skill |
+| Review for bloat/over-engineering | No - use `/minimize` skill |
 
 ### Workflows
 
@@ -57,22 +45,22 @@ Note: `[wait]` = show findings, use AskUserQuestion, wait for user before contin
 
 **New Feature:**
 ```
-project-researcher (if unfamiliar) → [wait] → implementation → code-reviewer (optional) → [wait] → change-minimizer (optional)
+project-researcher (if unfamiliar) → [wait] → implementation → /code-review (optional) → /minimize (optional)
 ```
 
 **Bug Fix:**
 ```
-debug-investigator (if complex) → [wait] → implementation → change-minimizer (optional)
+debug-investigator (if complex) → [wait] → implementation → /minimize (optional)
 ```
 
 **PR Review:**
 ```
-code-reviewer → [wait] → address feedback → change-minimizer (optional)
+/code-review → address feedback → /minimize (optional)
 ```
 
 **Project Onboarding:**
 ```
-project-researcher → [wait] → /planning-implementations (if substantial) → feature workflow
+project-researcher → [wait] → /plan-implementation (if substantial) → feature workflow
 ```
 
 ### Delegation Transparency
@@ -85,7 +73,7 @@ Keep it short - one sentence is enough.
 
 ### Invocation Requirements
 
-When delegating, include:
+When delegating to sub-agents, include:
 1. **Scope**: File paths, function names, boundaries
 2. **Context**: Relevant errors, recent changes
 3. **Success criteria**: What "done" looks like
@@ -97,7 +85,7 @@ IMPORTANT: After any sub-agent completes, you MUST:
 1. **For file-based agents** (debug-investigator):
    - Read the findings file (e.g., `~/.claude/investigations/{issue-id}.md`)
    - Show the user the full detailed findings - NO EXCEPTIONS
-2. **For inline agents** (code-reviewer, change-minimizer, project-researcher):
+2. **For inline agents** (project-researcher):
    - Show the user the full detailed findings directly
 3. Use AskUserQuestion to ask "Ready to proceed?" with options:
    - "Proceed with implementation"
@@ -115,11 +103,12 @@ When discussing which findings to address, reference by `file:line` rather than 
 
 ## Skills
 
-- **writing-tests** — ALWAYS invoke via `/writing-tests` before writing any tests, whether explicitly requested or as part of implementation. Uses Testing Trophy methodology.
-- **reviewing-code** — Internal resource for code-reviewer agent. Don't invoke directly.
-- **addressing-pr-comments** — Triggered when asked to address PR feedback.
-- **planning-implementations** — Triggered when asked to plan a feature. Creates SPEC.md, DESIGN.md, PLAN.md, TASK*.md.
-- **autoskill** — Learns from session feedback to extract durable preferences and propose skill updates. Use when the user says "learn from this session", "remember this pattern", or invokes /autoskill.
+- **write-tests** — ALWAYS invoke via `/write-tests` before writing any tests, whether explicitly requested or as part of implementation. Uses Testing Trophy methodology.
+- **code-review** — Review code for quality, bugs, and guideline compliance. Invoke via `/code-review`.
+- **minimize** — Review changes for bloat and unnecessary complexity. Invoke via `/minimize`.
+- **address-pr** — Fetch PR comments and suggest solutions. Invoke via `/address-pr`.
+- **plan-implementation** — Plan features for agentic implementation. Creates SPEC.md, DESIGN.md, PLAN.md, TASK*.md. Invoke via `/plan-implementation`.
+- **autoskill** — Learns from session feedback to extract durable preferences and propose skill updates. Use when the user says "learn from this session", "remember this pattern", or invokes `/autoskill`.
 
 ### Autoskill Triggers
 

@@ -1,6 +1,7 @@
 ---
-name: addressing-pr-comments
+name: address-pr
 description: Fetch PR comments, read surrounding code for context, analyze complexity, suggest concrete solutions, and map dependencies between comments. Use when the user mentions PR comments, review feedback, reviewer requests, checking pull request feedback, or addressing reviewer suggestions.
+user-invocable: true
 ---
 
 # Addressing PR Comments

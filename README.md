@@ -35,18 +35,17 @@ ln -sf ~/dotfiles/claude/* ~/.claude/
 | Agent | Purpose |
 |-------|---------|
 | `debug-investigator` | Systematic bug investigation, returns root cause analysis |
-| `code-reviewer` | Code review with severity levels ([must]/[q]/[nit]) |
-| `change-minimizer` | Identifies bloat and unnecessary complexity |
 | `project-researcher` | Gathers project context from Notion/Figma/Slack |
 
 ## Skills
 
 | Skill | Triggers |
 |-------|----------|
-| `writing-tests` | "write tests", "add test coverage" |
-| `reviewing-code` | PR reviews, code quality checks |
-| `planning-implementations` | Feature planning, creating specs |
-| `addressing-pr-comments` | "address PR comments", "check feedback" |
+| `write-tests` | "write tests", "add test coverage" |
+| `code-review` | PR reviews, code quality checks |
+| `minimize` | Identifies bloat and unnecessary complexity |
+| `plan-implementation` | Feature planning, creating specs |
+| `address-pr` | "address PR comments", "check feedback" |
 | `autoskill` | "learn from this session", "remember this pattern", `/autoskill` |
 
 ## Ignored (local-only)

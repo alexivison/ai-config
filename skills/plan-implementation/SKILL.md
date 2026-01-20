@@ -1,6 +1,7 @@
 ---
-name: planning-implementations
+name: plan-implementation
 description: Plans features and projects for agentic implementation. Creates SPEC.md, DESIGN.md, PLAN.md, and TASK*.md files that agents can execute autonomously. Use when starting a new feature, planning implementation tasks, breaking down large changes, or when the user mentions planning, specs, or task breakdown.
+user-invocable: true
 ---
 
 # Planning Implementations
