@@ -86,6 +86,25 @@ AI-generated code is treated as written by the supervisor (PR author). The super
 
 ## Frontend-Specific Guidelines
 
+### React/JSX Rules
+
+1. **Extract complex inline conditionals**: When a JSX prop contains complex conditional logic (e.g., ternary with multiple checks), extract it to a named handler function for readability.
+   ```tsx
+   // Bad: Complex inline conditional
+   <ErrorView onClickRetry={hasError && retryFn ? retryFn : handleDefault} />
+
+   // Good: Extract to named handler
+   const handleRetry = useCallback(() => {
+     if (hasError && retryFn) {
+       retryFn();
+     } else {
+       handleDefault();
+     }
+   }, [hasError, retryFn, handleDefault]);
+
+   <ErrorView onClickRetry={handleRetry} />
+   ```
+
 ### CSS Rules
 
 1. **Use modern CSS**:
