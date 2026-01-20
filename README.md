@@ -36,6 +36,7 @@ ln -sf ~/dotfiles/claude/* ~/.claude/
 |-------|---------|
 | `debug-investigator` | Systematic bug investigation, returns root cause analysis |
 | `project-researcher` | Gathers project context from Notion/Figma/Slack |
+| `test-runner` | Runs tests, returns only failures (isolates verbose output) |
 
 ## Skills
 

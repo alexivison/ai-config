@@ -25,6 +25,15 @@ Sub-agents preserve context by offloading investigation/verification tasks. Loca
 
 **Note:** Searches Notion as primary source. Figma/Slack searched only if MCP servers are configured.
 
+### test-runner
+**Use when:** Running test suites that produce verbose output.
+
+**Returns:** Brief summary with pass/fail count and failure details only.
+
+**After:** Main agent addresses failures or continues with implementation.
+
+**Note:** Uses Haiku for cost efficiency. Isolates hundreds of lines of test output from main context.
+
 ### When to Use Sub-Agents
 
 | Scenario | Use Sub-Agent? |
@@ -32,6 +41,7 @@ Sub-agents preserve context by offloading investigation/verification tasks. Loca
 | Write new feature | No - main agent |
 | Write tests | No - main agent |
 | Fix simple bug | No - main agent |
+| Run test suite | Yes - test-runner |
 | Investigate complex/intermittent bug | Yes - debug-investigator |
 | Explore codebase structure | Yes - built-in Explore agent |
 | Starting work on new project | Yes - project-researcher |
@@ -45,12 +55,12 @@ Note: `[wait]` = show findings, use AskUserQuestion, wait for user before contin
 
 **New Feature:**
 ```
-project-researcher (if unfamiliar) → [wait] → implementation → /code-review (optional) → /minimize (optional)
+project-researcher (if unfamiliar) → [wait] → implementation → test-runner → /code-review (optional) → /minimize (optional)
 ```
 
 **Bug Fix:**
 ```
-debug-investigator (if complex) → [wait] → implementation → /minimize (optional)
+debug-investigator (if complex) → [wait] → implementation → test-runner → /minimize (optional)
 ```
 
 **PR Review:**
@@ -85,7 +95,7 @@ IMPORTANT: After any sub-agent completes, you MUST:
 1. **For file-based agents** (debug-investigator):
    - Read the findings file (e.g., `~/.claude/investigations/{issue-id}.md`)
    - Show the user the full detailed findings - NO EXCEPTIONS
-2. **For inline agents** (project-researcher):
+2. **For inline agents** (project-researcher, test-runner):
    - Show the user the full detailed findings directly
 3. Use AskUserQuestion to ask "Ready to proceed?" with options:
    - "Proceed with implementation"
