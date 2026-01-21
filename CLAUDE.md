@@ -34,6 +34,15 @@ Sub-agents preserve context by offloading investigation/verification tasks. Loca
 
 **Note:** Uses Haiku for cost efficiency. Isolates hundreds of lines of test output from main context.
 
+### check-runner
+**Use when:** Running typechecks or linting. Always use alongside test-runner for parallel execution.
+
+**Returns:** Brief summary with error/warning counts and issue details only.
+
+**After:** Main agent addresses issues or continues with implementation.
+
+**Note:** Uses Haiku for cost efficiency. Auto-detects project stack and package manager.
+
 ### log-analyzer
 **Use when:** Analyzing application/server logs that would bloat main context.
 
@@ -53,6 +62,8 @@ Sub-agents preserve context by offloading investigation/verification tasks. Loca
 | Write tests | No - main agent |
 | Fix simple bug | No - main agent |
 | Run test suite | Yes - test-runner |
+| Run typecheck/lint | Yes - check-runner |
+| Run tests + checks | Yes - test-runner + check-runner (parallel) |
 | Analyze logs | Yes - log-analyzer |
 | Investigate complex/intermittent bug | Yes - debug-investigator |
 | Explore codebase structure | Yes - built-in Explore agent |
@@ -67,12 +78,12 @@ Note: `[wait]` = show findings, use AskUserQuestion, wait for user before contin
 
 **New Feature:**
 ```
-project-researcher (if unfamiliar) → [wait] → implementation → test-runner → /code-review (optional) → /minimize (optional)
+project-researcher (if unfamiliar) → [wait] → implementation → test-runner + check-runner (parallel) → /code-review (optional) → /minimize (optional)
 ```
 
 **Bug Fix:**
 ```
-debug-investigator (if complex) → [wait] → log-analyzer (if relevant) → [wait] → implementation → test-runner → /minimize (optional)
+debug-investigator (if complex) → [wait] → log-analyzer (if relevant) → [wait] → implementation → test-runner + check-runner (parallel) → /minimize (optional)
 ```
 
 **PR Review:**
@@ -107,7 +118,7 @@ IMPORTANT: After any sub-agent completes, you MUST:
 1. **For file-based agents** (debug-investigator, log-analyzer):
    - Read the findings file (e.g., `~/.claude/investigations/{issue-id}.md` or `~/.claude/logs/{identifier}.md`)
    - Show the user the full detailed findings - NO EXCEPTIONS
-2. **For inline agents** (project-researcher, test-runner):
+2. **For inline agents** (project-researcher, test-runner, check-runner):
    - Show the user the full detailed findings directly
 3. Use AskUserQuestion to ask "Ready to proceed?" with options:
    - "Proceed with implementation"
