@@ -28,9 +28,11 @@ Sub-agents preserve context by offloading investigation/verification tasks. Loca
 ### debug-investigator
 **Use when:** Complex bugs requiring systematic investigation that would bloat main context.
 
+**Methodology:** 4-phase systematic debugging (Root Cause Investigation → Pattern Analysis → Hypothesis Testing → Specify Fix). Tracks hypotheses tested and enforces scientific method.
+
 **Writes to:** `~/.claude/investigations/{issue-id}.md` — Full findings preserved outside main context.
 
-**Returns:** Brief summary with file path, verdict, and one-line summary.
+**Returns:** Brief summary with file path, verdict, hypotheses tested count, and one-line summary.
 
 **After:** Main agent reads findings file and implements the fix.
 
@@ -96,7 +98,7 @@ Note: `[wait]` = show findings, use AskUserQuestion, wait for user before contin
 
 **New Feature:**
 ```
-project-researcher (if unfamiliar) → [wait] → implementation → test-runner + check-runner (parallel) → /code-review (optional) → /minimize (optional)
+project-researcher (if unfamiliar) → [wait] → /brainstorm (if unclear requirements) → [wait] → /plan-implementation (if substantial) → implementation → test-runner + check-runner (parallel) → /code-review (optional) → /minimize (optional)
 ```
 
 **Bug Fix:**
@@ -154,6 +156,7 @@ When discussing which findings to address, reference by `file:line` rather than 
 
 ## Skills
 
+- **brainstorm** — Structured context capture before planning. Use before `/plan-implementation` for new features, when requirements are unclear, or when multiple approaches exist. Invoke via `/brainstorm`.
 - **write-tests** — ALWAYS invoke via `/write-tests` before writing any tests, whether explicitly requested or as part of implementation. Uses Testing Trophy methodology.
 - **code-review** — Review code for quality, bugs, and guideline compliance. Invoke via `/code-review`.
 - **minimize** — Review changes for bloat and unnecessary complexity. Invoke via `/minimize`.
