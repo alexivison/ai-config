@@ -173,6 +173,39 @@ describe('functionName', () => {
 });
 ```
 
+### Prefer it.each for Repetitive Tests
+
+Always use `it.each` when tests share similar structure but vary in inputs/outputs. This reduces code duplication and improves readability.
+
+**Use it.each when:**
+- 2+ tests have identical structure with different data
+- Testing multiple scenarios of the same behavior
+- Tests differ only in setup values and expected results
+
+**Example — Before:**
+```typescript
+it('returns false for 0', () => {
+  expect(isPositive(0)).toBe(false);
+});
+it('returns false for -1', () => {
+  expect(isPositive(-1)).toBe(false);
+});
+it('returns true for 1', () => {
+  expect(isPositive(1)).toBe(true);
+});
+```
+
+**Example — After:**
+```typescript
+it.each([
+  { input: 0, expected: false },
+  { input: -1, expected: false },
+  { input: 1, expected: true },
+])('returns $expected for $input', ({ input, expected }) => {
+  expect(isPositive(input)).toBe(expected);
+});
+```
+
 ### Component Test Pattern
 
 ```
