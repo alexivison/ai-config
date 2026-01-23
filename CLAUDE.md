@@ -194,6 +194,8 @@ When discussing which findings to address, reference by `file:line` rather than 
 
 **How to invoke:** Use the Skill tool with the skill name. Do not just "follow the skill's guidance" — actually invoke it.
 
+**Note:** The `skill-eval.sh` hook suggests skills based on trigger patterns, but it's a reminder system — not enforcement. Use judgment to determine if the suggestion is appropriate for the current context.
+
 ### Autoskill Triggers
 
 Track correction signals during sessions:
