@@ -191,55 +191,57 @@ Signal about...
 
 ---
 
-# Proposing Changes
+# Output Format
 
-For each proposed edit, provide:
+```markdown
+## Autoskill: [session name / document title]
 
-```
-### [SKILL-NAME] — [CONFIDENCE]
+### Signals
 
-**Signal:** "[exact quote or paraphrase]"
-**Source:** [session / document title]
-**File:** `path/to/file.md`
-**Section:** [section name or "new section"]
+| #  | Type       | Quote/Context              |
+|----|------------|----------------------------|
+| 1  | Correction | "No, use X instead of Y"   |
+| 2  | Process    | "We always do it this way" |
+
+**Detected:** 2 updates, 0 new skills
+
+### Proposed Updates
+
+#### ▸ [1] SKILL-NAME — `HIGH`
+
+**Signal:** "exact quote or paraphrase"
+**File:** `~/.claude/skills/skill-name/SKILL.md`
+**Section:** Section name or "new section"
 
 **Current:**
-> [existing text, if modifying]
+> existing text, if modifying
 
 **Proposed:**
-> [new or replacement text]
+> new or replacement text
 
-**Rationale:** [one sentence]
+**Rationale:** One sentence explanation.
+
+> |
+
+#### ▸ [2] SKILL-NAME — `MED`
+
+**Signal:** "another quote"
+**File:** `~/.claude/rules/category.md`
+**Section:** New section
+
+**Proposed:**
+> new text (no current if adding new)
+
+**Rationale:** One sentence explanation.
+
+
+**Apply changes?** [all / high-only / selective / none]
 ```
 
-Confidence levels:
+## Confidence Levels
+
 - **HIGH** — Explicit rule stated, repeated 2+ times, or clearly generalizable
-- **MEDIUM** — Single instance but appears intentional, or slightly ambiguous scope
-
----
-
-# Review Flow
-
-Present changes grouped by type:
-
-```
-## Autoskill Summary
-
-**Source:** [session / document name]
-**Detected:** [N] updates, [M] new skills
-
-### Skill Updates (HIGH confidence)
-[changes...]
-
-### Skill Updates (MEDIUM confidence)
-[changes...]
-
-### New Skills Proposed
-[skill proposals with RED phase documentation...]
-
----
-Apply changes? [all / high-only / selective / none]
-```
+- **MED** — Single instance but appears intentional, or slightly ambiguous scope
 
 Always wait for explicit approval before editing.
 

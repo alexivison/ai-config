@@ -17,40 +17,45 @@ Review PR feedback and suggest actionable solutions before making changes.
 
 ## Output Format
 
-```
-### PR #<number>: <title>
-
-#### Comment 1 of X
-**Author:** @reviewer | **File:** `path/to/file.ts:42`
-
-**Comment:**
-> "The reviewer's comment text"
-
-**Suggested Approach:** 🟢 Trivial / 🟡 Moderate / 🔴 Complex
-- Concrete suggestion to address this
-- Alternative approaches if applicable
-- Related comments (e.g., "Related to #3")
-
----
+```markdown
+## PR #<number>: <title>
 
 ### Summary
-| # | File | Approach | Effort | Dependencies |
-|---|------|----------|--------|--------------|
-| 1 | file:line | Brief description | 🟢/🟡/🔴 | Blocks #X / After #Y |
 
-### Recommended Order
-1. **#X** → Reason (quick win, unblocks others, etc.)
+| #  | File        | Action            | Effort |
+|----|-------------|-------------------|--------|
+| 1  | file.ts:42  | Brief description | EASY   |
+| 2  | other.ts:10 | Another action    | MOD    |
 
----
+**Recommended:** #1 → #2 (reason)
 
-**No changes made.** Which comments would you like me to address?
+### Details
+
+#### ▸ [1] file.ts:42 — @reviewer — `EASY`
+
+> "The reviewer's comment text (truncated if long)..."
+
+Concrete suggestion to address this comment.
+Alternative approaches if applicable.
+
+> |
+
+#### ▸ [2] other.ts:10 — @reviewer — `MOD`
+
+> "Another comment..."
+
+Suggestion for this comment.
+Related: See #1 for context.
+
+
+**No changes made.** Which comments to address? [1-2 / all / none]
 ```
 
 ## Effort Levels
 
-- 🟢 **Trivial** — One-line fix, rename, use existing helper
-- 🟡 **Moderate** — New function, logic change, multiple lines
-- 🔴 **Complex** — Multiple files, architectural change, needs tests
+- **EASY** — One-line fix, rename, use existing helper
+- **MOD** — New function, logic change, multiple lines
+- **HARD** — Multiple files, architectural change, needs tests
 
 ## Rules
 
