@@ -10,8 +10,8 @@ set -e
 TRACE_FILE="$HOME/.claude/logs/agent-trace.jsonl"
 mkdir -p "$(dirname "$TRACE_FILE")"
 
-# Read hook input from stdin
-read -r hook_input
+# Read hook input from stdin (read returns non-zero on EOF without newline, so use || true)
+hook_input=$(cat)
 
 # Extract fields
 tool_name=$(echo "$hook_input" | jq -r '.tool_name // empty')

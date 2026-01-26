@@ -44,7 +44,7 @@ Details in `~/.claude/agents/README.md`. Key behavior rules:
 | Complex bug investigation | debug-investigator |
 | New project context | project-researcher |
 | Explore codebase | built-in Explore agent |
-| Quality gate after coding | code-critic (iterative loop) |
+| After implementing plan task | code-critic (MANDATORY) |
 
 *Parallel: invoke both in same message using multiple Task tool calls.
 
@@ -71,16 +71,11 @@ project-researcher (if unfamiliar) → [wait] → /brainstorm (if unclear) → [
 debug-investigator (if complex) → [wait] → log-analyzer (if relevant) → [wait] → implement → test-runner + check-runner → /pre-pr-verification → PR
 ```
 
-**Single Task:**
+**Single Task (from plan/TASK*.md):**
 ```
-Pick up task → /write-tests → test-runner (RED) → implement → test-runner + check-runner (GREEN) → fix → /pre-pr-verification → PR → /address-pr (if comments) → merge
+Pick up task → /write-tests (if needed) → implement → code-critic loop (autonomous, max 3) → test-runner + check-runner + security-scanner → /pre-pr-verification → PR → /address-pr (if comments) → merge
 ```
-
-**Quality-Critical Task (autonomous refinement):**
-```
-implement → code-critic loop (autonomous, max 3) → [APPROVED] → test-runner + check-runner + security-scanner → /pre-pr-verification → PR
-```
-Loop runs without user intervention. Only pause if NEEDS_DISCUSSION or 3 failed iterations.
+Code-critic is MANDATORY for all plan-based tasks. Loop runs without user intervention. Only pause if NEEDS_DISCUSSION or 3 failed iterations.
 
 **Plan/Task updates:** After completing task, update checkbox `- [ ]` → `- [x]`, commit with implementation, wait for user approval before next task.
 
@@ -94,6 +89,11 @@ Details in `~/.claude/skills/*/SKILL.md`. Auto-invocation rules:
 | Writing any test | `/write-tests` |
 | Creating PR | `/pre-pr-verification` |
 | User says "review" | `/code-review` |
+
+**MUST invoke (sub-agents):**
+| Trigger | Agent |
+|---------|-------|
+| After implementing TASK*.md | code-critic |
 
 **SHOULD invoke:**
 | Trigger | Skill |
