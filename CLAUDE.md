@@ -1,8 +1,7 @@
 # General Guidelines
 - Main agent handles all implementation (code, tests, fixes)
-- Use sub-agents only for context preservation (investigation, verification)
-- Use to the point language. Focus on essential information without unnecessary details.
-- Use "we" instead of "I" — reflects the collaborative human-AI nature of our work
+- Sub-agents for context preservation only (investigation, verification)
+- Use "we" instead of "I"
 
 ## Verification Rules
 
@@ -16,215 +15,84 @@ Evidence before claims. Never state success without fresh proof.
 | "Bug fixed" | Reproduce original symptom, show it passes |
 | "Ready for PR" | Run /pre-pr-verification, show all checks pass |
 
-**Red flags requiring re-verification:**
-- Tentative language ("should work", "probably fixed")
-- Planning commit/PR without running checks
-- Relying on previous runs as proof
+**Red flags:** Tentative language ("should work"), planning commit/PR without checks, relying on previous runs.
+**Action:** STOP. Re-run checks immediately.
 
-**Action:** If you catch yourself doing any of the above, STOP. Re-run checks immediately before proceeding.
-
-**3 Strikes Rule:** After 3 failed fix attempts for the same issue, stop patching. Document what was tried, question the approach, and ask user before continuing.
+**3 Strikes Rule:** After 3 failed fix attempts, stop. Document what was tried, ask user before continuing.
 
 ## PR Creation Gate
 
-**STOP. Before ANY `gh pr create` command, verify:**
-- [ ] `/pre-pr-verification` has been invoked THIS session (hook suggestions don't count — must actually invoke the skill)
-- [ ] All checks passed with evidence shown
-- [ ] Verification summary included in PR description (see /pre-pr-verification output format)
-
-If you cannot check all boxes, DO NOT create the PR.
+**STOP. Before `gh pr create`, verify:**
+- [ ] `/pre-pr-verification` invoked THIS session (hook suggestions don't count)
+- [ ] All checks passed with evidence
+- [ ] Verification summary in PR description
 
 ## Sub-Agents
 
-Sub-agents preserve context by offloading investigation/verification tasks. Located in `~/.claude/agents/`.
+Details in `~/.claude/agents/README.md`. Key behavior rules:
 
-### debug-investigator
-**Use when:** Complex bugs requiring systematic investigation that would bloat main context.
+| Scenario | Action |
+|----------|--------|
+| Run tests | test-runner |
+| Run typecheck/lint | check-runner |
+| Run tests + checks | test-runner + check-runner (parallel)* |
+| Analyze logs | log-analyzer |
+| Complex bug investigation | debug-investigator |
+| New project context | project-researcher |
+| Explore codebase | built-in Explore agent |
 
-**Methodology:** 4-phase systematic debugging (Root Cause Investigation → Pattern Analysis → Hypothesis Testing → Specify Fix). Tracks hypotheses tested and enforces scientific method.
+*Parallel: invoke both in same message using multiple Task tool calls.
 
-**Writes to:** `~/.claude/investigations/{issue-id}.md` — Full findings preserved outside main context.
+**After sub-agent returns:**
+- **Investigation agents** (debug-investigator, project-researcher, log-analyzer): MUST show findings, use AskUserQuestion "Ready to proceed?", wait for user
+- **Verification agents** (test-runner, check-runner): Show summary, address failures directly, no need to ask
 
-**Returns:** Brief summary with file path, verdict, hypotheses tested count, and one-line summary.
+**Invocation:** Include scope (files), context (errors), success criteria.
 
-**After:** Main agent reads findings file and implements the fix.
+## Workflows
 
-### project-researcher
-**Use when:** Starting work on a new project, need context on project status/team/decisions, or looking for design specs and documentation.
-
-**Returns:** Structured project overview with status, team, key resources (Notion/Figma/Slack links), recent activity, and open questions.
-
-**After:** Main agent uses findings to inform implementation decisions.
-
-**Note:** Searches Notion as primary source. Figma/Slack searched only if MCP servers are configured.
-
-### test-runner
-**Use when:** Running test suites that produce verbose output.
-
-**Returns:** Brief summary with pass/fail count and failure details only.
-
-**After:** Main agent addresses failures or continues with implementation.
-
-**Note:** Uses Haiku for cost efficiency. Isolates hundreds of lines of test output from main context.
-
-### check-runner
-**Use when:** Running typechecks or linting. Always use alongside test-runner for parallel execution.
-
-**Returns:** Brief summary with error/warning counts and issue details only.
-
-**After:** Main agent addresses issues or continues with implementation.
-
-**Note:** Uses Haiku for cost efficiency. Auto-detects project stack and package manager.
-
-### log-analyzer
-**Use when:** Analyzing application/server logs that would bloat main context.
-
-**Writes to:** `~/.claude/logs/{identifier}.md` — Full analysis preserved outside main context.
-
-**Returns:** Brief summary with file path, error/warning counts, and timeline.
-
-**After:** Main agent reads findings file and addresses issues.
-
-**Note:** Uses Haiku for cost efficiency. Handles JSON, syslog, Apache/Nginx, and plain text formats.
-
-### When to Use Sub-Agents
-
-| Scenario | Use Sub-Agent? |
-|----------|---------------|
-| Write new feature | No - main agent |
-| Write tests | No - main agent |
-| Fix simple bug | No - main agent |
-| Run test suite | Yes - test-runner |
-| Run typecheck/lint | Yes - check-runner |
-| Run tests + checks | Yes - test-runner + check-runner (parallel)* |
-
-*To run in parallel: invoke both agents in the same message using multiple Task tool calls. Both execute simultaneously and return separate summaries.
-| Analyze logs | Yes - log-analyzer |
-| Investigate complex/intermittent bug | Yes - debug-investigator |
-| Explore codebase structure | Yes - built-in Explore agent |
-| Starting work on new project | Yes - project-researcher |
-| Need project context/docs/designs | Yes - project-researcher |
-| Review a PR | No - use `/code-review` skill |
-| Review for bloat/over-engineering | No - use `/minimize` skill |
-
-### Workflows
-
-Note: `[wait]` = show findings, use AskUserQuestion, wait for user before continuing.
+`[wait]` = show findings, AskUserQuestion, wait for user.
 
 **New Feature:**
 ```
-project-researcher (if unfamiliar) → [wait] → /brainstorm (if unclear requirements) → [wait] → /plan-implementation (if substantial) → implementation → test-runner + check-runner (parallel) → fix issues → /pre-pr-verification → PR → /minimize (if PR large)
+project-researcher (if unfamiliar) → [wait] → /brainstorm (if unclear) → [wait] → /plan-implementation (if substantial) → implement → test-runner + check-runner → fix → /pre-pr-verification → PR
 ```
 
 **Bug Fix:**
 ```
-debug-investigator (if complex) → [wait] → log-analyzer (if relevant) → [wait] → implementation → test-runner + check-runner (parallel) → /pre-pr-verification → PR
+debug-investigator (if complex) → [wait] → log-analyzer (if relevant) → [wait] → implement → test-runner + check-runner → /pre-pr-verification → PR
 ```
 
-**PR Review:**
+**Single Task:**
 ```
-/code-review → address feedback → /minimize (optional)
-```
-
-**Project Onboarding:**
-```
-project-researcher → [wait] → /plan-implementation (if substantial) → feature workflow
+Pick up task → /write-tests → test-runner (RED) → implement → test-runner + check-runner (GREEN) → fix → /pre-pr-verification → PR → /address-pr (if comments) → merge
 ```
 
-**Single Task (most common):**
-```
-Pick up task → read requirements → /write-tests (if tests needed) → test-runner (verify RED - must fail) → implement → test-runner + check-runner (verify GREEN) → fix issues → /pre-pr-verification → PR → wait for review → /address-pr (if comments) → merge → next task
-```
-
-### Plan/Task File Updates
-
-After completing ANY task from PLAN.md or TASK*.md:
-1. Update the checkbox: `- [ ]` → `- [x]`
-2. Commit the plan update with the implementation (or immediately after)
-3. Wait for user approval before moving to next task in multi-task implementations
-
-This is easy to forget — make it part of your task completion routine.
-
-### Delegation Transparency
-
-It's fine to skip delegation for small/simple tasks, but always state your reasoning:
-- **If delegating:** "Delegating to debug-investigator because this race condition needs systematic investigation across threading code."
-- **If not delegating:** "Handling directly - simple two-file comparison."
-
-Keep it short - one sentence is enough.
-
-### Invocation Requirements
-
-When delegating to sub-agents, include:
-1. **Scope**: File paths, function names, boundaries
-2. **Context**: Relevant errors, recent changes
-3. **Success criteria**: What "done" looks like
-
-### After Sub-Agent Returns
-
-**Investigation agents** (debug-investigator, project-researcher, log-analyzer) — MUST STOP:
-1. Read/show findings to user
-2. Use AskUserQuestion: "Ready to proceed?" with options:
-   - "Proceed with implementation"
-   - "Modify approach"
-   - "Cancel"
-3. Wait for user selection before taking any action
-
-**Verification agents** (test-runner, check-runner) — continue automatically:
-1. Show summary of results
-2. Address any failures/errors directly
-3. No need to ask — these are routine checks
-
-### Referencing Findings
-
-When discussing which findings to address, reference by `file:line` rather than number:
-- Good: "fix the truncate issue at :68"
-- Avoid: "fix #3"
+**Plan/Task updates:** After completing task, update checkbox `- [ ]` → `- [x]`, commit with implementation, wait for user approval before next task.
 
 ## Skills
 
-- **brainstorm** — Structured context capture before planning. Use before `/plan-implementation` for new features, when requirements are unclear, or when multiple approaches exist.
-- **plan-implementation** — Plan features for agentic implementation. Creates SPEC.md, DESIGN.md, PLAN.md, TASK*.md.
-- **write-tests** — Testing Trophy methodology with RED phase. Use before writing any tests.
-- **code-review** — Review code for quality, bugs, and guideline compliance.
-- **pre-pr-verification** — Run all checks (typecheck, lint, test) before PR creation.
-- **minimize** — Review changes for bloat and unnecessary complexity.
-- **address-pr** — Fetch PR comments and suggest solutions.
-- **autoskill** — Learns from sessions to extract preferences and update skills.
+Details in `~/.claude/skills/*/SKILL.md`. Auto-invocation rules:
 
-### Skill Auto-Invocation Rules
+**MUST invoke:**
+| Trigger | Skill |
+|---------|-------|
+| Writing any test | `/write-tests` |
+| Creating PR | `/pre-pr-verification` |
+| User says "review" | `/code-review` |
 
-**MUST invoke** (non-negotiable):
+**SHOULD invoke:**
+| Trigger | Skill |
+|---------|-------|
+| Unclear requirements | `/brainstorm` |
+| Substantial feature (3+ files) | `/plan-implementation` |
+| PR has comments | `/address-pr` |
+| Large PR (>200 LOC) | `/minimize` |
+| User corrects 2+ times | `/autoskill` |
 
-| Trigger | Skill | Why |
-|---------|-------|-----|
-| About to write any test | `/write-tests` | Ensures Testing Trophy methodology, RED phase |
-| About to create PR | `/pre-pr-verification` | Evidence-based completion |
-| User says "review" or shows code for feedback | `/code-review` | Consistent quality checks |
+**Invoke via Skill tool.** Hook suggestions are reminders, not enforcement.
 
-**SHOULD invoke** (unless clearly inappropriate):
-
-| Trigger | Skill | Why |
-|---------|-------|-----|
-| New feature with unclear requirements | `/brainstorm` | Capture context before planning |
-| Substantial new feature (3+ files) | `/plan-implementation` | Structured approach |
-| PR has reviewer comments | `/address-pr` | Systematic response |
-| PR is large (>200 LOC) | `/minimize` | Catch bloat |
-| User corrects me 2+ times | `/autoskill` | Learn preferences |
-
-**How to invoke:** Use the Skill tool with the skill name. Do not just "follow the skill's guidance" — actually invoke it.
-
-**Note:** The `skill-eval.sh` hook suggests skills based on trigger patterns, but it's a reminder system — not enforcement. Use judgment to determine if the suggestion is appropriate for the current context.
-
-### Autoskill Triggers
-
-Track correction signals during sessions:
-- "No, use X instead of Y"
-- "We always do it this way"
-- "Remember to..." (stated as general rule)
-- Same feedback given 2+ times
-
-When 2+ signals accumulate, ask at a natural breakpoint (task completion, session end): "I noticed some preferences — run /autoskill?"
+**Autoskill triggers:** "No, use X instead", "We always do it this way", same feedback 2+ times → ask about /autoskill at natural breakpoint.
 
 # Development Guidelines
-- Refer to `~/.claude/rules/development.md`
+Refer to `~/.claude/rules/development.md`
