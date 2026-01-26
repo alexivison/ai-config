@@ -75,7 +75,7 @@ debug-investigator (if complex) → [wait] → log-analyzer (if relevant) → [w
 ```
 Pick up task → /write-tests (if needed) → implement → code-critic loop (autonomous, max 3) → test-runner + check-runner + security-scanner → /pre-pr-verification → PR → /address-pr (if comments) → merge
 ```
-Code-critic is MANDATORY for all plan-based tasks. Loop runs without user intervention. Only pause if NEEDS_DISCUSSION or 3 failed iterations.
+**Run autonomously through PR creation.** Don't stop after implementation - continue to verification and PR. Code-critic is MANDATORY. Only pause if NEEDS_DISCUSSION or 3 failed iterations.
 
 **Plan/Task updates:** After completing task, update checkbox `- [ ]` → `- [x]`, commit with implementation, wait for user approval before next task.
 
