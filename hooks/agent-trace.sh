@@ -79,4 +79,9 @@ trace_entry=$(jq -n \
 # Append to trace file
 echo "$trace_entry" >> "$TRACE_FILE"
 
+# Create marker when security-scanner completes (for PR gate)
+if [ "$agent_type" = "security-scanner" ]; then
+  touch "/tmp/claude-security-scanned-$session_id"
+fi
+
 exit 0

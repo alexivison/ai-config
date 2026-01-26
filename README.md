@@ -126,9 +126,12 @@ crontab -e
 
 | Hook | Event | Purpose |
 |------|-------|---------|
-| `skill-eval.sh` | UserPromptSubmit | Detects skill triggers, suggests invocation |
+| `session-cleanup.sh` | SessionStart | Cleans old PR gate markers (>24h) |
+| `skill-eval.sh` | UserPromptSubmit | Detects skill triggers, injects MANDATORY/SHOULD suggestions |
 | `worktree-guard.sh` | PreToolUse (Bash) | Prevents branch switching in shared repos |
-| `agent-trace.sh` | PostToolUse (Task) | Logs sub-agent invocations for observability |
+| `pr-gate.sh` | PreToolUse (Bash) | Blocks `gh pr create` without verification markers |
+| `agent-trace.sh` | PostToolUse (Task) | Logs sub-agent invocations, creates security-scanner marker |
+| `skill-marker.sh` | PostToolUse (Skill) | Creates /pre-pr-verification marker |
 
 ## Ignored (local-only)
 

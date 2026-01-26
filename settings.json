@@ -9,6 +9,16 @@
     "command": "~/.claude/scripts/context-bar.sh"
   },
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/session-cleanup.sh"
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [
@@ -27,6 +37,11 @@
             "type": "command",
             "command": "~/.claude/hooks/worktree-guard.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/pr-gate.sh",
+            "timeout": 5
           }
         ]
       }
@@ -41,6 +56,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/skill-marker.sh",
+            "timeout": 5
+          }
+        ]
       }
     ]
   },
@@ -51,6 +76,10 @@
       "Read(**/.env)",
       "Read(**/.env.*)",
       "Read(**/secrets/**)"
+    ],
+    "ask": [
+      "Bash(gh pr create:*)",
+      "Bash(gh pr merge:*)"
     ],
     "allow": [
       "Skill(*)",
@@ -85,7 +114,7 @@
       "Bash(uniq:*)",
       "Bash(xargs:*)",
       "Bash(xxd:*)",
-      
+
       "WebFetch(domain:*)",
       "WebSearch",
 
