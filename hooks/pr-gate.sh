@@ -18,7 +18,8 @@ if [ -z "$SESSION_ID" ]; then
 fi
 
 # Only check PR creation (not git push - allow pushing during development)
-if echo "$COMMAND" | grep -qE '^gh pr create'; then
+# Note: Don't anchor with ^ since command may be chained (e.g., "cd ... && gh pr create")
+if echo "$COMMAND" | grep -qE 'gh pr create'; then
   VERIFY_MARKER="/tmp/claude-pr-verified-$SESSION_ID"
   SECURITY_MARKER="/tmp/claude-security-scanned-$SESSION_ID"
 
