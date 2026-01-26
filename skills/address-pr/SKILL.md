@@ -57,8 +57,26 @@ Related: See #1 for context.
 - **MOD** — New function, logic change, multiple lines
 - **HARD** — Multiple files, architectural change, needs tests
 
+## Triage Questions
+
+Before fixing a comment, ask:
+
+1. **Is this from our changes?** Check `git diff main` to verify
+2. **Is it a bug or nit?** Bugs (🔴) should be fixed; nits can be skipped
+3. **Does fixing create new issues?** Consider ripple effects
+
+If a reviewer catches a bug we introduced, fix it. If it's pre-existing, ask user.
+
 ## Rules
 
 1. **Read code first** — Never suggest without understanding context
 2. **No changes** — Only present findings until user approves
 3. **Never push** — Always confirm before git operations
+
+## Replying to Comments
+
+After fixing or answering a comment:
+
+1. **Reply in the thread** using `gh api repos/{owner}/{repo}/pulls/{pr}/comments/{id}/replies -f body="..."`
+2. **Don't post to main PR discussion** — keep responses in context
+3. **Reference the fix** — mention commit or code change made
