@@ -77,6 +77,8 @@ If a reviewer catches a bug we introduced, fix it. If it's pre-existing, ask use
 
 After fixing or answering a comment:
 
-1. **Reply in the thread** using `gh api repos/{owner}/{repo}/pulls/{pr}/comments/{id}/replies -f body="..."`
-2. **Don't post to main PR discussion** — keep responses in context
+1. **Reply in the comment thread** — Never post to the main PR discussion
+2. **Mention the commenter** — Start reply with `@{username}` (e.g., `@claude`)
 3. **Reference the fix** — mention commit or code change made
+
+Use `gh api` with `in_reply_to` parameter to reply in threads.
