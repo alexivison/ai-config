@@ -57,7 +57,7 @@ ln -sf ~/dotfiles/claude/* ~/.claude/
 
 ## Workflow
 
-See `CLAUDE.md` for workflow definitions (single source of truth).
+See `CLAUDE.md` for workflow definitions.
 
 Key principles:
 - **Evidence before claims** — never state "tests pass" without running them

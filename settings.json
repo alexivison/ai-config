@@ -78,8 +78,8 @@
       "Read(**/secrets/**)"
     ],
     "ask": [
-      "Bash(gh pr create:*)",
-      "Bash(gh pr merge:*)"
+      "Bash(gh pr merge:*)",
+      "Bash(gh pr close:*)"
     ],
     "allow": [
       "Skill(*)",
