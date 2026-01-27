@@ -77,8 +77,8 @@ If a reviewer catches a bug we introduced, fix it. If it's pre-existing, ask use
 
 After fixing or answering a comment:
 
-1. **Reply in the comment thread** — Never post to the main PR discussion
-2. **Mention the commenter** — Start reply with `@{username}` (e.g., `@claude`)
-3. **Reference the fix** — mention commit or code change made
+1. **Reply in the comment thread** — NEVER post to the main PR discussion
+2. **Mention the commenter** — ALWAYS start reply with `@{username}` (e.g., `@claude[bot]`)
+3. **Reference the fix** — Mention commit hash or describe change made
 
-Use `gh api` with `in_reply_to` parameter to reply in threads.
+See `reference/reply-command.md` for the exact `gh api` command template.
