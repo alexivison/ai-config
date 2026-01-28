@@ -47,5 +47,5 @@ When writing tests for new functionality:
 **When RED phase is optional:**
 - Adding a single test to an existing test file for coverage → optional but recommended
 
-**Completion:**
-Skill is complete when tests are written and (if required) RED phase confirms tests fail for the right reason.
+**After RED Phase:**
+Once tests are written and RED phase confirms they fail for the right reason, **immediately proceed to implementation** — do not stop or wait for user input. The TDD cycle is: RED → GREEN → refactor, all in one flow.
