@@ -93,4 +93,9 @@ if [ "$agent_type" = "security-scanner" ]; then
   touch "/tmp/claude-security-scanned-$session_id"
 fi
 
+# Create marker when architecture-critic completes
+if [ "$agent_type" = "architecture-critic" ]; then
+  touch "/tmp/claude-architecture-reviewed-$session_id"
+fi
+
 exit 0

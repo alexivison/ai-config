@@ -10,7 +10,7 @@
 When executing TASK*.md, **do NOT stop between these steps**:
 
 ```
-/write-tests → implement → checkboxes → code-critic → verification → commit → PR
+/write-tests → implement → checkboxes → code-critic → architecture-critic → verification → commit → PR
 ```
 
 **DO NOT:**
@@ -21,7 +21,7 @@ When executing TASK*.md, **do NOT stop between these steps**:
 
 **ONLY pause for:**
 - Investigation agent findings (debug-investigator, log-analyzer)
-- NEEDS_DISCUSSION verdict from code-critic
+- NEEDS_DISCUSSION verdict from code-critic or architecture-critic
 - 3 failed code-critic iterations
 - Explicit blocker requiring user decision
 
@@ -73,6 +73,7 @@ Details in `~/.claude/agents/README.md`. Key behavior rules:
 | Complex bug investigation | debug-investigator |
 | Explore codebase | built-in Explore agent |
 | After implementing plan task | code-critic (MANDATORY) |
+| After code-critic passes | architecture-critic |
 
 *Parallel: invoke both in same message using multiple Task tool calls.
 
@@ -80,6 +81,7 @@ Details in `~/.claude/agents/README.md`. Key behavior rules:
 - **Investigation agents** (debug-investigator, log-analyzer): MUST show findings, use AskUserQuestion "Ready to proceed?", wait for user
 - **Verification agents** (test-runner, check-runner, security-scanner): Show summary, address failures directly, no need to ask
 - **Iterative agents** (code-critic): Loop autonomously until APPROVED (max 3 iterations). Only ask user if NEEDS_DISCUSSION or 3 failures.
+- **Advisory agents** (architecture-critic): On REQUEST_CHANGES, create follow-up refactor task, then proceed. PR is not blocked. Only ask user if NEEDS_DISCUSSION.
 
 **Invocation:** Include scope (files), context (errors), success criteria.
 
@@ -91,17 +93,17 @@ Details in `~/.claude/agents/README.md`. Key behavior rules:
 
 **New Feature:**
 ```
-/brainstorm (if unclear) → [wait] → /plan-implementation (if substantial) → create worktree → /write-tests (if needed) → implement → code-critic → test-runner + check-runner + security-scanner → /pre-pr-verification → PR
+/brainstorm (if unclear) → [wait] → /plan-implementation (if substantial) → create worktree → /write-tests (if needed) → implement → code-critic → architecture-critic → test-runner + check-runner + security-scanner → /pre-pr-verification → PR
 ```
 
 **Bug Fix:**
 ```
-debug-investigator (if complex) → [wait] → log-analyzer (if relevant) → [wait] → create worktree → /write-tests (regression test) → implement fix → code-critic → test-runner + check-runner + security-scanner → /pre-pr-verification → PR
+debug-investigator (if complex) → [wait] → log-analyzer (if relevant) → [wait] → create worktree → /write-tests (regression test) → implement fix → code-critic → architecture-critic → test-runner + check-runner + security-scanner → /pre-pr-verification → PR
 ```
 
 **Single Task (from plan/TASK*.md):**
 ```
-Pick up task → STOP: PRE-IMPLEMENTATION GATE → create worktree → /write-tests (if needed) → implement → update checkboxes (TASK*.md + PLAN.md) → code-critic → test-runner + check-runner + security-scanner → /pre-pr-verification → commit → PR
+Pick up task → STOP: PRE-IMPLEMENTATION GATE → create worktree → /write-tests (if needed) → implement → update checkboxes (TASK*.md + PLAN.md) → code-critic → architecture-critic → test-runner + check-runner + security-scanner → /pre-pr-verification → commit → PR
 ```
 
 ## Pre-Implementation Gate
@@ -132,6 +134,7 @@ Details in `~/.claude/skills/*/SKILL.md`. Auto-invocation rules:
 | Trigger | Agent |
 |---------|-------|
 | After implementing TASK*.md | code-critic |
+| After code-critic APPROVE | architecture-critic |
 
 **SHOULD invoke:**
 | Trigger | Skill |

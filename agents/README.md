@@ -53,3 +53,19 @@ Sub-agents preserve context by offloading investigation/verification tasks.
 **Escalates to user:** Only on NEEDS_DISCUSSION or after 3 failed iterations.
 
 **Note:** Uses Sonnet. Preloads `/code-review` skill. Include iteration number and previous feedback when re-invoking.
+
+## architecture-critic
+**Use when:** After code-critic passes, before tests.
+
+**Pattern:** Quick metrics scan first → deep analysis only when thresholds exceeded.
+
+**Returns:** Verdict (SKIP | APPROVE | REQUEST_CHANGES | NEEDS_DISCUSSION) with architectural analysis.
+
+**On REQUEST_CHANGES:** Main agent creates follow-up refactor task, PR proceeds (advisory, not blocking).
+
+**Escalates to user:** Only on NEEDS_DISCUSSION.
+
+**Note:** Uses Opus. Reference guidelines split by type:
+- `reference/architecture-guidelines-common.md` (always loaded)
+- `reference/architecture-guidelines-frontend.md` (React/TypeScript)
+- `reference/architecture-guidelines-backend.md` (Go/Python/Node.js)
