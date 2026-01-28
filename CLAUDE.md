@@ -159,7 +159,7 @@ Details in `~/.claude/skills/*/SKILL.md`. Auto-invocation rules:
 **Hook enforcement:**
 - `skill-eval.sh` (UserPromptSubmit) detects triggers and suggests MUST/SHOULD skills — these are reminders
 - `skill-marker.sh` (PostToolUse) creates `/tmp/claude-skill-{name}-{session}` markers when skills complete
-- `pr-gate.sh` (PreToolUse) blocks `gh pr create` unless `/pre-pr-verification` marker exists — this is hard enforcement
+- `pr-gate.sh` (PreToolUse) blocks `gh pr create` unless both `/pre-pr-verification` and `security-scanner` markers exist — this is hard enforcement
 
 **Autoskill triggers:** "No, use X instead", "We always do it this way", same feedback 2+ times → ask about /autoskill at natural breakpoint.
 
