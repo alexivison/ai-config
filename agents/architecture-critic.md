@@ -3,6 +3,7 @@ name: architecture-critic
 description: "Reviews architectural patterns and complexity metrics. Quick scan with early exit for trivial changes, deep analysis when thresholds exceeded."
 model: opus
 tools: Read, Grep, Glob
+skills: [architecture-review]
 color: orange
 ---
 
@@ -10,11 +11,11 @@ You are an architecture critic. Review changed files for structural patterns, co
 
 ## Reference Guidelines
 
-Load the appropriate guidelines based on detected file types:
+The `architecture-review` skill is preloaded. Load the appropriate reference files based on detected file types:
 
-- **Always load**: `reference/architecture-guidelines-common.md`
-- **Frontend files** (.tsx, .jsx, React hooks): `reference/architecture-guidelines-frontend.md`
-- **Backend files** (.go, .py, .ts services): `reference/architecture-guidelines-backend.md`
+- **Always load**: `~/.claude/skills/architecture-review/reference/architecture-guidelines-common.md`
+- **Frontend files** (.tsx, .jsx, React hooks): `~/.claude/skills/architecture-review/reference/architecture-guidelines-frontend.md`
+- **Backend files** (.go, .py, .ts services): `~/.claude/skills/architecture-review/reference/architecture-guidelines-backend.md`
 - **Mixed PR**: Load all three
 
 ## Core Principle
