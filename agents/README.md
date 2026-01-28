@@ -61,11 +61,11 @@ Sub-agents preserve context by offloading investigation/verification tasks.
 
 **Returns:** Verdict (SKIP | APPROVE | REQUEST_CHANGES | NEEDS_DISCUSSION) with architectural analysis.
 
-**On REQUEST_CHANGES:** Main agent creates follow-up refactor task, PR proceeds (advisory, not blocking).
+**On REQUEST_CHANGES:** Main agent asks user about creating follow-up refactor task, PR proceeds (advisory, not blocking).
 
 **Escalates to user:** Only on NEEDS_DISCUSSION.
 
-**Note:** Uses Opus. Reference guidelines split by type:
-- `reference/architecture-guidelines-common.md` (always loaded)
-- `reference/architecture-guidelines-frontend.md` (React/TypeScript)
-- `reference/architecture-guidelines-backend.md` (Go/Python/Node.js)
+**Note:** Uses Opus. Preloads `architecture-review` skill. Guidelines at `~/.claude/skills/architecture-review/reference/`:
+- `architecture-guidelines-common.md` (always loaded)
+- `architecture-guidelines-frontend.md` (React/TypeScript)
+- `architecture-guidelines-backend.md` (Go/Python/Node.js)
