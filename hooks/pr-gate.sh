@@ -1,8 +1,11 @@
 #!/bin/bash
-# PR Gate Hook - Enforces verification before PR creation
-# Blocks `gh pr create` unless both markers exist:
+# PR Gate Hook - Enforces workflow completion before PR creation
+# Blocks `gh pr create` unless ALL required markers exist:
 #   - /tmp/claude-pr-verified-{session_id} (from /pre-pr-verification)
 #   - /tmp/claude-security-scanned-{session_id} (from security-scanner)
+#   - /tmp/claude-code-critic-{session_id} (from code-critic APPROVE)
+#   - /tmp/claude-tests-passed-{session_id} (from test-runner PASS)
+#   - /tmp/claude-checks-passed-{session_id} (from check-runner PASS)
 #
 # Triggered: PreToolUse on Bash tool
 # Fails open on errors (allows operation if hook can't determine state)
@@ -20,19 +23,26 @@ fi
 # Only check PR creation (not git push - allow pushing during development)
 # Note: Don't anchor with ^ since command may be chained (e.g., "cd ... && gh pr create")
 if echo "$COMMAND" | grep -qE 'gh pr create'; then
+  # Required markers for PR creation
   VERIFY_MARKER="/tmp/claude-pr-verified-$SESSION_ID"
   SECURITY_MARKER="/tmp/claude-security-scanned-$SESSION_ID"
+  CODE_CRITIC_MARKER="/tmp/claude-code-critic-$SESSION_ID"
+  TESTS_MARKER="/tmp/claude-tests-passed-$SESSION_ID"
+  CHECKS_MARKER="/tmp/claude-checks-passed-$SESSION_ID"
 
   MISSING=""
   [ ! -f "$VERIFY_MARKER" ] && MISSING="$MISSING /pre-pr-verification"
   [ ! -f "$SECURITY_MARKER" ] && MISSING="$MISSING security-scanner"
+  [ ! -f "$CODE_CRITIC_MARKER" ] && MISSING="$MISSING code-critic"
+  [ ! -f "$TESTS_MARKER" ] && MISSING="$MISSING test-runner"
+  [ ! -f "$CHECKS_MARKER" ] && MISSING="$MISSING check-runner"
 
   if [ -n "$MISSING" ]; then
     cat << EOF
 {
   "hookSpecificOutput": {
     "permissionDecision": "deny",
-    "permissionDecisionReason": "BLOCKED: PR gate requirements not met. Missing:$MISSING. Run these before creating PR."
+    "permissionDecisionReason": "BLOCKED: PR gate requirements not met. Missing:$MISSING. Complete all workflow steps before creating PR."
   }
 }
 EOF

@@ -89,14 +89,34 @@ trace_entry=$(jq -n \
 # Append to trace file
 echo "$trace_entry" >> "$TRACE_FILE"
 
-# Create marker when security-scanner completes (for PR gate)
+# Create markers for PR gate enforcement
+# Each marker proves a workflow step was completed
+
+# security-scanner: any completion creates marker
 if [ "$agent_type" = "security-scanner" ]; then
   touch "/tmp/claude-security-scanned-$session_id"
 fi
 
-# Create marker when architecture-critic completes
+# architecture-critic: any verdict creates marker (review happened)
 if [ "$agent_type" = "architecture-critic" ]; then
   touch "/tmp/claude-architecture-reviewed-$session_id"
+fi
+
+# code-critic: only APPROVE creates marker (must pass before PR)
+if [ "$agent_type" = "code-critic" ] && [ "$verdict" = "APPROVED" ]; then
+  touch "/tmp/claude-code-critic-$session_id"
+fi
+
+# test-runner: only PASS creates marker
+if [ "$agent_type" = "test-runner" ] && [ "$verdict" = "PASS" ]; then
+  touch "/tmp/claude-tests-passed-$session_id"
+fi
+
+# check-runner: only PASS or CLEAN creates marker
+if [ "$agent_type" = "check-runner" ]; then
+  if [ "$verdict" = "PASS" ] || [ "$verdict" = "CLEAN" ]; then
+    touch "/tmp/claude-checks-passed-$session_id"
+  fi
 fi
 
 exit 0

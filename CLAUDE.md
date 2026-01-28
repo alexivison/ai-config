@@ -7,61 +7,46 @@
 
 ## Autonomous Flow (CRITICAL)
 
-When executing TASK*.md, **do NOT stop between these steps**:
-
+**Do NOT stop between steps when executing TASK*.md:**
 ```
 /write-tests → implement → checkboxes → code-critic → architecture-critic → verification → commit → PR
 ```
 
-**DO NOT:**
-- Stop after RED phase — implement immediately in the same response
-- Stop after GREEN phase — continue to checkboxes and critics in the same response
-- Stop after "Verification complete" — create commit and PR in the same response
-- Output "Ready to..." or "Now I'll..." then end your turn — just do it
-- Ask "Should I continue?" or "Should I create the PR?" mid-workflow
+**Only pause for:** Investigation findings, NEEDS_DISCUSSION verdict, 3 strikes, HIGH/CRITICAL security issues.
 
-**ONLY pause for:**
-- Investigation agent findings (debug-investigator, log-analyzer)
-- NEEDS_DISCUSSION verdict from code-critic or architecture-critic
-- 3 failed code-critic iterations
-- Explicit blocker requiring user decision
+**Enforcement:** PR gate blocks `gh pr create` until all markers exist. See `~/.claude/rules/autonomous-flow.md` for decision matrix.
 
-**Examples of violations:**
+## Pre-Implementation Gate
+
+**STOP. Before writing ANY code for a TASK*.md:**
+
+1. **Create worktree first** — `git worktree add ../repo-branch-name -b branch-name`
+2. **Does task require tests?** → invoke `/write-tests` FIRST
+3. **Requirements unclear?** → `/brainstorm` or ask user
+4. **Will this bloat into a large PR?** → Split into smaller tasks before proceeding
+
+Skip this gate = workflow violation. State which items were checked before proceeding.
+
+After passing this gate, follow **Autonomous Flow** rules — no stopping until PR is created.
+
+## Workflows
+
+`[wait]` = show findings, AskUserQuestion, wait for user.
+
+**New Feature:**
 ```
-❌ "RED phase verified. Tests fail for the right reason."  [ends turn]
-✓  "RED phase verified. Tests fail for the right reason. Implementing now..." [continues]
-
-❌ "All tests pass. GREEN phase complete."  [ends turn]
-✓  "All tests pass. Updating checkboxes and running code-critic..." [continues]
-
-❌ "All checks pass. Ready to create PR."  [ends turn]
-✓  "All checks pass. Creating PR..." [continues with git add, commit, push, gh pr create]
+/brainstorm (if unclear) → [wait] → /plan-implementation (if substantial) → create worktree → /write-tests (if needed) → implement → code-critic → architecture-critic → test-runner + check-runner + security-scanner → /pre-pr-verification → PR
 ```
 
-## Verification Rules
+**Bug Fix:**
+```
+debug-investigator (if complex) → [wait] → log-analyzer (if relevant) → [wait] → create worktree → /write-tests (regression test) → implement fix → code-critic → architecture-critic → test-runner + check-runner + security-scanner → /pre-pr-verification → PR
+```
 
-Evidence before claims. Never state success without fresh proof.
-
-| Claim | Required Evidence |
-|-------|-------------------|
-| "Tests pass" | Run test suite, show zero failures |
-| "Lint clean" | Run linter, show zero errors |
-| "Build succeeds" | Run build, show exit 0 |
-| "Bug fixed" | Reproduce original symptom, show it passes |
-| "Ready for PR" | Run /pre-pr-verification, show all checks pass |
-
-**Red flags:** Tentative language ("should work"), planning commit/PR without checks, relying on previous runs.
-**Action:** STOP. Re-run checks immediately.
-
-**3 Strikes Rule:** After 3 failed fix attempts, stop. Document what was tried, ask user before continuing.
-
-## PR Creation Gate
-
-**STOP. Before `gh pr create`, verify:**
-- [ ] `/pre-pr-verification` invoked THIS session (hook suggestions don't count)
-- [ ] All checks passed with evidence
-- [ ] security-scanner shows no CRITICAL/HIGH issues (or user approved exceptions)
-- [ ] Verification summary in PR description
+**Single Task (from plan/TASK*.md):**
+```
+Pick up task → STOP: PRE-IMPLEMENTATION GATE → create worktree → /write-tests (if needed) → implement → update checkboxes (TASK*.md + PLAN.md) → code-critic → architecture-critic → test-runner + check-runner + security-scanner → /pre-pr-verification → commit → PR
+```
 
 ## Sub-Agents
 
@@ -96,37 +81,32 @@ Details in `~/.claude/agents/README.md`. Key behavior rules:
 
 **Delegation transparency:** State reason in one sentence ("Delegating to debug-investigator because..." or "Handling directly — simple fix").
 
-## Workflows
+## Verification Rules
 
-`[wait]` = show findings, AskUserQuestion, wait for user.
+Evidence before claims. Never state success without fresh proof.
 
-**New Feature:**
-```
-/brainstorm (if unclear) → [wait] → /plan-implementation (if substantial) → create worktree → /write-tests (if needed) → implement → code-critic → architecture-critic → test-runner + check-runner + security-scanner → /pre-pr-verification → PR
-```
+| Claim | Required Evidence |
+|-------|-------------------|
+| "Tests pass" | Run test suite, show zero failures |
+| "Lint clean" | Run linter, show zero errors |
+| "Build succeeds" | Run build, show exit 0 |
+| "Bug fixed" | Reproduce original symptom, show it passes |
+| "Ready for PR" | Run /pre-pr-verification, show all checks pass |
 
-**Bug Fix:**
-```
-debug-investigator (if complex) → [wait] → log-analyzer (if relevant) → [wait] → create worktree → /write-tests (regression test) → implement fix → code-critic → architecture-critic → test-runner + check-runner + security-scanner → /pre-pr-verification → PR
-```
+**Red flags:** Tentative language ("should work"), planning commit/PR without checks, relying on previous runs.
+**Action:** STOP. Re-run checks immediately.
 
-**Single Task (from plan/TASK*.md):**
-```
-Pick up task → STOP: PRE-IMPLEMENTATION GATE → create worktree → /write-tests (if needed) → implement → update checkboxes (TASK*.md + PLAN.md) → code-critic → architecture-critic → test-runner + check-runner + security-scanner → /pre-pr-verification → commit → PR
-```
+**3 Strikes Rule:** After 3 failed fix attempts, stop. Document what was tried, ask user before continuing.
 
-## Pre-Implementation Gate
+## PR Creation Gate
 
-**STOP. Before writing ANY code for a TASK*.md:**
+**STOP. Before `gh pr create`, verify:**
+- [ ] `/pre-pr-verification` invoked THIS session (hook suggestions don't count)
+- [ ] All checks passed with evidence
+- [ ] security-scanner shows no CRITICAL/HIGH issues (or user approved exceptions)
+- [ ] Verification summary in PR description
 
-1. **Create worktree first** — `git worktree add ../repo-branch-name -b branch-name`
-2. **Does task require tests?** → invoke `/write-tests` FIRST
-3. **Requirements unclear?** → `/brainstorm` or ask user
-4. **Will this bloat into a large PR?** → If task scope seems too broad (many unrelated changes, multiple features), split into smaller tasks before proceeding
-
-Skip this gate = workflow violation. State which items were checked before proceeding.
-
-After passing this gate, follow **Autonomous Flow** rules above — no stopping until PR is created.
+**Hook enforcement:** PR gate requires 5 markers (see `~/.claude/rules/autonomous-flow.md`). Missing markers → blocked.
 
 ## Skills
 
@@ -159,7 +139,7 @@ Details in `~/.claude/skills/*/SKILL.md`. Auto-invocation rules:
 **Hook enforcement:**
 - `skill-eval.sh` (UserPromptSubmit) detects triggers and suggests MUST/SHOULD skills — these are reminders
 - `skill-marker.sh` (PostToolUse) creates `/tmp/claude-skill-{name}-{session}` markers when skills complete
-- `pr-gate.sh` (PreToolUse) blocks `gh pr create` unless both `/pre-pr-verification` and `security-scanner` markers exist — this is hard enforcement
+- `pr-gate.sh` (PreToolUse) blocks `gh pr create` unless all workflow markers exist — this is hard enforcement
 
 **Autoskill triggers:** "No, use X instead", "We always do it this way", same feedback 2+ times → ask about /autoskill at natural breakpoint.
 
