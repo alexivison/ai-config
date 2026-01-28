@@ -295,4 +295,4 @@ if err != nil {
 - Consider the file's purpose when analyzing (a complex state machine hook may be intentional)
 - Provide specific, actionable recommendations with checkboxes
 - Reference the specific patterns/smells you're detecting
-- On REQUEST_CHANGES, the main agent will create a follow-up refactor task (PR proceeds)
+- On REQUEST_CHANGES, the main agent will ask user if they want a follow-up refactor task (PR proceeds regardless)

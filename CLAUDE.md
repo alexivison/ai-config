@@ -81,7 +81,7 @@ Details in `~/.claude/agents/README.md`. Key behavior rules:
 - **Investigation agents** (debug-investigator, log-analyzer): MUST show findings, use AskUserQuestion "Ready to proceed?", wait for user
 - **Verification agents** (test-runner, check-runner, security-scanner): Show summary, address failures directly, no need to ask
 - **Iterative agents** (code-critic): Loop autonomously until APPROVED (max 3 iterations). Only ask user if NEEDS_DISCUSSION or 3 failures.
-- **Advisory agents** (architecture-critic): On REQUEST_CHANGES, create follow-up refactor task, then proceed. PR is not blocked. Only ask user if NEEDS_DISCUSSION.
+- **Advisory agents** (architecture-critic): On REQUEST_CHANGES, ask user if they want to create a follow-up refactor task, then proceed. PR is not blocked. Only ask user if NEEDS_DISCUSSION.
 
 **Invocation:** Include scope (files), context (errors), success criteria.
 
