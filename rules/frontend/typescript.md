@@ -1,3 +1,7 @@
+---
+paths: ["**/*.ts", "**/*.tsx"]
+---
+
 # TypeScript Rules
 
 - Prefer `type` over `interface` for type definitions

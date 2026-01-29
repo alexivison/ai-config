@@ -1,3 +1,7 @@
+---
+paths: ["**/*.go"]
+---
+
 # Go Rules
 
 ## Error Handling

@@ -1,3 +1,7 @@
+---
+paths: ["**/*.py"]
+---
+
 # Python Rules
 
 ## Type Hints
