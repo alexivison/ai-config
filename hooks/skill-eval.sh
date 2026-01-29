@@ -29,7 +29,8 @@ elif echo "$PROMPT_LOWER" | grep -qE '\bwrite (a |the )?tests?\b|\badd (a |the )
   PRIORITY="must"
 
 # bugfix-workflow: Bug/error keywords (medium specificity)
-elif echo "$PROMPT_LOWER" | grep -qE '\bbug\b|\bfix(es|ed|ing)?\b|\bbroken\b|\berror\b|\bnot work|\bdebug\b|\bissue\b.*\b(with|in)\b|\bcrash|\bfail(s|ed|ing)?'; then
+# Note: "fix" alone is too broad (catches "fix typo"). Require bug-related context.
+elif echo "$PROMPT_LOWER" | grep -qE '\bbug\b|\bbroken\b|\berror\b|\bnot work|\bdebug\b|\bcrash|\bfail(s|ed|ing|ure)?\b|\bfix(es|ed|ing)?\b.*(bug|error|issue|broken|crash|fail)|\b(bug|error|issue|broken|crash).*(fix|fixes|fixed|fixing)\b'; then
   SUGGESTION="MANDATORY: Invoke bugfix-workflow skill for debugging workflow."
   PRIORITY="must"
 

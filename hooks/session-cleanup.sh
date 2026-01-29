@@ -8,5 +8,8 @@ find /tmp -name "claude-pr-verified-*" -mtime +1 -delete 2>/dev/null
 find /tmp -name "claude-security-scanned-*" -mtime +1 -delete 2>/dev/null
 find /tmp -name "claude-architecture-reviewed-*" -mtime +1 -delete 2>/dev/null
 find /tmp -name "claude-skill-*" -mtime +1 -delete 2>/dev/null
+find /tmp -name "claude-code-critic-*" -mtime +1 -delete 2>/dev/null
+find /tmp -name "claude-tests-passed-*" -mtime +1 -delete 2>/dev/null
+find /tmp -name "claude-checks-passed-*" -mtime +1 -delete 2>/dev/null
 
 echo '{}'
