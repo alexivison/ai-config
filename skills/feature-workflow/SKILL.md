@@ -32,13 +32,16 @@ Execute continuously — **no stopping until PR is created**.
 
 ### Step-by-Step
 
-1. **Tests** — If feature needs tests, invoke `/write-tests` first (RED phase)
-2. **Implement** — Write the code to make tests pass (GREEN phase)
-3. **code-critic** — MANDATORY after implementing. Fix issues until APPROVE
-4. **architecture-critic** — Run after code-critic passes
-5. **Verification** — Run test-runner + check-runner + security-scanner (parallel)
-6. **PR Verification** — Invoke `/pre-pr-verification`
-7. **Commit & PR** — Create commit and draft PR
+1. **Tests** — If feature needs tests, invoke `/write-tests` first (RED phase via test-runner)
+2. **Implement** — Write the code to make tests pass
+3. **GREEN phase** — Run test-runner agent to verify tests pass
+4. **code-critic** — MANDATORY after implementing. Fix issues until APPROVE
+5. **architecture-critic** — Run after code-critic passes
+6. **Verification** — Run test-runner + check-runner + security-scanner (parallel)
+7. **PR Verification** — Invoke `/pre-pr-verification`
+8. **Commit & PR** — Create commit and draft PR
+
+**Important:** Always use test-runner agent for running tests, check-runner for lint/typecheck. This preserves context by isolating verbose output.
 
 ## When to Use This Workflow
 

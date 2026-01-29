@@ -29,14 +29,17 @@ After passing the gate, execute continuously — **no stopping until PR is creat
 
 ### Step-by-Step
 
-1. **Tests** — If task needs tests, invoke `/write-tests` first (RED phase)
-2. **Implement** — Write the code to make tests pass (GREEN phase)
-3. **Checkboxes** — Update both TASK*.md and PLAN.md: `- [ ]` → `- [x]`
-4. **code-critic** — MANDATORY after implementing. Fix issues until APPROVE
-5. **architecture-critic** — Run after code-critic passes
-6. **Verification** — Run test-runner + check-runner + security-scanner (parallel)
-7. **PR Verification** — Invoke `/pre-pr-verification`
-8. **Commit & PR** — Create commit and draft PR
+1. **Tests** — If task needs tests, invoke `/write-tests` first (RED phase via test-runner)
+2. **Implement** — Write the code to make tests pass
+3. **GREEN phase** — Run test-runner agent to verify tests pass
+4. **Checkboxes** — Update both TASK*.md and PLAN.md: `- [ ]` → `- [x]`
+5. **code-critic** — MANDATORY after implementing. Fix issues until APPROVE
+6. **architecture-critic** — Run after code-critic passes
+7. **Verification** — Run test-runner + check-runner + security-scanner (parallel)
+8. **PR Verification** — Invoke `/pre-pr-verification`
+9. **Commit & PR** — Create commit and draft PR
+
+**Important:** Always use test-runner agent for running tests, check-runner for lint/typecheck. This preserves context by isolating verbose output.
 
 ## Checkpoint Updates
 

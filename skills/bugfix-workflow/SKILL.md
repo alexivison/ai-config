@@ -34,21 +34,24 @@ Execute continuously — **no stopping until PR is created**.
 
 ### Step-by-Step
 
-1. **Regression Test** — Invoke `/write-tests` to write a test that reproduces the bug (RED phase)
-2. **Implement Fix** — Fix the bug to make the test pass (GREEN phase)
-3. **code-critic** — MANDATORY after implementing. Fix issues until APPROVE
-4. **architecture-critic** — Run after code-critic passes
-5. **Verification** — Run test-runner + check-runner + security-scanner (parallel)
-6. **PR Verification** — Invoke `/pre-pr-verification`
-7. **Commit & PR** — Create commit and draft PR
+1. **Regression Test** — Invoke `/write-tests` to write a test that reproduces the bug (RED phase via test-runner)
+2. **Implement Fix** — Fix the bug to make the test pass
+3. **GREEN phase** — Run test-runner agent to verify tests pass
+4. **code-critic** — MANDATORY after implementing. Fix issues until APPROVE
+5. **architecture-critic** — Run after code-critic passes
+6. **Verification** — Run test-runner + check-runner + security-scanner (parallel)
+7. **PR Verification** — Invoke `/pre-pr-verification`
+8. **Commit & PR** — Create commit and draft PR
+
+**Important:** Always use test-runner agent for running tests, check-runner for lint/typecheck. This preserves context by isolating verbose output.
 
 ## Regression Test First
 
 For bug fixes, ALWAYS write a regression test first:
 1. Write a test that reproduces the bug
-2. Run it — it should FAIL (RED)
+2. Run via test-runner — it should FAIL (RED)
 3. Fix the bug
-4. Run test again — it should PASS (GREEN)
+4. Run test-runner again — it should PASS (GREEN)
 
 This ensures the bug is actually fixed and won't regress.
 
