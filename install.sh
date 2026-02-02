@@ -5,6 +5,30 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SYMLINKS_ONLY=false
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --symlinks-only)
+            SYMLINKS_ONLY=true
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: ./install.sh [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --symlinks-only  Only create config symlinks, skip CLI installation"
+            echo "  -h, --help       Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Run './install.sh --help' for usage"
+            exit 1
+            ;;
+    esac
+done
 
 echo "ai-config installer"
 echo "==================="
@@ -100,6 +124,10 @@ setup_claude() {
 
     create_symlink "claude" || return
 
+    if [[ "$SYMLINKS_ONLY" == true ]]; then
+        return
+    fi
+
     if ! command -v claude &> /dev/null; then
         prompt_install "claude" \
             "curl -fsSL https://cli.anthropic.com/install.sh | sh" \
@@ -121,6 +149,10 @@ setup_gemini() {
     echo "━━━ gemini ━━━"
 
     create_symlink "gemini" || return
+
+    if [[ "$SYMLINKS_ONLY" == true ]]; then
+        return
+    fi
 
     if ! command -v gemini &> /dev/null; then
         if command -v npm &> /dev/null; then
@@ -149,6 +181,10 @@ setup_codex() {
 
     create_symlink "codex" || return
 
+    if [[ "$SYMLINKS_ONLY" == true ]]; then
+        return
+    fi
+
     if ! command -v codex &> /dev/null; then
         if command -v brew &> /dev/null; then
             prompt_install "codex" \
@@ -170,10 +206,17 @@ setup_codex() {
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # MAIN
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-echo "This installer will:"
-echo "  1. Create config symlinks"
-echo "  2. Install CLI tools (optional)"
-echo "  3. Set up authentication (optional)"
+if [[ "$SYMLINKS_ONLY" == true ]]; then
+    echo "This installer will:"
+    echo "  1. Create config symlinks"
+    echo ""
+    echo "(CLI installation skipped with --symlinks-only)"
+else
+    echo "This installer will:"
+    echo "  1. Create config symlinks"
+    echo "  2. Install CLI tools (optional)"
+    echo "  3. Set up authentication (optional)"
+fi
 echo ""
 read -p "Continue? [Y/n] " -n 1 -r
 echo
