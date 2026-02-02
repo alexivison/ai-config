@@ -35,7 +35,7 @@ State which items were checked before proceeding.
 Execute continuously — **no stopping until PR is created**.
 
 ```
-/write-tests (regression) → implement fix → cli-orchestrator (review) → cli-orchestrator (arch) → verification → PR
+/write-tests (regression) → implement fix → GREEN → /pre-pr-verification → commit → PR
 ```
 
 ### Step-by-Step
@@ -43,11 +43,10 @@ Execute continuously — **no stopping until PR is created**.
 1. **Regression Test** — Invoke `/write-tests` to write a test that reproduces the bug (RED phase via test-runner)
 2. **Implement Fix** — Fix the bug to make the test pass
 3. **GREEN phase** — Run test-runner agent to verify tests pass
-4. **cli-orchestrator (review)** — MANDATORY after implementing. Prompt: "Review the uncommitted changes. Context: {bug fix description}". Fix issues until APPROVE
-5. **cli-orchestrator (arch)** — Run after review passes. Prompt: "Architecture review of changed files. Context: {bug fix description}"
-6. **Verification** — Run test-runner + check-runner + security-scanner (parallel)
-7. **PR Verification** — Invoke `/pre-pr-verification`
-8. **Commit & PR** — Create commit and draft PR
+4. **PR Verification** — Invoke `/pre-pr-verification` (runs reviews + all checks)
+5. **Commit & PR** — Create commit and draft PR
+
+**Note:** Code review and architecture review are now part of `/pre-pr-verification`, not separate steps.
 
 **Important:** Always use test-runner agent for running tests, check-runner for lint/typecheck. This preserves context by isolating verbose output.
 

@@ -5,32 +5,29 @@ Shared execution sequence for all workflow skills. This is loaded on-demand by w
 ## Core Sequence
 
 ```
-/write-tests → implement → checkboxes → cli-orchestrator (review) → cli-orchestrator (arch) → verification → commit → PR
+/write-tests → implement → GREEN → checkboxes → /pre-pr-verification → commit → PR
 ```
+
+**Note:** Code review and architecture review are now part of `/pre-pr-verification`, not separate steps.
 
 ## Decision Matrix
 
 | Step | Outcome | Next Action | Pause? |
 |------|---------|-------------|--------|
 | /write-tests | Tests written (RED) | Implement code | NO |
-| Implement | Code written | Update checkboxes | NO |
-| Checkboxes | Updated | Run cli-orchestrator (review) | NO |
-| cli-orchestrator (review) | APPROVE | Run cli-orchestrator (arch) | NO |
-| cli-orchestrator (review) | REQUEST_CHANGES | Fix and re-run | NO |
-| cli-orchestrator (review) | NEEDS_DISCUSSION | Show findings, ask user | YES |
-| cli-orchestrator (review) | 3rd failure | Document attempts, ask user | YES |
-| cli-orchestrator (arch) | APPROVE/SKIP | Run verification | NO |
-| cli-orchestrator (arch) | REQUEST_CHANGES | Note for future task, continue | NO |
-| cli-orchestrator (arch) | NEEDS_DISCUSSION | Show findings, ask user | YES |
-| test-runner | PASS | Continue to check-runner | NO |
-| test-runner | FAIL | Fix and re-run | NO |
-| check-runner | PASS/CLEAN | Run security-scanner | NO |
-| check-runner | FAIL | Fix and re-run | NO |
-| security-scanner | CLEAN | Run /pre-pr-verification | NO |
-| security-scanner | LOW/MEDIUM | Continue, note in PR | NO |
-| security-scanner | HIGH/CRITICAL | Ask user for approval | YES |
+| Implement | Code written | Run test-runner (GREEN) | NO |
+| test-runner (GREEN) | PASS | Update checkboxes | NO |
+| test-runner (GREEN) | FAIL | Fix and re-run | NO |
+| Checkboxes | Updated | Run /pre-pr-verification | NO |
 | /pre-pr-verification | All pass | Create commit and PR | NO |
-| /pre-pr-verification | Failures | Fix and re-run | NO |
+| /pre-pr-verification | Code review REQUEST_CHANGES | Fix and re-run | NO |
+| /pre-pr-verification | Code review NEEDS_DISCUSSION | Show findings, ask user | YES |
+| /pre-pr-verification | Code review 3rd failure | Document attempts, ask user | YES |
+| /pre-pr-verification | Arch review REQUEST_CHANGES | Note for future task, continue | NO |
+| /pre-pr-verification | Arch review NEEDS_DISCUSSION | Show findings, ask user | YES |
+| /pre-pr-verification | test-runner FAIL | Fix and re-run | NO |
+| /pre-pr-verification | check-runner FAIL | Fix and re-run | NO |
+| /pre-pr-verification | security HIGH/CRITICAL | Ask user for approval | YES |
 | cli-orchestrator (plan review) | APPROVE | Create plan PR | NO |
 | cli-orchestrator (plan review) | REQUEST_CHANGES | Fix and re-run | NO |
 | cli-orchestrator (plan review) | NEEDS_DISCUSSION | Show findings, ask user | YES |

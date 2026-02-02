@@ -20,8 +20,10 @@ Workflow skills load on-demand. See `~/.claude/skills/*/SKILL.md` for details.
 
 **Do NOT stop between steps.** Core sequence:
 ```
-tests → implement → checkboxes → cli-orchestrator (review) → cli-orchestrator (arch) → verification → commit → PR
+tests → implement → GREEN → checkboxes → /pre-pr-verification → commit → PR
 ```
+
+Code review and arch review are part of `/pre-pr-verification` (runs once at the end).
 
 **Only pause for:** Investigation findings, NEEDS_DISCUSSION, 3 strikes, HIGH/CRITICAL security.
 
@@ -36,11 +38,13 @@ Details in `~/.claude/agents/README.md`. Quick reference:
 | Run tests | test-runner |
 | Run typecheck/lint | check-runner |
 | Security scan | security-scanner |
+| **Code review (pre-PR)** | **cli-orchestrator** |
+| **Architecture review (pre-PR)** | **cli-orchestrator** |
 | Complex bug investigation | cli-orchestrator (investigate) |
 | Analyze logs | log-analyzer |
-| After implementing | cli-orchestrator (review) (MANDATORY) |
-| After review passes | cli-orchestrator (arch) |
 | After creating plan | cli-orchestrator (plan review) (MANDATORY) |
+
+**Note:** Pre-PR code/arch reviews use cli-orchestrator agent (routes to Codex), NOT `/code-review` skill.
 
 ## Verification Principle
 
@@ -53,7 +57,7 @@ Evidence before claims. See `~/.claude/rules/execution-core.md` for full require
 |---------|-------|
 | Writing any test | `/write-tests` |
 | Creating PR | `/pre-pr-verification` |
-| User says "review" | `/code-review` |
+| User explicitly asks "review this" | `/code-review` |
 
 **SHOULD invoke:**
 | Trigger | Skill |
@@ -64,6 +68,8 @@ Evidence before claims. See `~/.claude/rules/execution-core.md` for full require
 | User corrects 2+ times | `/autoskill` |
 
 **Invoke via Skill tool.** Hook `skill-eval.sh` suggests skills; `pr-gate.sh` enforces markers.
+
+**Do NOT invoke `/code-review` or `/architecture-review` during autonomous flow** — pre-pr-verification uses cli-orchestrator agent instead.
 
 # Development Guidelines
 Refer to `~/.claude/rules/development.md`

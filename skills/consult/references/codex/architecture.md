@@ -4,21 +4,42 @@
 
 **Path handling:** If prompt includes a path, cd there first for all git/codex commands.
 
-## Step 1: Early Exit Check
+## Step 1: Early Exit Check (CRITICAL — Do This First)
 
 ```bash
-cd /path/to/worktree && git diff --stat HEAD~1 | tail -1  # If <50 lines total → SKIP
+cd /path/to/worktree
+
+# For uncommitted changes:
+git diff --stat | tail -1
+
+# Check what files changed:
+git diff --name-only
 ```
 
-## Step 2: Identify Related Files
+**SKIP immediately if ANY of these conditions are true:**
+1. Less than 30 lines changed total
+2. Only test files changed (`*.test.*`, `*.spec.*`, `*_test.*`)
+3. Only docs/markdown changed (`*.md`, `docs/*`)
+4. Only config/checkbox updates
 
-Don't just review changed files. Find:
+Return this and STOP:
+```
+## Architecture Review
+
+**Verdict**: SKIP
+**Reason**: Trivial change ({lines} lines, {file_types} only)
+```
+
+**Do NOT run Codex for trivial changes** — it wastes tokens and time.
+
+## Step 2: Identify Related Files (Only if NOT skipping)
+
+Find related files:
 - Files that import/are imported by changed files
 - Files in same module/package
-- Interface definitions the changed code implements
 
 ```bash
-cd /path/to/worktree && grep -h "import\|require\|from" $(git diff --name-only HEAD~1) | sort -u
+cd /path/to/worktree && grep -h "import\|require\|from" $(git diff --name-only) 2>/dev/null | sort -u
 ```
 
 ## Step 3: Run Comprehensive Review

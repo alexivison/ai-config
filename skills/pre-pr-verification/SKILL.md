@@ -13,38 +13,52 @@ Run all checks locally before creating a PR. No PR without passing verification.
 
 **"Evidence before PR, always."** — If you haven't run verification fresh and seen it pass, you cannot create a PR.
 
+## CRITICAL: Do NOT Load Review Skills Directly
+
+**Do NOT invoke `/code-review` or `/architecture-review` skills.** Reviews are done by cli-orchestrator agent, not the main agent.
+
 ## Process
 
-### Step 1: Identify Verification Commands
+### Step 1: Code Review via cli-orchestrator Agent (Iterative)
 
-Check project's package.json or CI config for the exact commands. Common patterns:
+**Spawn cli-orchestrator agent** using Task tool:
 
-| Check | Common Commands |
-|-------|-----------------|
-| Types | `pnpm typecheck`, `tsc --noEmit` |
-| Lint | `pnpm lint`, `eslint src` |
-| Tests | `pnpm test`, `vitest` |
+```
+Task(subagent_type="cli-orchestrator", prompt="Review the uncommitted changes in {worktree_path}. Context: {task description}")
+```
 
-### Step 2: Run All Checks
+- If **APPROVE** → continue immediately (no pause)
+- If **REQUEST_CHANGES** → fix and re-run (max 3 iterations)
+- If **NEEDS_DISCUSSION** → pause and ask user
 
-Delegate to sub-agents **in parallel** for efficiency:
+Code review must pass before proceeding. Iterate until APPROVE.
 
-1. Launch **test-runner** and **check-runner** simultaneously using Task tool
-2. Wait for both to complete
-3. Review their summaries
+### Step 2: Run All Checks in Parallel (Including Arch Review)
 
-**Why sub-agents?**
-- Parallel execution is faster
-- Summaries show what failed (test name, file:line, error message)
-- Isolates verbose output from main context
+After code review passes, launch **all four** simultaneously in ONE message block:
 
-**If you need more detail:** Re-run the specific failing test/check in main context to see full output.
+```
+Task(subagent_type="cli-orchestrator", prompt="Architecture review of changed files in {worktree_path}. Context: {task description}")
+Task(subagent_type="test-runner", ...)
+Task(subagent_type="check-runner", ...)
+Task(subagent_type="security-scanner", ...)
+```
+
+**Why arch review runs here:**
+- Arch review is advisory (doesn't block PR on REQUEST_CHANGES)
+- Running parallel with checks saves ~3 minutes
+- Code review already passed, so arch sees final code
+
+**Handling arch review results:**
+- **APPROVE** or **SKIP** → continue
+- **REQUEST_CHANGES** → note for future task, continue (doesn't block PR)
+- **NEEDS_DISCUSSION** → pause and ask user
 
 ### Step 3: Handle Failures
 
 **If checks fail on NEW code you wrote:**
 1. Fix the issue
-2. Re-run ALL checks (not just the failing one)
+2. Re-run code review first, then parallel checks again
 3. Repeat until all pass
 
 **If checks fail on UNRELATED code:**
@@ -59,32 +73,43 @@ Delegate to sub-agents **in parallel** for efficiency:
 
 ### Step 4: Capture Evidence
 
-After all checks pass, capture the output for the PR description:
+After all checks pass, capture verification summary for PR description:
 
 ```markdown
 ## Verification
 
 | Check | Result |
 |-------|--------|
+| Code Review | ✓ APPROVE |
+| Architecture | ✓ SKIP / APPROVE |
 | Typecheck | ✓ No errors |
-| Lint | ✓ No errors (X warnings) |
-| Tests | ✓ X passed, 0 failed |
+| Lint | ✓ No errors |
+| Tests | ✓ X passed |
+| Security | ✓ No CRITICAL/HIGH |
 
 Run at: [timestamp]
 ```
 
-Include this in the PR description so reviewers know verification was done.
+## Autonomous Flow Reminder
 
-## Red Flags — STOP
+**Do NOT pause between steps.** Continue immediately after each step unless:
+- NEEDS_DISCUSSION verdict
+- 3 failed fix attempts
+- HIGH/CRITICAL security issues
 
-If you catch yourself thinking:
-- "Should pass" (without fresh evidence)
-- "I'll fix that after the PR"
-- "That failure is unrelated"
-- "It's a small change, no need to verify"
+**Violation patterns** (do not do these):
+- "Code review complete." [stop] — Continue to parallel checks
+- "All checks pass." [stop] — Continue to commit/PR
+- "Would you like me to..." — Just do it
+- "Should I continue?" — Just continue
 
-**STOP.** Run verification. Show evidence.
+## No Remote? Just Note It
 
-## Only After Passing
+If `git remote -v` shows no remote configured:
+- Note "No remote configured" in summary
+- **Do NOT ask** "Would you like me to add a remote?"
+- The task is complete when commit exists locally
 
-Create PR: `gh pr create --draft`
+## Only After All Pass
+
+Create PR: `gh pr create --draft` (if remote exists)

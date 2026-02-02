@@ -10,8 +10,10 @@ When executing a task from TASK*.md, **do not stop until PR is created** (or a v
 
 **Code workflow (task-workflow, bugfix-workflow):**
 ```
-/write-tests → implement → checkboxes → cli-orchestrator (review) → cli-orchestrator (arch) → verification → commit → PR
+/write-tests → implement → GREEN → checkboxes → /pre-pr-verification → commit → PR
 ```
+
+**Note:** Code review and arch review are now part of `/pre-pr-verification`, not separate steps. This is faster because reviews run once at the end.
 
 **Plan workflow (plan-workflow):**
 ```
@@ -31,8 +33,8 @@ These patterns indicate flow violation:
 
 | Pattern | Why It's Wrong |
 |---------|----------------|
-| "Tests pass. GREEN phase complete." [stop] | Didn't continue to checkboxes/review |
-| "Review approved." [stop] | Didn't continue to arch review |
+| "Tests pass. GREEN phase complete." [stop] | Didn't continue to checkboxes |
+| "Checkboxes updated." [stop] | Didn't continue to /pre-pr-verification |
 | "All checks pass." [stop] | Didn't continue to commit/PR |
 | "Ready to create PR." [stop] | Should just create it |
 | "Should I continue?" | Just continue |

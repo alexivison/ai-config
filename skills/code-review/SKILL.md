@@ -9,6 +9,12 @@ allowed-tools: Read, Grep, Glob, Bash(git:*)
 
 Review the current changes for quality, bugs, and best practices. Identify issues only — don't implement fixes.
 
+## IMPORTANT: When to Use
+
+**During autonomous workflow:** Do NOT load this skill. Use cli-orchestrator agent instead (routes to Codex).
+
+**For explicit user requests:** When user explicitly says "review this code" or "give me a code review", this skill provides guidelines.
+
 ## Reference Documentation
 
 - **General**: `~/.claude/skills/code-review/reference/general.md` — Principles, quality standards, PR guidelines
