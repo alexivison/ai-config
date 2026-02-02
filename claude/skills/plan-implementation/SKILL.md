@@ -167,7 +167,6 @@ Reference other skills inline using `@skill-name`:
 | `@write-tests` | Use Testing Trophy methodology |
 | `@code-review` | Run code review before PR |
 | `@minimize` | Check for bloat before finalizing |
-| `@brainstorm` | Use if requirements unclear |
 
 Example in task: "Write tests following `@write-tests` methodology."
 

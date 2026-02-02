@@ -25,6 +25,10 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/skill-eval.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/agent-router.py"
           }
         ]
       }

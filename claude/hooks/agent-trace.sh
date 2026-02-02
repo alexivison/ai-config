@@ -107,6 +107,26 @@ if [ "$agent_type" = "code-critic" ] && [ "$verdict" = "APPROVED" ]; then
   touch "/tmp/claude-code-critic-$session_id"
 fi
 
+# cli-orchestrator: unified CLI agent - detect task type from output
+if [ "$agent_type" = "cli-orchestrator" ]; then
+  # Detect task type from output headers
+  if echo "$response_text" | grep -qi "Code Review (Codex)\|## Code Review"; then
+    # Code review mode - only APPROVE creates marker
+    if [ "$verdict" = "APPROVED" ]; then
+      touch "/tmp/claude-code-critic-$session_id"
+    fi
+  elif echo "$response_text" | grep -qi "Architecture Review (Codex)\|## Architecture Review"; then
+    # Architecture mode - any completion creates marker
+    touch "/tmp/claude-architecture-reviewed-$session_id"
+  elif echo "$response_text" | grep -qi "Plan Review (Codex)\|## Plan Review"; then
+    # Plan review mode - only APPROVE creates marker
+    if [ "$verdict" = "APPROVED" ]; then
+      touch "/tmp/claude-plan-reviewer-$session_id"
+    fi
+  fi
+  # Gemini tasks (research, etc.) don't create PR gate markers
+fi
+
 # test-runner: only PASS creates marker
 if [ "$agent_type" = "test-runner" ] && [ "$verdict" = "PASS" ]; then
   touch "/tmp/claude-tests-passed-$session_id"
@@ -119,7 +139,8 @@ if [ "$agent_type" = "check-runner" ]; then
   fi
 fi
 
-# plan-reviewer: only APPROVED creates marker
+# plan-reviewer: legacy agent (now handled by cli-orchestrator)
+# Kept for backwards compatibility
 if [ "$agent_type" = "plan-reviewer" ] && [ "$verdict" = "APPROVED" ]; then
   touch "/tmp/claude-plan-reviewer-$session_id"
 fi

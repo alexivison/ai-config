@@ -6,7 +6,13 @@ user-invocable: false
 
 # Architecture Review Guidelines
 
-Reference documentation for architectural code review. Used by the `architecture-critic` agent.
+Reference documentation for architectural code review.
+
+## IMPORTANT: Do NOT Load Directly
+
+**During autonomous workflow:** Do NOT load this skill. Use cli-orchestrator agent instead (routes to Codex).
+
+This skill provides reference docs only. Reviews are done by cli-orchestrator.
 
 ## Reference Files
 

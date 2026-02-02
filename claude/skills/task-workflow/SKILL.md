@@ -13,9 +13,10 @@ Execute tasks from TASK*.md files with the full autonomous workflow.
 **STOP. Before writing ANY code:**
 
 1. **Create worktree first** — `git worktree add ../repo-branch-name -b branch-name`
-2. **Does task require tests?** → invoke `/write-tests` FIRST
-3. **Requirements unclear?** → `/brainstorm` or ask user
-4. **Will this bloat into a large PR?** → Split into smaller tasks
+2. **Install dependencies** — If node_modules missing, run `npm install` (or yarn/pnpm)
+3. **Does task require tests?** → invoke `/write-tests` FIRST
+4. **Requirements unclear?** → Ask user for clarification
+5. **Will this bloat into a large PR?** → Split into smaller tasks
 
 State which items were checked before proceeding.
 
@@ -24,7 +25,7 @@ State which items were checked before proceeding.
 After passing the gate, execute continuously — **no stopping until PR is created**.
 
 ```
-/write-tests (if needed) → implement → checkboxes → code-critic → architecture-critic → verification → commit → PR
+/write-tests (if needed) → implement → GREEN → checkboxes → /pre-pr-verification → commit → PR
 ```
 
 ### Step-by-Step
@@ -33,11 +34,10 @@ After passing the gate, execute continuously — **no stopping until PR is creat
 2. **Implement** — Write the code to make tests pass
 3. **GREEN phase** — Run test-runner agent to verify tests pass
 4. **Checkboxes** — Update both TASK*.md and PLAN.md: `- [ ]` → `- [x]`
-5. **code-critic** — MANDATORY after implementing. Fix issues until APPROVE
-6. **architecture-critic** — Run after code-critic passes
-7. **Verification** — Run test-runner + check-runner + security-scanner (parallel)
-8. **PR Verification** — Invoke `/pre-pr-verification`
-9. **Commit & PR** — Create commit and draft PR
+5. **PR Verification** — Invoke `/pre-pr-verification` (runs reviews + all checks)
+6. **Commit & PR** — Create commit and draft PR
+
+**Note:** Code review and architecture review are now part of `/pre-pr-verification`, not separate steps.
 
 **Important:** Always use test-runner agent for running tests, check-runner for lint/typecheck. This preserves context by isolating verbose output.
 
