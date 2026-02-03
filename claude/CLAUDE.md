@@ -25,6 +25,11 @@ tests → implement → GREEN → checkboxes → /pre-pr-verification → commit
 
 Code review and arch review are part of `/pre-pr-verification` (runs once at the end).
 
+**Code review with iteration:**
+1. cli-orchestrator (review, iteration=1) — full review
+2. If REQUEST_CHANGES → main agent fixes → cli-orchestrator (review, iteration=2)
+3. Max 3 iterations → NEEDS_DISCUSSION → pause for user
+
 **Only pause for:** Investigation findings, NEEDS_DISCUSSION, 3 strikes, HIGH/CRITICAL security.
 
 **Enforcement:** PR gate blocks until markers exist. See `~/.claude/rules/autonomous-flow.md`.

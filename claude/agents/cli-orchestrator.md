@@ -30,21 +30,21 @@ You are a CLI orchestrator running as a **subagent** of Claude Code. You route t
 
 Parse the prompt to determine which CLI to use:
 
-| Keywords in Prompt | Tool | Reference |
-|--------------------|------|-----------|
-| "review", "code review" | Codex | `codex/code-review.md` |
-| "architecture", "arch", "structure" | Codex | `codex/architecture.md` |
-| "plan review", "review plan" | Codex | `codex/plan-review.md` |
-| "create plan", "plan feature" | Codex | `codex/plan-creation.md` |
-| "design", "approach", "trade-off" | Codex | `codex/design-decision.md` |
-| "debug", "error", "bug", "root cause" | Codex | `codex/debug.md` |
-| "research", "investigate", "best practices" | Gemini | `gemini/lib-research.md` |
-| "codebase", "repository", "understand" | Gemini | `gemini/codebase-analysis.md` |
-| "PDF", "video", "audio", "document" | Gemini | `gemini/multimodal.md` |
-| "library", "documentation", "docs" | Gemini | `gemini/lib-research.md` |
-| "search", "find latest", "2025/2026" | Gemini | `gemini/web-search.md` |
+| Keywords in Prompt | Tool | Guidelines |
+|--------------------|------|------------|
+| "review", "code review" | Codex | Loads via symlink: `skills/code-review/reference/general.md` |
+| "architecture", "arch", "structure" | Codex | Loads via symlink: `skills/architecture-review/reference/*.md` |
+| "plan review", "review plan" | Codex | Loads via symlink: `skills/plan-review/reference/*.md` |
+| "create plan", "plan feature" | Codex | N/A (uses CLAUDE.md context) |
+| "design", "approach", "trade-off" | Codex | N/A (uses CLAUDE.md context) |
+| "debug", "error", "bug", "root cause" | Codex | N/A (uses CLAUDE.md context) |
+| "research", "investigate", "best practices" | Gemini | N/A |
+| "codebase", "repository", "understand" | Gemini | N/A |
+| "PDF", "video", "audio", "document" | Gemini | N/A |
+| "library", "documentation", "docs" | Gemini | N/A |
+| "search", "find latest", "2025/2026" | Gemini | N/A |
 
-**References:** `~/.claude/skills/consult/references/`
+**Guidelines:** Codex loads via symlinked skills in `~/.codex/skills/` (see context-loader)
 
 **Default:** If unclear, use Codex for implementation-related, Gemini for research-related.
 
@@ -65,12 +65,34 @@ This is essential when main agent works in a git worktree.
 
 | Mode | Command |
 |------|---------|
-| Code Review | `codex review --uncommitted` |
+| Code Review | `codex review --uncommitted` (with iteration params) |
 | Architecture | See early exit below, then `codex exec -s read-only "Architecture review..."` |
 | Plan Review | `codex exec -s read-only "Review planning docs..."` |
 | Plan Creation | `codex exec -s read-only "Create implementation plan..."` |
 | Design Decision | `codex exec -s read-only "Compare approaches..."` |
 | Debug | `codex exec -s read-only "Debug: {error}..."` |
+
+### Code Review with Iteration
+
+Pass iteration parameters to Codex for iterative reviews:
+
+```bash
+# Iteration 1 (default)
+codex review --uncommitted
+
+# Iteration 2+ (after fixes)
+codex review --uncommitted "
+Iteration: ${ITERATION}
+Previous feedback:
+${PREVIOUS_FEEDBACK}
+"
+```
+
+Codex's context-loader will:
+1. Load symlinked code-review skill (reference/general.md)
+2. Apply guidelines including maintainability thresholds
+3. Follow iteration protocol (full scan → verify fixes → final pass)
+4. Output skill loading log for verification
 
 ### Architecture Review Early Exit (CRITICAL)
 
@@ -97,13 +119,13 @@ If ANY skip condition is met, return immediately:
 
 Do NOT run Codex for trivial changes — it wastes tokens.
 
-See `~/.claude/skills/consult/references/codex/` for detailed prompts.
+Codex's context-loader loads guidelines via symlinks. See `~/.codex/skills/context-loader/SKILL.md`.
 
 ---
 
 ## Gemini Modes
 
-Detailed prompts and output formats in `~/.claude/skills/consult/references/gemini/`:
+Gemini modes (no special guidelines needed):
 
 | Mode | File | Trigger |
 |------|------|---------|

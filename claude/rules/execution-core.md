@@ -20,9 +20,9 @@ Shared execution sequence for all workflow skills. This is loaded on-demand by w
 | test-runner (GREEN) | FAIL | Fix and re-run | NO |
 | Checkboxes | Updated | Run /pre-pr-verification | NO |
 | /pre-pr-verification | All pass | Create commit and PR | NO |
-| /pre-pr-verification | Code review REQUEST_CHANGES | Fix and re-run | NO |
+| /pre-pr-verification | Code review REQUEST_CHANGES (iter 1-2) | Fix, re-run with iteration+1 | NO |
+| /pre-pr-verification | Code review REQUEST_CHANGES (iter 3) | Document attempts, ask user | YES |
 | /pre-pr-verification | Code review NEEDS_DISCUSSION | Show findings, ask user | YES |
-| /pre-pr-verification | Code review 3rd failure | Document attempts, ask user | YES |
 | /pre-pr-verification | Arch review REQUEST_CHANGES | Note for future task, continue | NO |
 | /pre-pr-verification | Arch review NEEDS_DISCUSSION | Show findings, ask user | YES |
 | /pre-pr-verification | test-runner FAIL | Fix and re-run | NO |
@@ -31,6 +31,15 @@ Shared execution sequence for all workflow skills. This is loaded on-demand by w
 | cli-orchestrator (plan review) | APPROVE | Create plan PR | NO |
 | cli-orchestrator (plan review) | REQUEST_CHANGES | Fix and re-run | NO |
 | cli-orchestrator (plan review) | NEEDS_DISCUSSION | Show findings, ask user | YES |
+
+### Code Review Iteration Protocol
+
+| Iteration | Scope | On REQUEST_CHANGES |
+|-----------|-------|-------------------|
+| 1 | Full review, all [must]/[q]/[nit] | Fix issues, run iteration 2 |
+| 2 | Verify fixes, check regressions | Fix issues, run iteration 3 |
+| 3 | Final pass, no new [nit] | Pause, ask user |
+| >3 | N/A (auto NEEDS_DISCUSSION) | Pause, ask user |
 
 ## Valid Pause Conditions
 
