@@ -75,10 +75,17 @@ color: green
 **Mode Selection Logic:**
 
 ```
+1. Check for explicit mode override:
+   - "mode:log" → LOG ANALYSIS
+   - "mode:web" → WEB SEARCH
+
+2. Fall back to keyword heuristics if no explicit mode
+
 IF task involves log analysis:
-  - Estimate log size (line count × avg line length)
-  - IF < 100K tokens → delegate to standard log-analyzer
-  - IF > 100K tokens → use gemini-2.5-pro via stdin
+  - Estimate log size: bytes=$(wc -c < "$LOG_FILE"); tokens=$((bytes / 4))
+  - IF < 500K tokens → delegate to standard log-analyzer
+  - IF > 500K tokens → use gemini-2.5-pro via stdin
+  - IF > 1.6M tokens → warn, apply time-range filter or chunking
 
 IF task involves web research:
   - Execute WebSearch tool
@@ -86,13 +93,18 @@ IF task involves web research:
   - Synthesize with gemini-2.0-flash
 ```
 
+**CLI Path Resolution:**
+```bash
+GEMINI_CMD="${GEMINI_PATH:-$(command -v gemini 2>/dev/null || echo '/Users/aleksituominen/.nvm/versions/node/v24.12.0/bin/gemini')}"
+```
+
 ### 3. skill-eval.sh Updates
 
-Add auto-suggest pattern for web search:
+Add auto-suggest pattern for web search (narrowed to avoid overlap with coding questions):
 
 ```bash
-# Web search triggers
-elif echo "$PROMPT_LOWER" | grep -qE '\bresearch\b|\blook up\b|\bfind out\b|\bwhat is the (latest|current)\b|\bhow do (i|we|you)\b.*\b(in 2026|nowadays|currently)\b|\bsearch for\b'; then
+# Web search triggers (explicit external intent only)
+elif echo "$PROMPT_LOWER" | grep -qE '\bresearch (online|the web|externally)\b|\blook up (online|externally)\b|\bsearch the web\b|\bwhat is the (latest|current) version\b|\bwhat do (experts|others|people) say\b|\bfind external (info|documentation)\b'; then
   SUGGESTION="RECOMMENDED: Use gemini agent for research queries."
   PRIORITY="should"
 ```
@@ -185,11 +197,12 @@ Provide structured, actionable output. Include:
 
 | Scenario | Handling |
 |----------|----------|
-| CLI not found | Error with install instructions |
+| CLI not found | Check `GEMINI_PATH` env, then `command -v`, then absolute NVM path |
 | Auth expired | Prompt to re-authenticate via `gemini` interactive |
-| Rate limit (429) | Retry with exponential backoff |
-| Context overflow | Truncate with warning, suggest chunking |
+| Rate limit (429) | Retry with exponential backoff (verify CLI behavior during implementation) |
+| Context overflow (>1.6M tokens) | Apply time-range filter if timestamps present, else chunk sequentially |
 | Empty response | Report "No response generated", suggest prompt adjustment |
+| Mode ambiguity | Default to log analysis if file paths present, else web search |
 
 ## Security Considerations
 
@@ -200,5 +213,8 @@ Provide structured, actionable output. Include:
 
 ## Runtime Requirements
 
-- `gemini` CLI available in PATH
+- `gemini` CLI available via one of:
+  - `GEMINI_PATH` environment variable
+  - System PATH (`command -v gemini`)
+  - Absolute path: `/Users/aleksituominen/.nvm/versions/node/v24.12.0/bin/gemini`
 - OAuth authenticated (existing)

@@ -27,22 +27,30 @@ Add a new pattern block in the SHOULD section (after existing patterns, before t
 
 ```bash
 # Web search / research triggers (use gemini agent)
-elif echo "$PROMPT_LOWER" | grep -qE '\bresearch\b|\blook up\b|\bfind (out|info|information)\b|\bwhat.*(latest|current|best practice)\b|\bhow (do|does|to).*currently\b|\bsearch (for|the web)\b|\bwhat do.*say about\b'; then
+# NOTE: Patterns narrowed to avoid overlap with plan-workflow coding questions
+elif echo "$PROMPT_LOWER" | grep -qE '\bresearch (online|the web|externally)\b|\blook up (online|externally)\b|\bsearch the web\b|\bwhat is the (latest|current) version\b|\bwhat do (experts|others|people) say\b|\bfind external (info|documentation)\b'; then
   SUGGESTION="RECOMMENDED: Use gemini agent for research queries requiring external information."
   PRIORITY="should"
 ```
 
 ### Pattern Rationale
 
-| Pattern | Trigger Example |
-|---------|-----------------|
-| `\bresearch\b` | "Research best practices for X" |
-| `\blook up\b` | "Look up how to configure Y" |
-| `\bfind (out\|info)\b` | "Find out what the latest version is" |
-| `\bwhat.*(latest\|current)\b` | "What's the latest React version?" |
-| `\bhow.*currently\b` | "How do people currently handle X?" |
-| `\bsearch (for\|the web)\b` | "Search for documentation on Z" |
-| `\bwhat do.*say about\b` | "What do the docs say about this?" |
+| Pattern | Trigger Example | Why Included |
+|---------|-----------------|--------------|
+| `\bresearch (online\|the web)\b` | "Research online best practices" | Explicit external intent |
+| `\blook up (online\|externally)\b` | "Look up externally how to configure Y" | Explicit external intent |
+| `\bsearch the web\b` | "Search the web for documentation" | Unambiguous web search |
+| `\bwhat is the (latest\|current) version\b` | "What's the latest React version?" | Version info = external |
+| `\bwhat do (experts\|others) say\b` | "What do experts say about this?" | External opinions |
+| `\bfind external (info\|documentation)\b` | "Find external documentation on Z" | Explicit external intent |
+
+### Patterns Intentionally Excluded
+
+| Excluded Pattern | Reason |
+|------------------|--------|
+| `\bhow (do\|does\|to).*currently\b` | Overlaps with coding questions ("how do I use this API currently") |
+| `\bresearch\b` (alone) | Too broad, matches "research the codebase" |
+| `\bfind out\b` | Too broad, matches internal investigation |
 
 ### Placement
 

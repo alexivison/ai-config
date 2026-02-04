@@ -39,27 +39,45 @@ color: green
 **Mode Detection Logic:**
 
 ```
-1. Parse task to determine mode:
+1. Check for explicit mode override in task prompt:
+   - "mode:log" or "analyze logs" → LOG ANALYSIS (explicit)
+   - "mode:web" or "research this" → WEB SEARCH (explicit)
+
+2. If no explicit mode, use keyword heuristics:
    - Keywords: "log", "analyze logs", "production logs" → LOG ANALYSIS
-   - Keywords: "research", "search", "look up", "find out" → WEB SEARCH
+   - Keywords: "research", "search the web", "look up online" → WEB SEARCH
 
-2. LOG ANALYSIS MODE:
-   a. Estimate log size:
-      - Count lines: wc -l
-      - Sample first 100 lines to estimate avg line length
-      - Estimate tokens: (lines × avg_chars) / 4
-   b. Routing:
-      - IF estimated_tokens < 100K → delegate to standard log-analyzer
-      - IF estimated_tokens > 100K → use Gemini
-   c. Gemini invocation (stdin for large content):
-      cat /path/to/logs.log | gemini --approval-mode plan -m gemini-2.5-pro -p "Analyze..."
+3. LOG ANALYSIS MODE:
+   a. Estimate log size using byte count (more accurate than line count):
+      bytes=$(wc -c < "$LOG_FILE")
+      estimated_tokens=$((bytes / 4))
+   b. Routing (threshold: 500K tokens, ~2MB):
+      - IF estimated_tokens < 500K → delegate to standard log-analyzer
+      - IF estimated_tokens > 500K → use Gemini
+      - IF estimated_tokens > 1.6M → warn about potential truncation
+   c. Context overflow strategy:
+      - Filter by time range if timestamps available
+      - Or chunk into segments and analyze sequentially
+   d. Gemini invocation (stdin for large content):
+      GEMINI_CMD="${GEMINI_PATH:-$(command -v gemini || echo '/Users/aleksituominen/.nvm/versions/node/v24.12.0/bin/gemini')}"
+      cat /path/to/logs.log | "$GEMINI_CMD" --approval-mode plan -m gemini-2.5-pro -p "Analyze..."
 
-3. WEB SEARCH MODE:
+4. WEB SEARCH MODE:
    a. Formulate search queries from user question
    b. Execute WebSearch tool for results
    c. Optionally WebFetch for full page content
    d. Synthesize with Gemini Flash:
-      gemini --approval-mode plan -m gemini-2.0-flash -p "Synthesize these search results..."
+      "$GEMINI_CMD" --approval-mode plan -m gemini-2.0-flash -p "Synthesize these search results..."
+```
+
+**CLI Path Resolution:**
+```bash
+# Robust CLI resolution with fallback
+GEMINI_CMD="${GEMINI_PATH:-$(command -v gemini 2>/dev/null || echo '/Users/aleksituominen/.nvm/versions/node/v24.12.0/bin/gemini')}"
+if [[ ! -x "$GEMINI_CMD" ]]; then
+  echo "Error: Gemini CLI not found. Install via: npm install -g @anthropic-ai/gemini-cli"
+  exit 1
+fi
 ```
 
 **Log Analysis Invocation:**
@@ -149,14 +167,23 @@ grep -q "gemini-2.0-flash" claude/agents/gemini.md
 ## Acceptance Criteria
 
 - [ ] Agent definition created at `claude/agents/gemini.md`
-- [ ] Mode detection logic for log analysis vs web search
+- [ ] Mode detection:
+  - [ ] Supports explicit mode override (`mode:log`, `mode:web`)
+  - [ ] Falls back to keyword heuristics when no explicit mode
 - [ ] Log analysis mode:
-  - [ ] Size estimation logic (100K token threshold)
+  - [ ] Size estimation uses byte count (`wc -c`) ÷ 4 for tokens
+  - [ ] Threshold at 500K tokens (~2MB) for Gemini delegation
   - [ ] Falls back to standard log-analyzer for small logs
+  - [ ] Warns if logs exceed 1.6M tokens (potential truncation)
+  - [ ] Context overflow: time-range filtering or chunking strategy
   - [ ] Uses `cat logs | gemini -p` pattern (stdin piping)
   - [ ] Uses gemini-2.5-pro model
   - [ ] Uses `--approval-mode plan` for read-only
   - [ ] Output format matches existing log-analyzer
+- [ ] CLI resolution:
+  - [ ] Uses `GEMINI_PATH` env var if set
+  - [ ] Falls back to `command -v gemini`
+  - [ ] Falls back to absolute NVM path
 - [ ] Web search mode:
   - [ ] Uses WebSearch/WebFetch tools
   - [ ] Uses gemini-2.0-flash model
