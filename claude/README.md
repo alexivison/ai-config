@@ -21,13 +21,14 @@ Personal configuration for [Claude Code](https://claude.ai/claude-code) CLI.
 
 | Agent | Purpose |
 |-------|---------|
-| `debug-investigator` | Systematic bug investigation, returns root cause analysis |
 | `test-runner` | Runs tests, returns only failures (isolates verbose output) |
 | `check-runner` | Runs typecheck/lint, returns only errors (isolates verbose output) |
 | `log-analyzer` | Analyzes logs, returns error summary (isolates verbose output) |
 | `security-scanner` | Scans for secrets, vulnerabilities, OWASP issues (optional) |
 | `code-critic` | Iterative code review using `/code-review` guidelines |
 | `codex` | Deep reasoning via Codex CLI for code/architecture review, design decisions, debugging |
+
+> **Note:** `debug-investigator` has been replaced by `codex` which provides combined debugging + analysis via Codex CLI.
 
 > **Note:** `architecture-critic` has been replaced by `codex` which provides combined code + architecture review.
 

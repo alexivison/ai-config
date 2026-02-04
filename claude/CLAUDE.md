@@ -36,7 +36,7 @@ Details in `~/.claude/agents/README.md`. Quick reference:
 | Run tests | test-runner |
 | Run typecheck/lint | check-runner |
 | Security scan | security-scanner (optional — Codex covers basic security) |
-| Complex bug | debug-investigator |
+| Complex bug investigation | codex (debugging task) |
 | Analyze logs | log-analyzer |
 | After implementing | code-critic (MANDATORY) |
 | After code-critic | codex (MANDATORY) |

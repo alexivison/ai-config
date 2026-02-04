@@ -40,7 +40,7 @@ Shared execution sequence for all workflow skills. This is loaded on-demand by w
 ## Valid Pause Conditions
 
 Only pause for:
-1. **Investigation findings** — debug-investigator, log-analyzer always require user review
+1. **Investigation findings** — codex (debugging), log-analyzer always require user review
 2. **NEEDS_DISCUSSION** — From code-critic or codex
 3. **3 strikes** — 3 failed fix attempts on same issue
 4. **Explicit blockers** — Missing dependencies, unclear requirements
@@ -49,7 +49,7 @@ Only pause for:
 
 | Agent Class | Examples | When to Pause | Show to User |
 |-------------|----------|---------------|--------------|
-| Investigation | debug-investigator, log-analyzer | Always | Full findings, then AskUserQuestion |
+| Investigation | codex (debugging), log-analyzer | Always | Full findings, then AskUserQuestion |
 | Verification | test-runner, check-runner | Never (fix failures directly) | Summary only |
 | Iterative | code-critic, codex | NEEDS_DISCUSSION or 3 failures | Verdict each iteration |
 

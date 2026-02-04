@@ -1,6 +1,6 @@
 ---
 name: bugfix-workflow
-description: Debug and fix bugs with investigation workflow. Auto-invoked for broken functionality or errors.
+description: Debug and fix bugs. INVOKE FIRST when user reports bugs/errors - workflow handles investigation internally.
 user-invocable: false
 ---
 
@@ -14,7 +14,7 @@ Debug and fix bugs with investigation before implementation.
 
 1. **Create worktree first** — `git worktree add ../repo-branch-name -b branch-name`
 2. **Understand the bug** — Read relevant code, reproduce if possible
-3. **Complex bug?** → Invoke `debug-investigator` agent → `[wait for user]`
+3. **Complex bug?** → Invoke `codex` agent with debugging task → `[wait for user]`
 4. **Logs relevant?** → Invoke `log-analyzer` agent → `[wait for user]`
 
 `[wait]` = Show findings, use AskUserQuestion, wait for user input.
@@ -60,9 +60,39 @@ This ensures the bug is actually fixed and won't regress.
 - Something that worked before stopped working
 - Unexpected behavior that needs investigation
 
-## Codex Step
+## Codex Investigation Step
 
-See [task-workflow/SKILL.md](../task-workflow/SKILL.md#codex-step) for the codex agent invocation details and iteration protocol.
+For complex bugs, spawn **codex** agent with debugging task:
+
+**Prompt template:**
+```
+Analyze this bug and identify the root cause.
+
+**Task:** Debugging
+**Bug description:** {symptom/error message}
+**Relevant files:** {files where bug manifests}
+
+Investigation steps:
+1. Trace the data/control flow to find where it breaks
+2. Compare with similar working code patterns
+3. Identify the root cause with file:line reference
+4. Specify the fix (don't implement)
+
+Return structured findings with verdict:
+- APPROVE = Root cause confirmed, ready to fix
+- REQUEST_CHANGES = Need more investigation (specify what)
+- NEEDS_DISCUSSION = Multiple possible causes or unclear path forward
+```
+
+**On APPROVE:** Show findings, ask user before proceeding to fix.
+
+**On REQUEST_CHANGES:** Gather the requested information and re-invoke.
+
+**On NEEDS_DISCUSSION:** Present options, ask user for guidance.
+
+## Codex Review Step
+
+See [task-workflow/SKILL.md](../task-workflow/SKILL.md#codex-step) for the code + architecture review invocation details and iteration protocol.
 
 ## Core Reference
 

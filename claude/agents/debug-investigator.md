@@ -1,10 +1,13 @@
 ---
 name: debug-investigator
-description: "Investigate bugs, errors, or unexpected behavior. Writes findings to file to preserve main context. Does NOT implement fixes. Use for complex debugging."
+description: "DEPRECATED: Use codex agent with debugging task instead. See bugfix-workflow skill."
+deprecated: true
 model: sonnet
 tools: Bash, Glob, Grep, Read, Write, WebFetch, WebSearch, mcp__chrome-devtools__*
 color: red
 ---
+
+> **DEPRECATED:** This agent has been replaced by the `codex` agent for debugging tasks. See `bugfix-workflow` skill for the updated flow.
 
 You are a debugging specialist. Investigate systematically using the four-phase methodology below. Write findings to file.
 

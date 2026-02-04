@@ -2,16 +2,11 @@
 
 Sub-agents preserve context by offloading investigation/verification tasks.
 
-## debug-investigator
-**Use when:** Complex bugs requiring systematic investigation.
+## debug-investigator (DEPRECATED)
 
-**Methodology:** 4-phase debugging (Root Cause → Pattern Analysis → Hypothesis Testing → Specify Fix).
+**Note:** Replaced by codex agent for debugging/investigation tasks. The codex agent provides deeper reasoning via Codex CLI.
 
-**Tools:** Standard tools + all `mcp__chrome-devtools__*` for browser debugging.
-
-**Writes to:** `~/.claude/investigations/{issue-id}.md`
-
-**Returns:** Brief summary with file path, verdict, hypotheses tested, one-line summary.
+**Migration:** Use codex agent with debugging task prompt instead. See `bugfix-workflow` skill for the updated flow.
 
 ## test-runner
 **Use when:** Running test suites that produce verbose output.
