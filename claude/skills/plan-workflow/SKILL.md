@@ -53,7 +53,7 @@ Before planning, clarify requirements:
 Execute continuously - **no stopping until PR is created**.
 
 ```
-plan-reviewer (iteration loop) -> PR
+plan-reviewer (iteration loop) -> codex (iteration loop) -> PR
 ```
 
 ### Step-by-Step
@@ -62,15 +62,45 @@ plan-reviewer (iteration loop) -> PR
    - Reviews all documents against plan-review guidelines
    - Returns APPROVE / REQUEST_CHANGES / NEEDS_DISCUSSION
 
-2. **Handle verdict:**
+2. **Handle plan-reviewer verdict:**
    | Verdict | Action |
    |---------|--------|
-   | APPROVE | Continue to PR |
+   | APPROVE | Continue to codex |
    | REQUEST_CHANGES | Fix issues, re-run plan-reviewer |
    | NEEDS_DISCUSSION | Show findings, ask user |
    | 3rd iteration fails | Show findings, ask user |
 
-3. **Create PR** with plan files only:
+3. **Run codex agent** (MANDATORY)
+   - Deep reasoning review for architectural soundness, feasibility, risks
+   - Returns APPROVE / REQUEST_CHANGES / NEEDS_DISCUSSION
+
+   **Prompt template:**
+   ```
+   Review this implementation plan for architectural soundness and feasibility.
+
+   **Task:** Plan Review
+   **Iteration:** {N} of 3
+   **Previous feedback:** {summary if iteration > 1}
+
+   Evaluate:
+   - Are the requirements clear and measurable?
+   - Is the design architecturally sound?
+   - Are task scopes appropriate (~200 LOC)?
+   - Are there missing edge cases or risks?
+   - Is the dependency ordering correct?
+
+   Return verdict with specific concerns.
+   ```
+
+4. **Handle codex verdict:**
+   | Verdict | Action |
+   |---------|--------|
+   | APPROVE | Continue to PR |
+   | REQUEST_CHANGES | Fix issues, re-run codex |
+   | NEEDS_DISCUSSION | Show findings, ask user |
+   | 3rd iteration fails | Show findings, ask user |
+
+5. **Create PR** with plan files only:
    ```bash
    git add doc/projects/<feature-name>/
    git commit -m "docs: add implementation plan for <feature-name>"

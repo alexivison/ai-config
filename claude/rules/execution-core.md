@@ -33,9 +33,12 @@ Shared execution sequence for all workflow skills. This is loaded on-demand by w
 <!-- | security-scanner | HIGH/CRITICAL | Ask user for approval | YES | -->
 | /pre-pr-verification | All pass | Create commit and PR | NO |
 | /pre-pr-verification | Failures | Fix and re-run | NO |
-| plan-reviewer | APPROVE | Create plan PR | NO |
+| plan-reviewer | APPROVE | Run codex (plan review) | NO |
 | plan-reviewer | REQUEST_CHANGES | Fix and re-run | NO |
 | plan-reviewer | NEEDS_DISCUSSION | Show findings, ask user | YES |
+| codex (plan) | APPROVE | Create plan PR | NO |
+| codex (plan) | REQUEST_CHANGES | Fix and re-run | NO |
+| codex (plan) | NEEDS_DISCUSSION | Show findings, ask user | YES |
 
 ## Valid Pause Conditions
 

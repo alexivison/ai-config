@@ -15,7 +15,7 @@ When executing a task from TASK*.md, **do not stop until PR is created** (or a v
 
 **Plan workflow (plan-workflow):**
 ```
-/brainstorm (if needed) → /plan-implementation → plan-reviewer → plan PR
+/brainstorm (if needed) → /plan-implementation → plan-reviewer → codex → plan PR
 ```
 
 ## Decision Matrix
@@ -48,8 +48,9 @@ These patterns indicate flow violation:
 - `check-runner` PASS/CLEAN verdict
 <!-- - `security-scanner` completion  # Codex covers basic security -->
 
-**Plan PRs** (branch prefix `plan-*`) require:
+**Plan PRs** (branch suffix `-plan`) require:
 - `plan-reviewer` APPROVE verdict
+- `codex` APPROVE verdict
 
 Missing markers → `gh pr create` blocked.
 
@@ -67,4 +68,4 @@ Created automatically by `agent-trace.sh`:
 | plan-reviewer | APPROVE | `/tmp/claude-plan-reviewer-{session}` |
 <!-- | security-scanner | Any | `/tmp/claude-security-scanned-{session}` |  # Codex covers basic security -->
 
-**Plan PRs** (branch suffix `-plan`) only require `plan-reviewer` marker. Code PRs require all other markers.
+**Plan PRs** (branch suffix `-plan`) require `plan-reviewer` + `codex` markers. Code PRs require all other markers.

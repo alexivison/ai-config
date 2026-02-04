@@ -58,12 +58,13 @@ Sub-agents preserve context by offloading investigation/verification tasks.
 
 ## codex
 
-**Use when:** Deep reasoning tasks — code review, architecture analysis, design decisions, debugging, trade-off evaluation.
+**Use when:** Deep reasoning tasks — code review, architecture analysis, plan review, design decisions, debugging, trade-off evaluation.
 
 **Pattern:** Dedicated agent that invokes Codex CLI (`codex exec -s read-only`). Isolates Codex output from main context.
 
 **Supported tasks:**
-- Code + architecture review (pre-PR)
+- Code + architecture review (pre-code-PR, after code-critic)
+- Plan review (pre-plan-PR, after plan-reviewer)
 - Design decisions and trade-off analysis
 - Complex debugging analysis
 - Architectural pattern evaluation
