@@ -44,7 +44,6 @@ gemini -p "Hello, respond with 'OK'" 2>&1 | head -5
 
 You are invoked by Claude Code for tasks requiring:
 - Large context analysis (up to 2M tokens)
-- Multimodal understanding (images)
 - Fast synthesis (Flash model)
 
 ## Output Format

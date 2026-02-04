@@ -1,144 +1,86 @@
-# TASK2: gemini-ui-debugger Agent
+# TASK2: skill-eval.sh Integration
 
-**Issue:** gemini-integration-ui-debugger
-**Depends on:** TASK0
+**Issue:** gemini-integration-skill-eval
+**Depends on:** TASK1
 
 ## Objective
 
-Create an agent that uses Gemini's multimodal capabilities to compare browser screenshots against Figma designs.
+Update skill-eval.sh to auto-suggest the gemini agent for research queries.
 
 ## Required Context
 
 Read these files first:
-- `claude/agents/codex.md` — Agent definition pattern
-- `gemini/AGENTS.md` — Gemini instructions (from TASK0)
-- Check available MCP tools: `mcp__figma__*`, `mcp__chrome-devtools__*`
-- Run `gemini --help` and `gemini extensions list` for CLI capabilities
+- `claude/hooks/skill-eval.sh` — Current skill evaluation hook
+- `claude/agents/gemini.md` — Gemini agent (from TASK1)
 
-## Multimodal Approach
-
-**Decision:** Use Gemini API directly via curl with base64-encoded images. This is the most reliable approach as it doesn't depend on CLI extension availability.
-
-**Implementation Pattern:**
-```bash
-# Encode images to base64 (use -b 0 on macOS to prevent line breaks)
-SCREENSHOT_B64=$(base64 -b 0 -i "$SCREENSHOT_PATH")
-FIGMA_B64=$(base64 -b 0 -i "$FIGMA_PATH")
-
-# Send images to Gemini API for comparison
-HTTP_STATUS=$(curl -s -w '%{http_code}' -o /tmp/gemini-response.json \
-  -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent" \
-  -H "Content-Type: application/json" \
-  -H "x-goog-api-key: $GEMINI_API_KEY" \
-  -d '{
-    "contents": [{
-      "parts": [
-        {"text": "Compare these two UI images. The first is the current implementation screenshot, the second is the Figma design. Identify all visual discrepancies including layout, spacing, colors, typography, and responsive issues. Rate each by severity (HIGH/MEDIUM/LOW) and suggest specific CSS fixes."},
-        {"inline_data": {"mime_type": "image/png", "data": "'"$SCREENSHOT_B64"'"}},
-        {"inline_data": {"mime_type": "image/png", "data": "'"$FIGMA_B64"'"}}
-      ]
-    }]
-  }')
-
-# Error handling
-if [[ "$HTTP_STATUS" -ne 200 ]]; then
-  echo "API error (HTTP $HTTP_STATUS):"
-  jq -r '.error.message // "Unknown error"' /tmp/gemini-response.json
-  exit 1
-fi
-
-# Extract response (with fallback for missing candidates)
-jq -e -r '.candidates[0].content.parts[0].text // "No response generated"' /tmp/gemini-response.json
-```
-
-**Why API over CLI:** The Gemini CLI has no image extensions installed. The API provides guaranteed multimodal support without additional setup.
-
-**Runtime Requirements:** `jq` must be available for JSON parsing.
-
-## Files to Create
+## Files to Modify
 
 | File | Action |
 |------|--------|
-| `claude/agents/gemini-ui-debugger.md` | Create |
+| `claude/hooks/skill-eval.sh` | Modify |
 
 ## Implementation Details
 
-### claude/agents/gemini-ui-debugger.md
+### Add Web Search Pattern
 
-**Frontmatter:**
-```yaml
----
-name: gemini-ui-debugger
-description: "Compare screenshots to Figma designs using Gemini's multimodal capabilities. Identifies visual discrepancies."
-model: haiku
-tools: Bash, Read, Write, mcp__figma__get_figma_data, mcp__figma__download_figma_images, mcp__chrome-devtools__take_screenshot
-color: purple
----
+Add a new pattern block in the SHOULD section (after existing patterns, before the closing `fi`):
+
+```bash
+# Web search / research triggers (use gemini agent)
+elif echo "$PROMPT_LOWER" | grep -qE '\bresearch\b|\blook up\b|\bfind (out|info|information)\b|\bwhat.*(latest|current|best practice)\b|\bhow (do|does|to).*currently\b|\bsearch (for|the web)\b|\bwhat do.*say about\b'; then
+  SUGGESTION="RECOMMENDED: Use gemini agent for research queries requiring external information."
+  PRIORITY="should"
 ```
 
-**Core Behavior:**
+### Pattern Rationale
 
-1. **Input Handling:**
-   - Accept screenshot path directly, OR
-   - Capture via Chrome DevTools MCP: `mcp__chrome-devtools__take_screenshot`
+| Pattern | Trigger Example |
+|---------|-----------------|
+| `\bresearch\b` | "Research best practices for X" |
+| `\blook up\b` | "Look up how to configure Y" |
+| `\bfind (out\|info)\b` | "Find out what the latest version is" |
+| `\bwhat.*(latest\|current)\b` | "What's the latest React version?" |
+| `\bhow.*currently\b` | "How do people currently handle X?" |
+| `\bsearch (for\|the web)\b` | "Search for documentation on Z" |
+| `\bwhat do.*say about\b` | "What do the docs say about this?" |
 
-2. **Figma Design Fetching:**
-   - Extract Figma URL/file key from user input
-   - Use `mcp__figma__get_figma_data` to get node info
-   - Use `mcp__figma__download_figma_images` to get design image
+### Placement
 
-3. **Comparison via Gemini API:**
-   - Base64-encode both images
-   - Send to Gemini API via curl (see Multimodal Approach above)
-   - Parse JSON response for comparison findings
+Insert AFTER these existing SHOULD patterns:
+- Security pattern
+- PR comments pattern
+- Bloat/minimize pattern
+- Unclear/brainstorm pattern
+- Autoskill pattern
 
-4. **Output Format:**
-   ```markdown
-   ## UI Comparison Report
+Insert BEFORE the final `fi`.
 
-   **Screenshot:** {path}
-   **Figma Design:** {figma_url}
+### Avoid Conflicts
 
-   ### Summary
-   Found {N} discrepancies: {HIGH} high, {MEDIUM} medium, {LOW} low
+Ensure patterns don't overlap with:
+- `plan-workflow` triggers (create, build, implement)
+- `bugfix-workflow` triggers (fix, error, bug)
 
-   ### Discrepancies
-
-   #### HIGH Severity
-   1. **{Issue Title}**
-      - Description: {what's different}
-      - Location: {area of screen}
-      - Suggested fix: {CSS or component change}
-
-   ### Recommendations
-   - {Prioritized action items}
-   ```
-
-**Edge Cases:**
-- No Figma URL provided → request from user
-- Screenshot capture fails → provide helpful error
-- Multimodal not available → fall back to text description request
+The research patterns are distinct — they ask for external information, not internal codebase changes.
 
 ## Verification
 
 ```bash
-# Agent file exists
-test -f claude/agents/gemini-ui-debugger.md && echo "File exists"
+# Syntax check
+bash -n claude/hooks/skill-eval.sh && echo "Syntax OK"
 
-# Check for MCP tool references
-grep -q "mcp__figma" claude/agents/gemini-ui-debugger.md
-grep -q "mcp__chrome-devtools" claude/agents/gemini-ui-debugger.md
+# Test pattern matching
+echo '{"prompt": "research best practices for caching"}' | claude/hooks/skill-eval.sh | grep -q "gemini" && echo "Pattern matches"
+
+# Ensure no false positives
+echo '{"prompt": "fix the caching bug"}' | claude/hooks/skill-eval.sh | grep -v "gemini" && echo "No false positive"
 ```
 
 ## Acceptance Criteria
 
-- [ ] Agent definition created at `claude/agents/gemini-ui-debugger.md`
-- [ ] Supports screenshot from file path or Chrome DevTools capture
-- [ ] Fetches Figma design via Figma MCP
-- [ ] Sends images to Gemini (CLI or API)
-- [ ] Output includes severity ratings and suggested fixes
-- [ ] Handles edge cases:
-  - Missing Figma URL → request from user or analyze screenshot only
-  - Capture failures → clear error message
-  - Multimodal unavailable → graceful fallback
-- [ ] Requires Figma URL/file key upfront (documented in agent description)
+- [ ] skill-eval.sh updated with web search pattern
+- [ ] Pattern triggers for research-related queries
+- [ ] Uses SHOULD priority (not MUST)
+- [ ] No conflicts with existing patterns
+- [ ] Shell syntax is valid
+- [ ] Suggests gemini agent specifically
