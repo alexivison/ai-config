@@ -61,9 +61,21 @@ TASK0 (CLI config)
 
 ## Implementation Notes
 
-### Gemini CLI Usage Pattern
+### Key Thresholds
 
-The Gemini CLI is already installed at `/Users/aleksituominen/.nvm/versions/node/v24.12.0/bin/gemini`:
+| Metric | Value | Rationale |
+|--------|-------|-----------|
+| Delegation threshold | 500K tokens (~2MB) | Below this, standard log-analyzer suffices |
+| Warning threshold | 1.6M tokens (~6.4MB) | Approaching Gemini's 2M limit |
+
+### Gemini CLI Resolution
+
+3-tier fallback chain:
+1. `GEMINI_PATH` environment variable (if set)
+2. `command -v gemini` (system PATH)
+3. `/Users/aleksituominen/.nvm/versions/node/v24.12.0/bin/gemini` (absolute fallback)
+
+### Gemini CLI Usage Pattern
 
 | Codex CLI | Gemini CLI |
 |-----------|------------|
@@ -75,15 +87,16 @@ The Gemini CLI is already installed at `/Users/aleksituominen/.nvm/versions/node
 
 | Mode | Test Approach |
 |------|---------------|
-| Log analysis | Generate large synthetic log, verify analysis |
+| Log analysis | Generate large synthetic log (>500K tokens), verify analysis |
 | Web search | Query with known answer, verify synthesis quality |
 
 ### Risk Mitigation
 
 | Risk | Mitigation |
 |------|------------|
-| Gemini CLI rate limits | CLI handles retry internally |
-| Context overflow | Truncate with clear warning |
+| Gemini CLI rate limits | CLI handles retry internally (verify during implementation) |
+| Context overflow (>1.6M tokens) | Time-range filtering if timestamps present, else sequential chunking |
+| Mode ambiguity | Explicit `mode:log`/`mode:web` override, else keyword heuristics |
 
 ## Future Iterations
 

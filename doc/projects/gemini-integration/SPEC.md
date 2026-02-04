@@ -26,8 +26,10 @@ Integrate Google Gemini into the autonomous workflow as a complementary model fo
 
 | Mode | Trigger | Model | Use Case |
 |------|---------|-------|----------|
-| log-analysis | Log size > 100K tokens | gemini-2.5-pro | Massive log files |
+| log-analysis | Log size > 500K tokens (~2MB) | gemini-2.5-pro | Massive log files |
 | web-search | Research queries (auto-suggested) | gemini-2.0-flash | Fast synthesis |
+
+**Mode Override:** Explicit `mode:log` or `mode:web` in prompt overrides heuristics.
 
 **Capabilities:**
 
@@ -52,7 +54,7 @@ Integrate Google Gemini into the autonomous workflow as a complementary model fo
 ### Gemini CLI
 
 Use the existing Gemini CLI (already installed and authenticated):
-- Located at `/Users/aleksituominen/.nvm/versions/node/v24.12.0/bin/gemini`
+- Resolution: `GEMINI_PATH` env → `command -v gemini` → `/Users/aleksituominen/.nvm/versions/node/v24.12.0/bin/gemini`
 - OAuth credentials in `gemini/` directory
 - Add `gemini/AGENTS.md` for agent instructions
 

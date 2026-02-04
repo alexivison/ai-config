@@ -45,7 +45,8 @@ color: green
 
 2. If no explicit mode, use keyword heuristics:
    - Keywords: "log", "analyze logs", "production logs" → LOG ANALYSIS
-   - Keywords: "research", "search the web", "look up online" → WEB SEARCH
+   - Keywords: "search the web", "look up online", "research online" → WEB SEARCH
+   - NOTE: Bare "research" alone is too broad; require explicit external qualifier
 
 3. LOG ANALYSIS MODE:
    a. Estimate log size using byte count (more accurate than line count):

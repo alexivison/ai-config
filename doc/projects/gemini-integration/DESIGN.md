@@ -120,7 +120,7 @@ User: "Analyze these production logs"
 ┌─────────────────────┐
 │ Main Agent          │
 │ - Estimate log size │
-│ - > 100K tokens?    │
+│ - > 500K tokens?    │
 └─────────┬───────────┘
           │ Yes
           ▼
