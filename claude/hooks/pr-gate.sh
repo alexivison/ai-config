@@ -3,7 +3,7 @@
 # Blocks `gh pr create` unless ALL required markers exist:
 #   - /tmp/claude-pr-verified-{session_id} (from /pre-pr-verification)
 #   - /tmp/claude-code-critic-{session_id} (from code-critic APPROVE)
-#   - /tmp/claude-codex-review-{session_id} (from codex-review APPROVE)
+#   - /tmp/claude-codex-{session_id} (from codex agent APPROVE)
 #   - /tmp/claude-tests-passed-{session_id} (from test-runner PASS)
 #   - /tmp/claude-checks-passed-{session_id} (from check-runner PASS)
 #
@@ -51,7 +51,7 @@ EOF
   VERIFY_MARKER="/tmp/claude-pr-verified-$SESSION_ID"
   # SECURITY_MARKER="/tmp/claude-security-scanned-$SESSION_ID"  # Codex covers basic security
   CODE_CRITIC_MARKER="/tmp/claude-code-critic-$SESSION_ID"
-  CODEX_REVIEW_MARKER="/tmp/claude-codex-review-$SESSION_ID"
+  CODEX_MARKER="/tmp/claude-codex-$SESSION_ID"
   TESTS_MARKER="/tmp/claude-tests-passed-$SESSION_ID"
   CHECKS_MARKER="/tmp/claude-checks-passed-$SESSION_ID"
 
@@ -59,7 +59,7 @@ EOF
   [ ! -f "$VERIFY_MARKER" ] && MISSING="$MISSING /pre-pr-verification"
   # [ ! -f "$SECURITY_MARKER" ] && MISSING="$MISSING security-scanner"  # Codex covers basic security
   [ ! -f "$CODE_CRITIC_MARKER" ] && MISSING="$MISSING code-critic"
-  [ ! -f "$CODEX_REVIEW_MARKER" ] && MISSING="$MISSING codex-review"
+  [ ! -f "$CODEX_MARKER" ] && MISSING="$MISSING codex"
   [ ! -f "$TESTS_MARKER" ] && MISSING="$MISSING test-runner"
   [ ! -f "$CHECKS_MARKER" ] && MISSING="$MISSING check-runner"
 

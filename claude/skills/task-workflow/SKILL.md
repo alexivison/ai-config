@@ -24,7 +24,7 @@ State which items were checked before proceeding.
 After passing the gate, execute continuously — **no stopping until PR is created**.
 
 ```
-/write-tests (if needed) → implement → checkboxes → code-critic → codex-review → /pre-pr-verification → commit → PR
+/write-tests (if needed) → implement → checkboxes → code-critic → codex → /pre-pr-verification → commit → PR
 ```
 
 ### Step-by-Step
@@ -34,7 +34,7 @@ After passing the gate, execute continuously — **no stopping until PR is creat
 3. **GREEN phase** — Run test-runner agent to verify tests pass
 4. **Checkboxes** — Update both TASK*.md and PLAN.md: `- [ ]` → `- [x]`
 5. **code-critic** — MANDATORY after implementing. Fix issues until APPROVE
-6. **codex-review** — Spawn general-purpose subagent for combined code + arch review
+6. **codex** — Spawn codex agent for combined code + architecture review
 7. **Re-run code-critic** — If Codex made changes, verify conventions
 8. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)
 9. **Commit & PR** — Create commit and draft PR
@@ -49,46 +49,33 @@ After completing implementation, update checkboxes:
 
 Commit checkbox updates WITH implementation, not separately.
 
-## Codex Review Step
+## Codex Step
 
-After code-critic APPROVE, spawn general-purpose subagent for Codex review:
+After code-critic APPROVE, spawn **codex** agent for deep review:
 
 **Prompt template:**
 ```
-Run Codex CLI for combined code + architecture review.
+Review uncommitted changes for bugs, security, and architectural fit.
 
+**Task:** Code + Architecture Review
 **Iteration:** {N} of 3
 **Previous feedback:** {summary if iteration > 1}
 
-**Steps:**
-1. First, detect config root and read domain rules:
-   - Check for `claude/rules/`, `.claude/rules/`, or `./rules/`
-   - Read `development.md` and any `backend/*.md` or `frontend/*.md` files
-   - Note key conventions for the review
-
-2. Run: `codex exec -s read-only "Review uncommitted changes for bugs and architectural fit. Check imports/callers. Return verdict: **APPROVE** or **REQUEST_CHANGES** with file:line issues."`
-
-3. Parse the output and return summary to main agent:
-   - Verdict (**APPROVE** or **REQUEST_CHANGES**)
-   - Key issues with file:line references
-   - Architectural concerns
-
-**IMPORTANT:** On APPROVE, your response MUST include the exact text "CODEX APPROVED" so the marker is created.
+Check imports, callers, and related files. Return verdict with file:line issues.
 ```
 
-**On APPROVE:** Include "CODEX APPROVED" in response (agent-trace.sh creates marker automatically)
+The codex agent will:
+1. Read domain rules from `claude/rules/` or `.claude/rules/`
+2. Run `codex exec -s read-only` for deep analysis
+3. Return structured verdict (APPROVE/REQUEST_CHANGES/NEEDS_DISCUSSION)
 
-**On REQUEST_CHANGES:** Return findings for main agent to fix.
+**On APPROVE:** Agent returns "CODEX APPROVED" and marker is created automatically.
 
-**Key capabilities:**
-- Codex uses `read-only` sandbox — can explore entire codebase
-- GPT5.2 High with detailed reasoning (configured in codex/config.toml)
-- Reviews code quality AND architectural fit
+**On REQUEST_CHANGES:** Fix issues and re-invoke codex agent.
 
 **Iteration protocol:**
-- Main agent fixes issues and re-spawns subagent
 - Max 3 iterations, then NEEDS_DISCUSSION
-- Do NOT re-run Codex after code-critic convention fixes
+- Do NOT re-run codex after code-critic convention fixes
 
 ## Core Reference
 

@@ -5,7 +5,7 @@ Shared execution sequence for all workflow skills. This is loaded on-demand by w
 ## Core Sequence
 
 ```
-/write-tests → implement → checkboxes → code-critic → codex-review → /pre-pr-verification → commit → PR
+/write-tests → implement → checkboxes → code-critic → codex → /pre-pr-verification → commit → PR
 ```
 
 ## Decision Matrix
@@ -15,14 +15,14 @@ Shared execution sequence for all workflow skills. This is loaded on-demand by w
 | /write-tests | Tests written (RED) | Implement code | NO |
 | Implement | Code written | Update checkboxes | NO |
 | Checkboxes | Updated | Run code-critic | NO |
-| code-critic | APPROVE | Run codex-review | NO |
+| code-critic | APPROVE | Run codex | NO |
 | code-critic | REQUEST_CHANGES | Fix and re-run | NO |
 | code-critic | NEEDS_DISCUSSION | Show findings, ask user | YES |
 | code-critic | 3rd failure | Document attempts, ask user | YES |
-| codex-review | APPROVE (no changes) | Run /pre-pr-verification | NO |
-| codex-review | APPROVE (with changes) | Re-run code-critic | NO |
-| codex-review | REQUEST_CHANGES | Fix and re-run | NO |
-| codex-review | NEEDS_DISCUSSION | Ask user | YES |
+| codex | APPROVE (no changes) | Run /pre-pr-verification | NO |
+| codex | APPROVE (with changes) | Re-run code-critic | NO |
+| codex | REQUEST_CHANGES | Fix and re-run | NO |
+| codex | NEEDS_DISCUSSION | Ask user | YES |
 | code-critic (post-codex) | REQUEST_CHANGES | Fix conventions, proceed | NO |
 | test-runner | PASS | Continue to check-runner | NO |
 | test-runner | FAIL | Fix and re-run | NO |
@@ -41,7 +41,7 @@ Shared execution sequence for all workflow skills. This is loaded on-demand by w
 
 Only pause for:
 1. **Investigation findings** — debug-investigator, log-analyzer always require user review
-2. **NEEDS_DISCUSSION** — From code-critic or codex-review
+2. **NEEDS_DISCUSSION** — From code-critic or codex
 3. **3 strikes** — 3 failed fix attempts on same issue
 4. **Explicit blockers** — Missing dependencies, unclear requirements
 
@@ -51,7 +51,7 @@ Only pause for:
 |-------------|----------|---------------|--------------|
 | Investigation | debug-investigator, log-analyzer | Always | Full findings, then AskUserQuestion |
 | Verification | test-runner, check-runner | Never (fix failures directly) | Summary only |
-| Iterative | code-critic, codex-review (via general-purpose), plan-reviewer | NEEDS_DISCUSSION or 3 failures | Verdict each iteration |
+| Iterative | code-critic, codex, plan-reviewer | NEEDS_DISCUSSION or 3 failures | Verdict each iteration |
 
 <!-- security-scanner moved to optional; Codex covers basic security review -->
 
@@ -74,7 +74,7 @@ Evidence before claims. Never state success without fresh proof.
 Before `gh pr create`:
 - `/pre-pr-verification` invoked THIS session
 - All checks passed with evidence
-- codex-review APPROVE verdict
+- codex APPROVE verdict
 - Verification summary in PR description
 
 **Enforcement:** PR gate requires markers. Missing markers → blocked. See `~/.claude/rules/autonomous-flow.md` for marker details.

@@ -20,7 +20,7 @@ Workflow skills load on-demand. See `~/.claude/skills/*/SKILL.md` for details.
 
 **Do NOT stop between steps.** Core sequence:
 ```
-tests → implement → checkboxes → code-critic → codex-review → /pre-pr-verification → commit → PR
+tests → implement → checkboxes → code-critic → codex → /pre-pr-verification → commit → PR
 ```
 
 **Only pause for:** Investigation findings, NEEDS_DISCUSSION, 3 strikes.
@@ -39,7 +39,7 @@ Details in `~/.claude/agents/README.md`. Quick reference:
 | Complex bug | debug-investigator |
 | Analyze logs | log-analyzer |
 | After implementing | code-critic (MANDATORY) |
-| After code-critic | codex-review (via general-purpose subagent) |
+| After code-critic | codex (MANDATORY) |
 | After creating plan | plan-reviewer (MANDATORY) |
 
 ## Verification Principle

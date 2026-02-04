@@ -56,27 +56,31 @@ Sub-agents preserve context by offloading investigation/verification tasks.
 
 **Note:** Uses Sonnet. Preloads `/code-review` skill. Include iteration number and previous feedback when re-invoking.
 
-## codex-review (via general-purpose subagent)
+## codex
 
-**Use when:** After code-critic APPROVE, before /pre-pr-verification.
+**Use when:** Deep reasoning tasks — code review, architecture analysis, design decisions, debugging, trade-off evaluation.
 
-**Pattern:** Spawn general-purpose subagent that calls `codex exec -s read-only "..."`. Combined code + architecture review.
+**Pattern:** Dedicated agent that invokes Codex CLI (`codex exec -s read-only`). Isolates Codex output from main context.
 
-**Why subagent:** Isolates Codex output from main context. Subagent returns concise summary.
+**Supported tasks:**
+- Code + architecture review (pre-PR)
+- Design decisions and trade-off analysis
+- Complex debugging analysis
+- Architectural pattern evaluation
 
-**Iteration:** Main agent controls loop. Max 3 iterations.
+**Iteration:** Main agent controls loop. Max 3 iterations for reviews.
 
-**Marker:** agent-trace.sh creates `/tmp/claude-codex-review-{session}` on APPROVE.
+**Marker:** agent-trace.sh creates `/tmp/claude-codex-{session}` on APPROVE.
 
-**Returns:** Verdict (APPROVE | REQUEST_CHANGES | NEEDS_DISCUSSION) with issues (file:line) and architectural concerns.
+**Returns:** Structured verdict (APPROVE | REQUEST_CHANGES | NEEDS_DISCUSSION) with file:line references.
 
 **Escalates to user:** Only on NEEDS_DISCUSSION or after 3 failed iterations.
 
-**Note:** Replaces architecture-critic. Uses GPT5.2 High via Codex CLI. Detects config root dynamically, loads development.md + backend/frontend rules.
+**Note:** Uses Haiku (wrapper) + GPT5.2 High (via Codex CLI). Replaces architecture-critic. Always uses read-only sandbox.
 
 ## architecture-critic (DEPRECATED)
 
-**Note:** Replaced by codex-review. Files preserved for reference.
+**Note:** Replaced by codex agent. Files preserved for reference.
 
 **Use when:** After code-critic passes, before tests.
 

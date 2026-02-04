@@ -124,16 +124,10 @@ if [ "$agent_type" = "plan-reviewer" ] && [ "$verdict" = "APPROVED" ]; then
   touch "/tmp/claude-plan-reviewer-$session_id"
 fi
 
-# codex-review: detect from general-purpose subagent output
-# Require codex-specific signature to avoid false positives from other general-purpose uses
-# Match: "Code + Architecture Review" header (from codex/AGENTS.md format) AND **APPROVE**
-# Or explicit "CODEX APPROVED" line
-if [ "$agent_type" = "general-purpose" ]; then
-  if echo "$response_text" | grep -qi "CODEX APPROVED"; then
-    touch "/tmp/claude-codex-review-$session_id"
-  elif echo "$response_text" | grep -qi "Code.*Architecture Review" && echo "$response_text" | grep -qE "\*\*APPROVE\*\*"; then
-    touch "/tmp/claude-codex-review-$session_id"
-  fi
+# codex: dedicated Codex CLI agent - only APPROVED creates marker
+# Used for code review, architecture analysis, design decisions, debugging
+if [ "$agent_type" = "codex" ] && [ "$verdict" = "APPROVED" ]; then
+  touch "/tmp/claude-codex-$session_id"
 fi
 
 exit 0
