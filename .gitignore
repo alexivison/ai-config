@@ -1,0 +1,4 @@
+# Codex CLI generated files
+codex/tmp/
+codex/models_cache.json
+codex/.personality_migration

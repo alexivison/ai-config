@@ -20,10 +20,10 @@ Workflow skills load on-demand. See `~/.claude/skills/*/SKILL.md` for details.
 
 **Do NOT stop between steps.** Core sequence:
 ```
-tests → implement → checkboxes → code-critic → architecture-critic → verification → commit → PR
+tests → implement → checkboxes → code-critic → codex-review → /pre-pr-verification → commit → PR
 ```
 
-**Only pause for:** Investigation findings, NEEDS_DISCUSSION, 3 strikes, HIGH/CRITICAL security.
+**Only pause for:** Investigation findings, NEEDS_DISCUSSION, 3 strikes.
 
 **Enforcement:** PR gate blocks until markers exist. See `~/.claude/rules/autonomous-flow.md`.
 
@@ -35,11 +35,11 @@ Details in `~/.claude/agents/README.md`. Quick reference:
 |----------|-------|
 | Run tests | test-runner |
 | Run typecheck/lint | check-runner |
-| Security scan | security-scanner |
+| Security scan | security-scanner (optional — Codex covers basic security) |
 | Complex bug | debug-investigator |
 | Analyze logs | log-analyzer |
 | After implementing | code-critic (MANDATORY) |
-| After code-critic | architecture-critic |
+| After code-critic | codex-review (via general-purpose subagent) |
 | After creating plan | plan-reviewer (MANDATORY) |
 
 ## Verification Principle

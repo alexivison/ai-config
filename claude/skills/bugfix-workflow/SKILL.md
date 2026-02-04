@@ -28,7 +28,7 @@ State which items were checked before proceeding.
 Execute continuously — **no stopping until PR is created**.
 
 ```
-/write-tests (regression) → implement fix → code-critic → architecture-critic → verification → PR
+/write-tests (regression) → implement fix → code-critic → codex-review → /pre-pr-verification → PR
 ```
 
 ### Step-by-Step
@@ -37,9 +37,9 @@ Execute continuously — **no stopping until PR is created**.
 2. **Implement Fix** — Fix the bug to make the test pass
 3. **GREEN phase** — Run test-runner agent to verify tests pass
 4. **code-critic** — MANDATORY after implementing. Fix issues until APPROVE
-5. **architecture-critic** — Run after code-critic passes
-6. **Verification** — Run test-runner + check-runner + security-scanner (parallel)
-7. **PR Verification** — Invoke `/pre-pr-verification`
+5. **codex-review** — Spawn general-purpose subagent for combined code + arch review
+6. **Re-run code-critic** — If Codex made changes, verify conventions
+7. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)
 8. **Commit & PR** — Create commit and draft PR
 
 **Important:** Always use test-runner agent for running tests, check-runner for lint/typecheck. This preserves context by isolating verbose output.
@@ -59,6 +59,10 @@ This ensures the bug is actually fixed and won't regress.
 - User mentions "bug", "fix", "broken", "error", "not working"
 - Something that worked before stopped working
 - Unexpected behavior that needs investigation
+
+## Codex Review Step
+
+See [task-workflow/SKILL.md](../task-workflow/SKILL.md#codex-review-step) for the complete Codex review prompt template and iteration protocol.
 
 ## Core Reference
 

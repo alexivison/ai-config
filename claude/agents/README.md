@@ -56,7 +56,28 @@ Sub-agents preserve context by offloading investigation/verification tasks.
 
 **Note:** Uses Sonnet. Preloads `/code-review` skill. Include iteration number and previous feedback when re-invoking.
 
-## architecture-critic
+## codex-review (via general-purpose subagent)
+
+**Use when:** After code-critic APPROVE, before /pre-pr-verification.
+
+**Pattern:** Spawn general-purpose subagent that calls `codex exec -s read-only "..."`. Combined code + architecture review.
+
+**Why subagent:** Isolates Codex output from main context. Subagent returns concise summary.
+
+**Iteration:** Main agent controls loop. Max 3 iterations.
+
+**Marker:** agent-trace.sh creates `/tmp/claude-codex-review-{session}` on APPROVE.
+
+**Returns:** Verdict (APPROVE | REQUEST_CHANGES | NEEDS_DISCUSSION) with issues (file:line) and architectural concerns.
+
+**Escalates to user:** Only on NEEDS_DISCUSSION or after 3 failed iterations.
+
+**Note:** Replaces architecture-critic. Uses GPT5.2 High via Codex CLI. Detects config root dynamically, loads development.md + backend/frontend rules.
+
+## architecture-critic (DEPRECATED)
+
+**Note:** Replaced by codex-review. Files preserved for reference.
+
 **Use when:** After code-critic passes, before tests.
 
 **Pattern:** Quick metrics scan first → deep analysis only when thresholds exceeded.
