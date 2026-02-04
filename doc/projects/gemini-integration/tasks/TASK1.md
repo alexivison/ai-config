@@ -12,7 +12,6 @@ Create a single CLI-based Gemini agent that handles both large-scale log analysi
 Read these files first:
 - `claude/agents/log-analyzer.md` — Current log analyzer (inherit patterns)
 - `claude/agents/codex.md` — Agent definition pattern
-- `gemini/AGENTS.md` — Gemini instructions (from TASK0)
 - Run `gemini --help` to understand CLI options
 
 ## Files to Create

@@ -33,9 +33,10 @@ Use the existing Gemini CLI (already installed at `$(npm root -g)/@google/gemini
 gemini/
 ├── oauth_creds.json     # OAuth credentials (existing)
 ├── settings.json        # Auth settings (existing)
-├── google_accounts.json # Account info (existing)
-└── AGENTS.md            # Instructions for Gemini (NEW)
+└── google_accounts.json # Account info (existing)
 ```
+
+**Note:** Unlike Codex, Gemini does NOT use an AGENTS.md file. Instructions are passed inline via the `-p` flag.
 
 **CLI Interface (existing commands):**
 ```bash
@@ -161,29 +162,18 @@ User: "What's the best practice for X in 2026?"
 
 ## Configuration
 
-### gemini/AGENTS.md (NEW)
+### Inline Instructions
 
-Instructions for Gemini when invoked by Claude Code agents:
+Unlike Codex (which reads from AGENTS.md), Gemini receives instructions directly in the prompt via `-p`. The gemini agent includes analysis instructions in each invocation:
 
-```markdown
-# Gemini — Specialized Analysis Agent
-
-You are invoked by Claude Code for tasks requiring:
-- Large context analysis (up to 2M tokens)
-- Fast synthesis (Flash model)
-
-## Output Format
-
-Provide structured, actionable output. Include:
+```bash
+gemini --approval-mode plan -m gemini-2.5-pro -p "Analyze these logs. Provide:
 - Clear findings with specifics
-- Severity/priority where applicable
+- Severity/priority ratings
 - Actionable recommendations
 
-## Boundaries
-
-- Analysis and synthesis only
-- No code generation unless specifically requested
-- No file modifications
+Logs:
+$(cat /path/to/logs.log)"
 ```
 
 ### Model Selection

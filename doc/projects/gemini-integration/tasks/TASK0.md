@@ -1,25 +1,22 @@
-# TASK0: Gemini CLI Configuration
+# TASK0: Gemini CLI Verification
 
 **Issue:** gemini-integration-config
 
 ## Objective
 
-Configure the existing Gemini CLI for use by Claude Code agents. The CLI is already installed and authenticated.
+Verify the existing Gemini CLI is installed and authenticated for use by Claude Code agents.
 
 ## Required Context
 
 Read these files first:
 - `gemini/settings.json` — Existing auth configuration
-- `codex/AGENTS.md` — Reference for agent instructions pattern
 - Run `gemini --help` to verify CLI is available
 
 ## Files to Create
 
-| File | Purpose |
-|------|---------|
-| `gemini/AGENTS.md` | Instructions for Gemini when invoked by agents |
+None — this task is verification only.
 
-**Note:** The Gemini CLI is already installed and authenticated. We only need to add agent instructions.
+**Note:** The Gemini CLI is already installed and authenticated. Unlike Codex, Gemini does NOT use an AGENTS.md file. Instructions are passed directly via the `-p` flag.
 
 ## Implementation Details
 
@@ -27,37 +24,14 @@ Read these files first:
 
 ```bash
 # Check CLI is available
-which gemini
-# Expected: $(npm root -g)/@google/gemini-cli/bin/gemini
+which gemini || command -v gemini
+# Expected: in PATH or $(npm root -g)/@google/gemini-cli/bin/gemini
 
 # Check version
 gemini --version
 
 # Verify authentication
 gemini -p "Hello, respond with 'OK'" 2>&1 | head -5
-```
-
-### gemini/AGENTS.md
-
-```markdown
-# Gemini — Specialized Analysis Agent
-
-You are invoked by Claude Code for tasks requiring:
-- Large context analysis (up to 2M tokens)
-- Fast synthesis (Flash model)
-
-## Output Format
-
-Provide structured, actionable output. Include:
-- Clear findings with specifics
-- Severity/priority where applicable
-- Actionable recommendations
-
-## Boundaries
-
-- Analysis and synthesis only
-- No code generation unless specifically requested
-- No file modifications
 ```
 
 ### CLI Usage Patterns
@@ -69,23 +43,31 @@ Provide structured, actionable output. Include:
 | Read-only mode | `gemini --approval-mode plan -p "..."` |
 | Model selection | `gemini -m gemini-2.0-flash -p "..."` |
 
+### Key Difference from Codex
+
+| Feature | Codex | Gemini |
+|---------|-------|--------|
+| Instructions file | `codex/AGENTS.md` | None (inline via `-p`) |
+| Prompt flag | Inline string | `-p "prompt"` |
+| Read-only mode | `-s read-only` | `--approval-mode plan` |
+
 ## Verification
 
 ```bash
-# Check AGENTS.md created
-test -f gemini/AGENTS.md && echo "AGENTS.md exists"
-
 # Test CLI invocation
 gemini -p "Respond with only: GEMINI_OK" 2>&1 | grep -q "GEMINI_OK" && echo "CLI works"
 
 # Test stdin input
 echo "test content" | gemini -p "Echo the input content" 2>&1 | head -3
+
+# Test model selection
+gemini -m gemini-2.0-flash -p "Say 'Flash OK'" 2>&1 | head -3
 ```
 
 ## Acceptance Criteria
 
-- [ ] `gemini/AGENTS.md` created with agent instructions
 - [ ] CLI responds to `-p` flag queries
 - [ ] Stdin input works (pipe content to gemini)
 - [ ] Model selection works (`-m` flag)
+- [ ] `--approval-mode plan` works for read-only
 - [ ] Existing OAuth credentials NOT modified
