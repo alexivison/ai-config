@@ -28,17 +28,21 @@
 
 Use the existing Gemini CLI (already installed at `$(npm root -g)/@google/gemini-cli/bin/gemini`).
 
+**GEMINI.md Loading (Verified):** Gemini CLI automatically loads `GEMINI.md` from the project directory, similar to how Claude Code loads `CLAUDE.md`. This provides project-specific instructions without requiring manual configuration.
+
 **Directory Structure:**
 ```
 gemini/                           # Symlinked from ~/.gemini
-├── oauth_creds.json              # EXISTING - OAuth credentials
+├── .gitignore                    # Excludes credentials from repo
+├── oauth_creds.json              # EXISTING - OAuth credentials (gitignored)
 ├── settings.json                 # EXISTING - Auth settings
-├── google_accounts.json          # EXISTING - Account info
-├── GEMINI.md                     # NEW - Instructions for Gemini
-└── skills/                       # NEW - Skills directory
-    └── context-loader/
-        └── SKILL.md              # Load shared context from claude/
+├── google_accounts.json          # EXISTING - Account info (gitignored)
+├── installation_id               # EXISTING - Local state (gitignored)
+├── state.json                    # EXISTING - Local state (gitignored)
+└── GEMINI.md                     # NEW - Instructions for Gemini
 ```
+
+**Credential Separation:** OAuth credentials (`oauth_creds.json`, `google_accounts.json`) are excluded from version control via `.gitignore`. The symlink pattern (`~/.gemini` → `gemini/`) allows credentials to persist locally while config files are versioned.
 
 **Note:** The `gemini/` folder is symlinked from `~/.gemini`, following the same pattern as `claude/` → `~/.claude` and `codex/` → `~/.codex`.
 
@@ -80,22 +84,38 @@ color: green
 **Mode Selection Logic:**
 
 ```
-1. Check for explicit mode override:
-   - "mode:log" → LOG ANALYSIS
-   - "mode:web" → WEB SEARCH
+1. Check for explicit mode override (case-insensitive):
+   - "mode:log" or "mode:logs" → LOG ANALYSIS
+   - "mode:web" or "mode:search" → WEB SEARCH
 
-2. Fall back to keyword heuristics if no explicit mode
+2. Keyword heuristics (if no explicit mode):
 
-IF task involves log analysis:
-  - Estimate log size: bytes=$(wc -c < "$LOG_FILE"); tokens=$((bytes / 4))
-  - IF < 500K tokens → delegate to standard log-analyzer
-  - IF > 500K tokens → use gemini-2.5-pro via stdin
-  - IF > 1.6M tokens → warn, apply time-range filter or chunking
+   LOG ANALYSIS triggers:
+   - File path with log extension: *.log, *.jsonl, /var/log/*
+   - Keywords: "analyze logs", "production logs", "error logs", "log file"
+   - Pattern: path + "analyze" or "investigate"
+   - Regex: /\b(analyze|investigate|check)\s+(the\s+)?(logs?|\.log)\b/i
 
-IF task involves web research:
-  - Execute WebSearch tool
-  - Optionally fetch pages via WebFetch
-  - Synthesize with gemini-2.0-flash
+   WEB SEARCH triggers (require explicit external qualifier):
+   - "research online", "research the web", "research externally"
+   - "look up online", "look up externally"
+   - "search the web", "web search"
+   - "what is the latest/current version of"
+   - "what do experts/others say about"
+   - "find external info/documentation"
+
+   NOTE: Bare "research" alone does NOT trigger web search (avoids overlap
+   with codebase research). Must include explicit external qualifier.
+
+3. Log size routing (after mode determined):
+   - Token estimation: bytes=$(wc -c < "$LOG_FILE"); tokens=$((bytes / 4))
+   - < 500K tokens (~2MB) → delegate to standard log-analyzer
+   - 500K - 1.6M tokens → use gemini-2.5-pro via stdin
+   - > 1.6M tokens (~6.4MB) → warn about potential truncation
+
+4. Context overflow strategy (>1.6M tokens):
+   - IF timestamps present → filter by time range (e.g., last 24h)
+   - ELSE → chunk into segments, analyze sequentially, merge findings
 ```
 
 **CLI Path Resolution:**
@@ -168,17 +188,13 @@ User: "What's the best practice for X in 2026?"
 
 ### gemini/GEMINI.md
 
-Like Codex's AGENTS.md, Gemini reads instructions from `gemini/GEMINI.md`. This file defines:
+Gemini CLI automatically loads `GEMINI.md` from the project directory (verified behavior). This file defines:
 - Gemini's role in the multi-agent system
-- Output format expectations
+- Output format expectations (log analysis vs web search)
 - Boundaries (what Gemini should/shouldn't do)
+- Shared context from `claude/` (rules, agent instructions)
 
-### gemini/skills/context-loader/
-
-The context-loader skill ensures Gemini has access to shared project context from `claude/`:
-- Rules (`claude/rules/`)
-- Agent instructions (`claude/agents/README.md`)
-- Current task context (`TASK*.md`, `PLAN.md`)
+**Note on Skills:** Gemini skills require explicit installation via `gemini skills install`. For this integration, we use GEMINI.md for instructions rather than a separate context-loader skill, as GEMINI.md is automatically discovered while skills are not.
 
 ### Model Selection
 
@@ -189,14 +205,36 @@ The context-loader skill ensures Gemini has access to shared project context fro
 
 ## Error Handling
 
-| Scenario | Handling |
-|----------|----------|
-| CLI not found | Check `GEMINI_PATH` env, then `command -v`, then absolute NVM path |
-| Auth expired | Prompt to re-authenticate via `gemini` interactive |
-| Rate limit (429) | Retry with exponential backoff (verify CLI behavior during implementation) |
-| Context overflow (>1.6M tokens) | Apply time-range filter if timestamps present, else chunk sequentially |
-| Empty response | Report "No response generated", suggest prompt adjustment |
-| Mode ambiguity | Default to log analysis if file paths present, else web search |
+### CLI Resolution Errors
+
+| Error | Detection | Recovery |
+|-------|-----------|----------|
+| CLI not found | `command -v gemini` fails | 1. Check `GEMINI_PATH` env 2. Try `$(npm root -g)/@google/gemini-cli/bin/gemini` 3. Report "Install via: npm install -g @google/gemini-cli" |
+| CLI not executable | `-x "$GEMINI_CMD"` fails | Same as above |
+
+### Authentication Errors
+
+| Error | Detection | Recovery |
+|-------|-----------|----------|
+| Auth expired | Exit code or "authentication" in stderr | Report "Run `gemini` interactively to re-authenticate" |
+| No credentials | Missing oauth_creds.json | Same as above |
+
+### Runtime Errors
+
+| Error | Detection | Recovery |
+|-------|-----------|----------|
+| Rate limit (429) | "rate limit" in output | CLI handles retry internally; if persists, report and suggest waiting |
+| Context overflow | >1.6M estimated tokens | Apply time-range filter OR chunk sequentially (see mode selection logic) |
+| Empty response | Zero-length stdout | Report "No response generated", suggest: 1. Check input format 2. Adjust prompt 3. Verify CLI auth |
+| Timeout | Exit after 5min with no output | Report timeout, suggest smaller input or chunking |
+
+### Mode Ambiguity
+
+| Situation | Resolution |
+|-----------|------------|
+| No explicit mode, no keywords match | Examine input: if file paths → log analysis; else → ask user |
+| Both log and web keywords present | Prefer explicit `mode:` override; else prioritize log analysis |
+| File not found | Report file path error, do not proceed |
 
 ## Security Considerations
 

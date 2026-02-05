@@ -39,14 +39,28 @@ color: green
 **Mode Detection Logic:**
 
 ```
-1. Check for explicit mode override in task prompt:
-   - "mode:log" or "analyze logs" → LOG ANALYSIS (explicit)
-   - "mode:web" or "research this" → WEB SEARCH (explicit)
+1. Check for explicit mode override (case-insensitive):
+   - "mode:log" or "mode:logs" → LOG ANALYSIS
+   - "mode:web" or "mode:search" → WEB SEARCH
 
-2. If no explicit mode, use keyword heuristics:
-   - Keywords: "log", "analyze logs", "production logs" → LOG ANALYSIS
-   - Keywords: "search the web", "look up online", "research online" → WEB SEARCH
-   - NOTE: Bare "research" alone is too broad; require explicit external qualifier
+2. Keyword heuristics (if no explicit mode):
+
+   LOG ANALYSIS triggers:
+   - File path with log extension: *.log, *.jsonl, /var/log/*
+   - Phrases: "analyze logs", "production logs", "error logs", "log file"
+   - Pattern: path ending in .log + "analyze" or "investigate"
+   - Regex: /\b(analyze|investigate|check)\s+(the\s+)?(logs?|\.log)\b/i
+
+   WEB SEARCH triggers (require explicit external qualifier):
+   - Phrases: "research online", "research the web", "research externally"
+   - Phrases: "look up online", "look up externally", "search the web"
+   - Phrases: "what is the latest version", "what is the current version"
+   - Phrases: "what do experts say", "what do others say"
+   - Phrases: "find external info", "find external documentation"
+   - Regex: /\b(research|look up|search)\s+(online|the web|externally)\b/i
+
+   IMPORTANT: Bare "research" alone does NOT trigger web search
+   (avoids overlap with codebase research tasks).
 
 3. LOG ANALYSIS MODE:
    a. Estimate log size using byte count (more accurate than line count):
@@ -184,9 +198,14 @@ grep -q "gemini-2.0-flash" claude/agents/gemini.md
 - [ ] CLI resolution:
   - [ ] Uses `GEMINI_PATH` env var if set
   - [ ] Falls back to `command -v gemini`
-  - [ ] Falls back to absolute NVM path
+  - [ ] Falls back to `$(npm root -g)/@google/gemini-cli/bin/gemini`
 - [ ] Web search mode:
-  - [ ] Uses WebSearch/WebFetch tools
-  - [ ] Uses gemini-2.0-flash model
-  - [ ] Includes source citations
-- [ ] Tested with both log analysis and web search queries
+  - [ ] Uses WebSearch tool for queries (agent has this tool)
+  - [ ] Optionally uses WebFetch for full page content
+  - [ ] Synthesizes results with gemini-2.0-flash model
+  - [ ] Includes source citations with URLs
+- [ ] Verification tests:
+  - [ ] Log analysis: Test with file >2MB, verify Gemini invoked
+  - [ ] Log analysis: Test with file <2MB, verify log-analyzer delegation
+  - [ ] Web search: Test with explicit "search the web" query
+  - [ ] CLI: Verify all three resolution paths work

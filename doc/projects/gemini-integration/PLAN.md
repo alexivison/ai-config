@@ -33,13 +33,14 @@ TASK0 (CLI config)
 
 ### TASK0: Gemini CLI Configuration
 - [ ] Verify CLI is installed and authenticated
+- [ ] Verify GEMINI.md auto-discovery (project directory)
 - [ ] Create `gemini/GEMINI.md` with instructions
-- [ ] Create `gemini/skills/context-loader/SKILL.md`
 - [ ] Test `-p`, `-m`, and `--approval-mode plan` flags
+- [ ] Verify `.gitignore` excludes credentials
 
-**Deliverables:** `gemini/` directory with GEMINI.md and context-loader skill
+**Deliverables:** `gemini/GEMINI.md` with agent instructions
 
-**Note:** `gemini/` (OAuth creds) is separate from `gemini/` (CLI config).
+**Note:** GEMINI.md is auto-discovered from project directory (verified). Skills require explicit installation and are not used for this integration.
 
 ### TASK1: gemini Agent
 - [ ] Create `claude/agents/gemini.md`
@@ -66,6 +67,12 @@ TASK0 (CLI config)
 ## Implementation Notes
 
 ### Key Thresholds
+
+**Token Estimation Formula:**
+```bash
+bytes=$(wc -c < "$LOG_FILE")
+estimated_tokens=$((bytes / 4))
+```
 
 | Metric | Value | Rationale |
 |--------|-------|-----------|
