@@ -1,17 +1,44 @@
 ---
 name: log-analyzer
-description: "DEPRECATED - Use gemini agent instead. Analyze logs for errors and patterns."
+description: "DEPRECATED - DO NOT USE. Use gemini agent instead."
 model: haiku
 tools: Bash, Glob, Grep, Read, Write
-color: blue
+color: red
 ---
 
-> **DEPRECATED:** This agent is deprecated. Use the `gemini` agent for all log analysis tasks.
-> The gemini agent provides the same capabilities with additional benefits:
-> - 2M token context for massive log files
-> - Smart model selection (Flash for small logs, Pro for large logs)
->
-> This agent will be removed in a future version.
+# ⛔ DEPRECATED — DO NOT USE
+
+**This agent is deprecated and should NOT be invoked.**
+
+Use the `gemini` agent for ALL log analysis tasks instead.
+
+## Why gemini is Better
+
+| Feature | log-analyzer | gemini |
+|---------|--------------|--------|
+| Context window | ~100K tokens | **2M tokens** |
+| Model | Haiku only | Flash (small) / Pro (large) |
+| Compressed logs | No | Yes (`.gz`, `.zip`, `.tar.gz`) |
+| Multi-file | Manual | Automatic with separators |
+| Overflow handling | None | Time filtering / chunking |
+
+## Migration
+
+Replace any invocation of `log-analyzer` with `gemini`:
+
+```
+# OLD (deprecated)
+Task tool → subagent_type: "log-analyzer"
+
+# NEW (correct)
+Task tool → subagent_type: "gemini"
+```
+
+---
+
+**The content below is retained for reference only. Do not use this agent.**
+
+---
 
 You are a log analysis specialist. Parse logs systematically and write findings to file.
 

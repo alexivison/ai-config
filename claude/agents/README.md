@@ -28,27 +28,29 @@ Sub-agents preserve context by offloading investigation/verification tasks.
 **Modes:**
 | Mode | Model | Trigger |
 |------|-------|---------|
-| Log analysis (small) | gemini-2.0-flash | Logs < 500K tokens |
-| Log analysis (large) | gemini-2.5-pro | Logs >= 500K tokens |
+| Log analysis (small) | gemini-2.0-flash | Logs < 400K tokens (~1.6MB) |
+| Log analysis (large) | gemini-2.5-pro | Logs >= 400K tokens |
 | Web search | gemini-2.0-flash | Research queries with explicit external intent |
 
 **Writes to:** `~/.claude/logs/{identifier}.md` (log analysis) or returns inline (web search)
 
 **Returns:** Structured findings with sources cited.
 
+**Security:** Displays pre-flight warning before sending logs to Gemini API. Checks for sensitive patterns.
+
 **Note:** Uses Haiku (wrapper) + Gemini CLI. 2M token context for massive log files.
 
-## log-analyzer (DEPRECATED)
+## log-analyzer (⛔ DEPRECATED — DO NOT USE)
 
-> **DEPRECATED:** Use `gemini` agent instead. This agent will be removed in a future version.
+> **DO NOT USE this agent.** Use `gemini` agent for ALL log analysis.
 
-**Use when:** Analyzing application/server logs.
+| Feature | log-analyzer | gemini |
+|---------|--------------|--------|
+| Context | ~100K tokens | **2M tokens** |
+| Compressed logs | No | Yes |
+| Smart model selection | No | Yes |
 
-**Writes to:** `~/.claude/logs/{identifier}.md`
-
-**Returns:** Brief summary with file path, error/warning counts, timeline.
-
-**Note:** Uses Haiku. Handles JSON, syslog, Apache/Nginx, plain text.
+This agent will be removed in a future version.
 
 ## security-scanner
 **Use when:** Before commits/PRs, auditing security posture, or after dependency updates.
