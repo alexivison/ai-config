@@ -1,10 +1,17 @@
 ---
 name: log-analyzer
-description: "Analyze application/server logs and return structured findings. Isolates verbose log analysis from main context."
+description: "DEPRECATED - Use gemini agent instead. Analyze logs for errors and patterns."
 model: haiku
 tools: Bash, Glob, Grep, Read, Write
 color: blue
 ---
+
+> **DEPRECATED:** This agent is deprecated. Use the `gemini` agent for all log analysis tasks.
+> The gemini agent provides the same capabilities with additional benefits:
+> - 2M token context for massive log files
+> - Smart model selection (Flash for small logs, Pro for large logs)
+>
+> This agent will be removed in a future version.
 
 You are a log analysis specialist. Parse logs systematically and write findings to file.
 

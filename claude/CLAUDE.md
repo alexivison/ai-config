@@ -41,7 +41,8 @@ Details in `~/.claude/agents/README.md`. Quick reference:
 | Run typecheck/lint | check-runner |
 | Security scan | security-scanner (optional — Codex covers basic security) |
 | Complex bug investigation | codex (debugging task) |
-| Analyze logs | log-analyzer |
+| Analyze logs | gemini (replaces log-analyzer) |
+| Web research | gemini |
 | After implementing | code-critic (MANDATORY) |
 | After code-critic | codex (MANDATORY) |
 | After creating plan | codex (MANDATORY) |

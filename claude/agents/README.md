@@ -22,7 +22,26 @@ Sub-agents preserve context by offloading investigation/verification tasks.
 
 **Note:** Uses Haiku. Auto-detects project stack and package manager.
 
-## log-analyzer
+## gemini
+**Use when:** ALL log analysis tasks (replaces log-analyzer), or research queries requiring web search and synthesis.
+
+**Modes:**
+| Mode | Model | Trigger |
+|------|-------|---------|
+| Log analysis (small) | gemini-2.0-flash | Logs < 500K tokens |
+| Log analysis (large) | gemini-2.5-pro | Logs >= 500K tokens |
+| Web search | gemini-2.0-flash | Research queries with explicit external intent |
+
+**Writes to:** `~/.claude/logs/{identifier}.md` (log analysis) or returns inline (web search)
+
+**Returns:** Structured findings with sources cited.
+
+**Note:** Uses Haiku (wrapper) + Gemini CLI. 2M token context for massive log files.
+
+## log-analyzer (DEPRECATED)
+
+> **DEPRECATED:** Use `gemini` agent instead. This agent will be removed in a future version.
+
 **Use when:** Analyzing application/server logs.
 
 **Writes to:** `~/.claude/logs/{identifier}.md`

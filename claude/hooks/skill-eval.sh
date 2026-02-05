@@ -69,6 +69,11 @@ elif echo "$PROMPT_LOWER" | grep -qE '\bunclear\b|\bmultiple (approach|option|wa
 elif echo "$PROMPT_LOWER" | grep -qE '\blearn from (this|session)\b|\bremember (this|that)\b|\bsave (this |that |)preference\b|\bextract pattern\b|/autoskill'; then
   SUGGESTION="RECOMMENDED: Invoke /autoskill to learn from this session."
   PRIORITY="should"
+# Web search / research triggers (use gemini agent)
+# NOTE: Patterns require explicit external intent to avoid overlap with codebase research
+elif echo "$PROMPT_LOWER" | grep -qE '\bresearch (online|the web|externally)\b|\blook up (online|externally)\b|\bsearch the web\b|\bwhat is the (latest|current) version\b|\bwhat do (experts|others|people) say\b|\bfind external (info|documentation)\b'; then
+  SUGGESTION="RECOMMENDED: Use gemini agent for research queries requiring external information."
+  PRIORITY="should"
 fi
 
 # Output with priority level

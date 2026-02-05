@@ -89,26 +89,26 @@ cat large.log | gemini -p "Analyze these logs..."
 ## Acceptance Criteria
 
 1. **Log Analysis:**
-   - [ ] Handles ALL log sizes (replaces log-analyzer)
-   - [ ] Uses gemini-2.0-flash for logs < 500K tokens
-   - [ ] Uses gemini-2.5-pro for logs >= 500K tokens
-   - [ ] Warns if logs exceed 1.6M tokens (context overflow)
-   - [ ] Produces same output format as current log-analyzer
+   - [x] Handles ALL log sizes (replaces log-analyzer)
+   - [x] Uses gemini-2.0-flash for logs < 500K tokens
+   - [x] Uses gemini-2.5-pro for logs >= 500K tokens
+   - [x] Warns if logs exceed 1.6M tokens (context overflow)
+   - [x] Produces same output format as current log-analyzer
 
 2. **Web Search:**
-   - [ ] Auto-suggested by skill-eval.sh for research queries
-   - [ ] Requires explicit external intent (not bare "research")
-   - [ ] Synthesizes multiple search results
-   - [ ] Cites sources with URLs
-   - [ ] Returns structured findings
+   - [x] Auto-suggested by skill-eval.sh for research queries
+   - [x] Requires explicit external intent (not bare "research")
+   - [x] Synthesizes multiple search results
+   - [x] Cites sources with URLs
+   - [x] Returns structured findings
 
 3. **Infrastructure:**
-   - [ ] Existing Gemini CLI verified working
-   - [ ] GEMINI.md auto-discovery verified (project directory)
-   - [ ] `gemini/GEMINI.md` created with instructions
-   - [ ] `.gitignore` excludes OAuth credentials
-   - [ ] Agent definition at `claude/agents/gemini.md`
-   - [ ] log-analyzer marked as deprecated
+   - [x] Existing Gemini CLI verified working
+   - [x] GEMINI.md auto-discovery verified (project directory)
+   - [x] `gemini/GEMINI.md` created with instructions
+   - [x] `.gitignore` excludes OAuth credentials
+   - [x] Agent definition at `claude/agents/gemini.md`
+   - [x] log-analyzer marked as deprecated
 
 ## Context Overflow Strategy (>1.6M tokens)
 

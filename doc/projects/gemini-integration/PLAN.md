@@ -32,37 +32,37 @@ TASK0 (CLI config)
 ## Task Details
 
 ### TASK0: Gemini CLI Configuration
-- [ ] Verify CLI is installed and authenticated
-- [ ] Verify GEMINI.md auto-discovery (project directory)
-- [ ] Create `gemini/GEMINI.md` with instructions
-- [ ] Test `-p`, `-m`, and `--approval-mode plan` flags
-- [ ] Verify `.gitignore` excludes credentials
+- [x] Verify CLI is installed and authenticated
+- [x] Verify GEMINI.md auto-discovery (project directory)
+- [x] Create `gemini/GEMINI.md` with instructions
+- [x] Test `-p`, `-m`, and `--approval-mode plan` flags
+- [x] Verify `.gitignore` excludes credentials
 
 **Deliverables:** `gemini/GEMINI.md` with agent instructions
 
 **Note:** GEMINI.md is auto-discovered from project directory (verified). Skills require explicit installation and are not used for this integration.
 
 ### TASK1: gemini Agent
-- [ ] Create `claude/agents/gemini.md`
-- [ ] Implement mode detection (log analysis vs web search)
-- [ ] Implement size estimation logic for logs
-- [ ] Smart model selection: flash for small logs, pro for large logs
-- [ ] Test with both small and large log files, and web queries
+- [x] Create `claude/agents/gemini.md`
+- [x] Implement mode detection (log analysis vs web search)
+- [x] Implement size estimation logic for logs
+- [x] Smart model selection: flash for small logs, pro for large logs
+- [x] Test with both small and large log files, and web queries
 
 **Deliverables:** Single agent handling ALL log analysis and web search (replaces log-analyzer)
 
 ### TASK2: skill-eval.sh Integration
-- [ ] Add web search trigger patterns
-- [ ] Test auto-suggestion behavior
-- [ ] Ensure no conflicts with existing patterns
+- [x] Add web search trigger patterns
+- [x] Test auto-suggestion behavior
+- [x] Ensure no conflicts with existing patterns
 
 **Deliverables:** Auto-suggestion for research queries
 
 ### TASK3: Documentation Updates
-- [ ] Update `claude/agents/README.md` with new agent
-- [ ] Update `claude/CLAUDE.md` sub-agents table
-- [ ] Mark log-analyzer as deprecated in all docs
-- [ ] Add deprecation notice to `claude/agents/log-analyzer.md`
+- [x] Update `claude/agents/README.md` with new agent
+- [x] Update `claude/CLAUDE.md` sub-agents table
+- [x] Mark log-analyzer as deprecated in all docs
+- [x] Add deprecation notice to `claude/agents/log-analyzer.md`
 
 **Deliverables:** Complete documentation for new capability + log-analyzer deprecation
 
