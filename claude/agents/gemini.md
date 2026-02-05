@@ -1,6 +1,6 @@
 ---
 name: gemini
-description: "Gemini-powered analysis agent. Uses 2M token context for large logs (gemini-2.5-pro), Flash model for web search synthesis (gemini-2.0-flash). Replaces log-analyzer."
+description: "Gemini-powered analysis agent. Uses 2M token context for large logs (gemini-2.5-pro), Flash model for web search synthesis (gemini-2.0-flash)."
 model: haiku
 tools: Bash, Glob, Grep, Read, Write, WebSearch, WebFetch
 color: green
@@ -373,6 +373,3 @@ Return directly (no file):
 - Always display pre-flight warning before log analysis
 - Never send logs containing obvious secrets without user acknowledgment
 
-## Note on log-analyzer
-
-**DO NOT USE log-analyzer.** It is deprecated and will be removed. This gemini agent handles ALL log analysis tasks with superior capabilities (2M token context, smart model selection).

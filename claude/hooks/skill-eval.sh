@@ -71,7 +71,7 @@ elif echo "$PROMPT_LOWER" | grep -qE '\blearn from (this|session)\b|\bremember (
   PRIORITY="should"
 # Log analysis triggers (use gemini agent)
 elif echo "$PROMPT_LOWER" | grep -qE '\banalyze (the |these |my |production |server |application |error )?logs?\b|\blog (file|analysis)\b|\b\.log\b|\b/var/log/|\berror logs?\b|\bproduction logs?\b|\bserver logs?\b'; then
-  SUGGESTION="RECOMMENDED: Use gemini agent for log analysis (2M token context, replaces log-analyzer)."
+  SUGGESTION="RECOMMENDED: Use gemini agent for log analysis (2M token context, advanced multi-model support)."
   PRIORITY="should"
 # Web search / research triggers (use gemini agent)
 # NOTE: Patterns require explicit external intent to avoid overlap with codebase research

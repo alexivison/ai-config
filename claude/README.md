@@ -23,7 +23,7 @@ Personal configuration for [Claude Code](https://claude.ai/claude-code) CLI.
 |-------|---------|
 | `test-runner` | Runs tests, returns only failures (isolates verbose output) |
 | `check-runner` | Runs typecheck/lint, returns only errors (isolates verbose output) |
-| `log-analyzer` | Analyzes logs, returns error summary (isolates verbose output) |
+| `gemini` | Analyzes logs (2M context), web research with synthesis |
 | `security-scanner` | Scans for secrets, vulnerabilities, OWASP issues (optional) |
 | `code-critic` | Iterative code review using `/code-review` guidelines |
 | `codex` | Deep reasoning via Codex CLI for code/architecture review, design decisions, debugging |
@@ -49,7 +49,7 @@ Personal configuration for [Claude Code](https://claude.ai/claude-code) CLI.
 | Skill | Triggers |
 |-------|----------|
 | `task-workflow` | TASK*.md execution, "pick up task", "from the plan" |
-| `feature-workflow` | "implement", "build", "create", "add new" |
+| `plan-workflow` | "implement", "build", "create", "add new" (creates planning docs) |
 | `bugfix-workflow` | "bug", "broken", "error", "debug", "fix" |
 
 ### Reference Skills (loaded by agents/workflows)
@@ -58,7 +58,6 @@ Personal configuration for [Claude Code](https://claude.ai/claude-code) CLI.
 |-------|---------|
 | `write-tests` | Test writing methodology (invoked by workflows) |
 | `code-review` | Code quality guidelines (preloaded by code-critic) |
-| `architecture-review` | Architecture guidelines (reference; codex handles architecture review) |
 | `pre-pr-verification` | PR verification checklist (invoked before PR creation) |
 
 ## Commands
@@ -137,5 +136,5 @@ These stay local and aren't version controlled:
 - `plugins/`, `projects/` - Per-machine data
 - `scripts/*.plist` - macOS LaunchAgent configs
 - `plans/` - Local planning files
-- `investigations/` - Debug-investigator output
-- `logs/` - Log-analyzer output
+- `investigations/` - Codex debugging output
+- `logs/` - Gemini log analysis output

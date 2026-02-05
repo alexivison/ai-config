@@ -100,11 +100,6 @@ if [ "$agent_type" = "security-scanner" ]; then
   touch "/tmp/claude-security-scanned-$session_id"
 fi
 
-# architecture-critic: any verdict creates marker (review happened)
-if [ "$agent_type" = "architecture-critic" ]; then
-  touch "/tmp/claude-architecture-reviewed-$session_id"
-fi
-
 # code-critic: only APPROVE creates marker (must pass before PR)
 if [ "$agent_type" = "code-critic" ] && [ "$verdict" = "APPROVED" ]; then
   touch "/tmp/claude-code-critic-$session_id"
@@ -120,12 +115,6 @@ if [ "$agent_type" = "check-runner" ]; then
   if [ "$verdict" = "PASS" ] || [ "$verdict" = "CLEAN" ]; then
     touch "/tmp/claude-checks-passed-$session_id"
   fi
-fi
-
-# plan-reviewer: marker no longer required (codex handles plan review)
-# Kept for observability but not enforced by pr-gate
-if [ "$agent_type" = "plan-reviewer" ] && [ "$verdict" = "APPROVED" ]; then
-  touch "/tmp/claude-plan-reviewer-$session_id"
 fi
 
 # codex: dedicated Codex CLI agent for deep reasoning tasks

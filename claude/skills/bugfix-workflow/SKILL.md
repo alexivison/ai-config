@@ -15,7 +15,7 @@ Debug and fix bugs with investigation before implementation.
 1. **Create worktree first** — `git worktree add ../repo-branch-name -b branch-name`
 2. **Understand the bug** — Read relevant code, reproduce if possible
 3. **Complex bug?** → Invoke `codex` agent with debugging task → `[wait for user]`
-4. **Logs relevant?** → Invoke `log-analyzer` agent → `[wait for user]`
+4. **Logs relevant?** → Invoke `gemini` agent → `[wait for user]`
 
 `[wait]` = Show findings, use AskUserQuestion, wait for user input.
 

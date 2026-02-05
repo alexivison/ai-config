@@ -97,29 +97,10 @@ This agent will be removed in a future version.
 
 **Note:** Uses Haiku (wrapper) + GPT5.2 High (via Codex CLI). Replaces architecture-critic. Always uses read-only sandbox.
 
-## architecture-critic (DEPRECATED)
+## architecture-critic (DELETED)
 
-**Note:** Replaced by codex agent. Files preserved for reference.
+Replaced by codex agent. Agent definition and associated `architecture-review` skill have been removed.
 
-**Use when:** After code-critic passes, before tests.
+## plan-reviewer (DELETED)
 
-**Pattern:** Quick metrics scan first → deep analysis only when thresholds exceeded.
-
-**Returns:** Verdict (SKIP | APPROVE | REQUEST_CHANGES | NEEDS_DISCUSSION) with architectural analysis.
-
-**On REQUEST_CHANGES:** Main agent asks user about creating follow-up refactor task, PR proceeds (advisory, not blocking).
-
-**Escalates to user:** Only on NEEDS_DISCUSSION.
-
-**Note:** Uses Opus. Preloads `architecture-review` skill. Guidelines at `~/.claude/skills/architecture-review/reference/`:
-- `architecture-guidelines-common.md` (always loaded)
-- `architecture-guidelines-frontend.md` (React/TypeScript)
-- `architecture-guidelines-backend.md` (Go/Python/Node.js)
-
-## plan-reviewer (DEPRECATED)
-
-**Note:** Replaced by codex agent for plan reviews. The codex agent provides deeper reasoning for architectural soundness and feasibility.
-
-**Previously used for:** Document structure validation after creating planning documents.
-
-**Migration:** Use codex agent with plan review prompt instead. See `plan-workflow` skill for the updated flow.
+Replaced by codex agent. Agent definition and associated `plan-review` skill have been removed.
