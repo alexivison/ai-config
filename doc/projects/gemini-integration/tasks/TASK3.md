@@ -103,6 +103,23 @@ grep -q "gemini.*Log analysis" claude/CLAUDE.md && echo "CLAUDE.md updated"
 grep -q "DEPRECATED" claude/agents/log-analyzer.md && echo "log-analyzer deprecated"
 ```
 
+## Migration Path
+
+When deprecating log-analyzer:
+
+1. **Update references:**
+   - `claude/agents/README.md` — Add deprecation notice to log-analyzer section
+   - `claude/CLAUDE.md` — Strike through log-analyzer in sub-agents table
+   - Any rules mentioning log-analyzer → update to reference gemini
+
+2. **skill-eval.sh:**
+   - Remove any auto-suggestions for log-analyzer (if present)
+   - Ensure log analysis queries suggest gemini instead
+
+3. **Timeline:**
+   - log-analyzer remains functional but deprecated
+   - Will be removed in a future version after gemini is stable
+
 ## Acceptance Criteria
 
 - [ ] `claude/agents/README.md` updated with gemini agent documentation
@@ -112,3 +129,4 @@ grep -q "DEPRECATED" claude/agents/log-analyzer.md && echo "log-analyzer depreca
 - [ ] `claude/agents/log-analyzer.md` has deprecation notice at top
 - [ ] Documentation explains both modes (log analysis, web search)
 - [ ] No references to "fallback to log-analyzer"
+- [ ] Migration path documented and followed

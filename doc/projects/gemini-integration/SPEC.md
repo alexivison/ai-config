@@ -26,10 +26,13 @@ Integrate Google Gemini into the autonomous workflow as a complementary model fo
 
 | Mode | Trigger | Model | Use Case |
 |------|---------|-------|----------|
-| log-analysis | Log size > 500K tokens (~2MB) | gemini-2.5-pro | Massive log files |
-| web-search | Research queries (auto-suggested) | gemini-2.0-flash | Fast synthesis |
+| log-analysis (small) | Log size < 500K tokens | gemini-2.0-flash | Fast analysis |
+| log-analysis (large) | Log size >= 500K tokens | gemini-2.5-pro | Massive log files |
+| web-search | Research queries (explicit external intent) | gemini-2.0-flash | Fast synthesis |
 
 **Mode Override:** Explicit `mode:log` or `mode:web` in prompt overrides heuristics.
+
+**Web Search Note:** Requires explicit external intent (e.g., "research online", "search the web"). Bare "research" alone does NOT trigger web search to avoid overlap with codebase research.
 
 **Capabilities:**
 
@@ -86,12 +89,15 @@ cat large.log | gemini -p "Analyze these logs..."
 ## Acceptance Criteria
 
 1. **Log Analysis:**
-   - [ ] Successfully analyzes logs > 500K tokens
+   - [ ] Handles ALL log sizes (replaces log-analyzer)
+   - [ ] Uses gemini-2.0-flash for logs < 500K tokens
+   - [ ] Uses gemini-2.5-pro for logs >= 500K tokens
+   - [ ] Warns if logs exceed 1.6M tokens (context overflow)
    - [ ] Produces same output format as current log-analyzer
-   - [ ] Falls back to standard log-analyzer for small logs
 
 2. **Web Search:**
    - [ ] Auto-suggested by skill-eval.sh for research queries
+   - [ ] Requires explicit external intent (not bare "research")
    - [ ] Synthesizes multiple search results
    - [ ] Cites sources with URLs
    - [ ] Returns structured findings
@@ -102,6 +108,13 @@ cat large.log | gemini -p "Analyze these logs..."
    - [ ] `gemini/GEMINI.md` created with instructions
    - [ ] `.gitignore` excludes OAuth credentials
    - [ ] Agent definition at `claude/agents/gemini.md`
+   - [ ] log-analyzer marked as deprecated
+
+## Context Overflow Strategy (>1.6M tokens)
+
+When logs exceed 1.6M tokens (~6.4MB):
+- IF timestamps present → filter by time range (e.g., last 24h)
+- ELSE → chunk into segments, analyze sequentially, merge findings
 
 ## Future Iterations
 

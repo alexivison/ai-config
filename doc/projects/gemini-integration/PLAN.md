@@ -46,10 +46,10 @@ TASK0 (CLI config)
 - [ ] Create `claude/agents/gemini.md`
 - [ ] Implement mode detection (log analysis vs web search)
 - [ ] Implement size estimation logic for logs
-- [ ] Add fallback to standard log-analyzer for small logs
-- [ ] Test with large log files and web queries
+- [ ] Smart model selection: flash for small logs, pro for large logs
+- [ ] Test with both small and large log files, and web queries
 
-**Deliverables:** Single agent handling both log analysis and web search
+**Deliverables:** Single agent handling ALL log analysis and web search (replaces log-analyzer)
 
 ### TASK2: skill-eval.sh Integration
 - [ ] Add web search trigger patterns
@@ -61,8 +61,10 @@ TASK0 (CLI config)
 ### TASK3: Documentation Updates
 - [ ] Update `claude/agents/README.md` with new agent
 - [ ] Update `claude/CLAUDE.md` sub-agents table
+- [ ] Mark log-analyzer as deprecated in all docs
+- [ ] Add deprecation notice to `claude/agents/log-analyzer.md`
 
-**Deliverables:** Complete documentation for new capability
+**Deliverables:** Complete documentation for new capability + log-analyzer deprecation
 
 ## Implementation Notes
 
@@ -76,7 +78,7 @@ estimated_tokens=$((bytes / 4))
 
 | Metric | Value | Rationale |
 |--------|-------|-----------|
-| Delegation threshold | 500K tokens (~2MB) | Below this, standard log-analyzer suffices |
+| Model switch threshold | 500K tokens (~2MB) | Below: use flash (faster). Above: use pro (large context) |
 | Warning threshold | 1.6M tokens (~6.4MB) | Approaching Gemini's 2M limit |
 
 ### Gemini CLI Resolution

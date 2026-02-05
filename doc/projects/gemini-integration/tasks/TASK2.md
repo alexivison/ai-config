@@ -77,11 +77,14 @@ The research patterns are distinct — they ask for external information, not in
 # Syntax check
 bash -n claude/hooks/skill-eval.sh && echo "Syntax OK"
 
-# Test pattern matching
-echo '{"prompt": "research best practices for caching"}' | claude/hooks/skill-eval.sh | grep -q "gemini" && echo "Pattern matches"
+# Test pattern matching (requires explicit external qualifier)
+echo '{"prompt": "research online best practices for caching"}' | claude/hooks/skill-eval.sh | grep -q "gemini" && echo "Pattern matches"
 
-# Ensure no false positives
-echo '{"prompt": "fix the caching bug"}' | claude/hooks/skill-eval.sh | grep -v "gemini" && echo "No false positive"
+# Ensure no false positives (bare "research" should NOT trigger)
+echo '{"prompt": "research best practices for caching"}' | claude/hooks/skill-eval.sh | grep -v "gemini" && echo "Bare research: no match (correct)"
+
+# Another false positive check
+echo '{"prompt": "fix the caching bug"}' | claude/hooks/skill-eval.sh | grep -v "gemini" && echo "Bug fix: no match (correct)"
 ```
 
 ## Acceptance Criteria
