@@ -50,7 +50,31 @@ Ask the user (if not clear):
 - Is this a migration from existing functionality?
 - Do SPEC.md/DESIGN.md already exist?
 
-### Step 2: Create Documentation
+### Step 2: Deep Exploration (CRITICAL)
+
+**Before writing DESIGN.md**, conduct thorough codebase exploration:
+
+1. **Find existing standards** — Search for similar patterns in the codebase
+   - How is similar data already handled?
+   - Are there existing abstractions to extend (e.g., DataSource pattern)?
+   - What naming conventions are used?
+
+2. **Map data transformation points** — Identify ALL places where data changes shape
+   - Proto → Domain converters
+   - Params conversion functions (e.g., `convertToParams`, `adaptRequest`)
+   - Adapter patterns between layers
+
+3. **List integration points** — Where will new code touch existing code?
+   - Entry points (handlers, routes)
+   - Layer boundaries (handler → usecase → domain)
+   - Shared utilities or helpers
+
+**Why this matters:** Shallow exploration leads to:
+- Missing existing patterns (reimplementing what exists)
+- Forgetting transformation points (fields silently dropped)
+- Scope mismatches between tasks
+
+### Step 3: Create Documentation
 
 | Document | Purpose | Template |
 |----------|---------|----------|
@@ -129,6 +153,7 @@ Use atomic mode when:
 - **Files to modify**: Exact paths with actions
 - **Verification commands**: Type check, tests, lint
 - **Acceptance criteria**: Machine-verifiable
+- **Scope boundary**: What IS and ISN'T in scope (prevents cross-task mismatch)
 
 ### Explicit Over Implicit
 

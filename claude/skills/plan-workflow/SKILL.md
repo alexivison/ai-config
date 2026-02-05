@@ -12,8 +12,6 @@ Create planning documents (SPEC.md, DESIGN.md, PLAN.md, TASK*.md) and submit the
 
 This workflow produces **planning documentation only**. No implementation code.
 
-After the plan PR is merged, use `task-workflow` to implement each task.
-
 ## Entry Phase
 
 Before planning, clarify requirements:
@@ -77,6 +75,14 @@ codex (iteration loop) -> PR
    - Are there missing edge cases or risks?
    - Is the dependency ordering correct?
 
+   **CRITICAL CHECKS (Data Flow & Scope):**
+   - [ ] Data Transformation Points: Are ALL converter functions listed in DESIGN.md?
+   - [ ] If a field is added to proto, does it appear in EVERY converter (including params adapters)?
+   - [ ] Existing Standards: Are patterns referenced with file:line (not generic)?
+   - [ ] Cross-Task Scope: If TASK1 adds X to endpoints A and B, do tasks exist for BOTH?
+   - [ ] Coverage Matrix: Does PLAN.md show which tasks handle which new fields/endpoints?
+   - [ ] Silent Drop Risk: Could any field be lost in convertToParams() or similar adapters?
+
    Return structured verdict. On approval, include "CODEX APPROVED" token:
 
    ### Verdict
@@ -121,6 +127,9 @@ implement @doc/projects/<feature>/tasks/TASK0.md
 - [ ] Design follows codebase patterns
 - [ ] Tasks are scoped appropriately (~200 LOC each)
 - [ ] No circular dependencies between tasks
+- [ ] Coverage Matrix populated for all new fields/endpoints
+- [ ] All transformation points have file:line references
+- [ ] All code path variants explicitly listed in DESIGN.md
 ```
 
 ## Branch Naming

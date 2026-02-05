@@ -20,10 +20,38 @@ You don't do the analysis yourself — you invoke `codex exec -s read-only` and 
 |------|-----------------|
 | Code review | `codex exec -s read-only "Review these changes for bugs, security, maintainability"` |
 | Architecture review | `codex exec -s read-only "Analyze architecture of these files for patterns and complexity"` |
-| Plan review | `codex exec -s read-only "Review this plan for feasibility, risks, architecture soundness"` |
+| Plan review | `codex exec -s read-only "Review this plan for: {plan review checklist below}"` |
 | Design decision | `codex exec -s read-only "Compare approaches: {options}"` |
 | Debugging | `codex exec -s read-only "Analyze this error/behavior: {description}"` |
 | Trade-off analysis | `codex exec -s read-only "Evaluate trade-offs between: {options}"` |
+
+## Plan Review Checklist (CRITICAL)
+
+When reviewing plans (DESIGN.md, PLAN.md, TASK*.md), include these checks in your Codex prompt:
+
+### Data Flow Integrity
+- [ ] Are ALL data transformation points mapped in DESIGN.md?
+- [ ] If a field is added to proto, does it appear in ALL converters?
+- [ ] Are params conversion functions checked (e.g., path A → path B adapters)?
+
+### Existing Standards
+- [ ] Are existing patterns referenced (e.g., DataSource, Repository)?
+- [ ] Is naming consistent with codebase conventions?
+- [ ] Are integration points with existing code identified?
+
+### Cross-Task Consistency
+- [ ] If TASK1 adds X to endpoints A and B, do separate tasks handle BOTH?
+- [ ] Are task scope boundaries explicit (what IS and ISN'T in scope)?
+- [ ] Do task scopes sum to complete coverage?
+
+### Bug Prevention
+- [ ] Could any field be silently dropped in a conversion?
+- [ ] Are all code paths covered (all variants that share the schema)?
+- [ ] Are adapter patterns identified where data might be lost?
+
+**Example of scope mismatch to catch:**
+> TASK1 adds `new_field` to schema affecting code paths A and B.
+> TASK2 only handles path A → BUG: path B silently drops the field.
 
 ## Execution Process
 

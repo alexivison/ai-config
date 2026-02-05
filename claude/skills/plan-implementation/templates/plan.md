@@ -43,6 +43,17 @@ After each task: run verification, commit, update checkbox here.
 - [ ] [Task 3](./tasks/TASK3-short-title.md) — <Description> (deps: Task 1)
 - [ ] [Task 4](./tasks/TASK4-short-title.md) — <Description> (deps: Task 2, Task 3)
 
+## Coverage Matrix (REQUIRED for new fields/endpoints)
+
+**Purpose:** Verify that every new field/endpoint added in one task is handled in all related tasks.
+
+| New Field/Endpoint | Added In | Code Paths Affected | Handled By | Converter Functions |
+|--------------------|----------|---------------------|------------|---------------------|
+| `user_context` | Task 1 (schema) | Path A, Path B | Task 2 (A), Task 3 (B) | `fromProto()`, `convertParams()` |
+| `new_endpoint` | Task 1 | v1, v2 | Task 4 (both) | `translatorV1()`, `translatorV2()` |
+
+**Validation:** Each row must have complete coverage. If Task 1 adds something affecting paths A and B, tasks must exist for BOTH.
+
 ## Dependency Graph
 
 ```
