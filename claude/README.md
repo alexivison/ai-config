@@ -81,8 +81,9 @@ Core sequence: `/write-tests` → implement → checkboxes → code-critic → c
 Key principles:
 - **Evidence before claims** — never state "tests pass" without running them
 - **Autonomous flow** — no stopping between steps unless blocked
-- **Code-critic mandatory** — for all TASK*.md implementations
+- **Code-critic mandatory** — for all implementation changes (not just TASK*.md)
 - **Codex mandatory** — for combined code + architecture review before PR
+- **Pre-PR verification mandatory** — for all PRs, including ad-hoc changes
 
 ## Scripts
 
