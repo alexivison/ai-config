@@ -26,6 +26,9 @@ gwta ENG-123-add-auth
 - Commit checkbox updates with implementation (not as separate commits)
 - Wait for user approval before moving to next task in multi-task work
 
+## Code Style
+- Prefer early guard returns over nested if clauses
+
 ## Code Comments
 - Keep comments short and to the point
 - Only add remarks to logically difficult code
