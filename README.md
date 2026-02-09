@@ -1,11 +1,11 @@
-# ai-config
+# ai-config-claude
 
 Unified configuration repository for AI coding assistants. Houses configurations for multiple tools with symlink-based installation.
 
 ## Structure
 
 ```
-ai-config/
+ai-config-claude/
 ├── claude/          # Claude Code configuration
 ├── gemini/          # Google Gemini CLI configuration
 ├── codex/           # OpenAI Codex CLI configuration
@@ -18,10 +18,10 @@ ai-config/
 
 ```bash
 # Clone the repo
-git clone git@github.com:alexivison/ai-config.git ~/Code/ai-config
+git clone git@github.com:alexivison/ai-config-claude.git ~/Code/ai-config-claude
 
 # Full install (symlinks + CLI installation + auth)
-cd ~/Code/ai-config
+cd ~/Code/ai-config-claude
 ./install.sh
 
 # Or symlinks only (install CLIs yourself)
@@ -44,7 +44,7 @@ The installer will:
 ## Uninstallation
 
 ```bash
-cd ~/Code/ai-config
+cd ~/Code/ai-config-claude
 ./uninstall.sh
 ```
 
