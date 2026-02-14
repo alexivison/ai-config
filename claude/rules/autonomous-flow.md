@@ -6,8 +6,8 @@ Detailed rules for continuous execution during TASK*.md implementation. See CLAU
 
 When executing a task from TASK*.md, **do not stop until PR is created**.
 
-- **task-workflow:** No pause conditions. Handle NEEDS_DISCUSSION, 3-strikes, and HIGH/CRITICAL findings inline. See task-workflow/SKILL.md § No-Pause Rule.
-- **bugfix-workflow:** May pause for investigation findings, NEEDS_DISCUSSION, 3 strikes, or explicit blockers.
+- **task-workflow:** No pause conditions. Handle NEEDS_DISCUSSION and HIGH/CRITICAL findings inline. See task-workflow/SKILL.md § No-Pause Rule.
+- **bugfix-workflow:** May pause for investigation findings, NEEDS_DISCUSSION, or explicit blockers.
 
 ## The Flow
 

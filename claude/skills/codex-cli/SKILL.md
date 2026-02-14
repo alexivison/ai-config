@@ -129,10 +129,10 @@ When used for pre-PR review, include "CODEX APPROVED" explicitly on approval:
 ## Iteration Support
 
 When invoked with iteration parameters:
-- `iteration`: Current attempt (1, 2, 3)
+- `iteration`: Current attempt (1, 2, ...)
 - `previous_feedback`: What was found before
 
 On iteration 2+:
 1. First verify previous issues are addressed
 2. Check for new issues introduced by fixes
-3. After 3 iterations without resolution → NEEDS_DISCUSSION
+3. If stuck on the same issue, try a different approach

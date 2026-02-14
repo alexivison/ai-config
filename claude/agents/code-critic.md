@@ -65,7 +65,7 @@ APPROVED   REQUEST_CHANGES            │
 **When invoked, expect these parameters:**
 - `files`: Changed files or "staged" for git diff --staged
 - `context`: What was the goal of the changes
-- `iteration`: Current iteration number (1, 2, 3...)
+- `iteration`: Current iteration number (1, 2, ...)
 - `previous_feedback`: Feedback from prior iteration (if iteration > 1)
 
 **On iteration 1:**
@@ -76,10 +76,7 @@ APPROVED   REQUEST_CHANGES            │
 - First, verify previous `[must]` issues are fixed
 - Check if `[q]` questions were addressed
 - Look for any NEW issues introduced by fixes
-- Don't raise new `[nit]` issues on iteration 3 (but `[must]` issues always block, even on iteration 3)
-
-**Max iterations:** 3
-- After 3 iterations without APPROVED, return NEEDS_DISCUSSION
+- Don't raise new `[nit]` issues after several iterations (but `[must]` issues always block)
 
 **Autonomous behavior:**
 - Main agent fixes issues and re-invokes without user input

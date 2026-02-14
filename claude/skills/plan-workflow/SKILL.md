@@ -65,7 +65,7 @@ codex (iteration loop) -> PR
    Review this implementation plan for architectural soundness and feasibility.
 
    **Task:** Plan Review
-   **Iteration:** {N} of 3
+   **Iteration:** {N}
    **Previous feedback:** {summary if iteration > 1}
 
    Evaluate:
@@ -96,7 +96,7 @@ codex (iteration loop) -> PR
    | APPROVE | Continue to PR |
    | REQUEST_CHANGES | Fix issues, re-run codex |
    | NEEDS_DISCUSSION | Show findings, ask user |
-   | 3rd iteration fails | Show findings, ask user |
+   | Repeated failures on same issue | Show findings, ask user |
 
 3. **Create PR** with plan files only:
    ```bash

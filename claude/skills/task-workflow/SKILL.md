@@ -35,7 +35,7 @@ This workflow **never pauses for user input** during execution. Unlike bugfix-wo
 | Situation | Action (do NOT pause) |
 |-----------|----------------------|
 | code-critic → NEEDS_DISCUSSION | Attempt the suggested fix. If genuinely ambiguous, pick the simpler option and note the tradeoff in a code comment. |
-| code-critic → 3 failures on same issue | Try a different approach entirely. If still failing, revert the problematic change and proceed without it. |
+| code-critic → repeated failures on same issue | Try a different approach entirely. If still failing, revert the problematic change and proceed without it. |
 | codex → NEEDS_DISCUSSION | Apply best-judgment fix. Document the concern as a TODO comment for human review. |
 | security-scanner → HIGH/CRITICAL | Apply the recommended remediation. If no clear fix, add a `// SECURITY: <description>` comment and continue. |
 
@@ -74,7 +74,7 @@ After code-critic APPROVE, spawn **codex** agent for deep review:
 Review uncommitted changes for bugs, security, and architectural fit.
 
 **Task:** Code + Architecture Review
-**Iteration:** {N} of 3
+**Iteration:** {N}
 **Previous feedback:** {summary if iteration > 1}
 
 Check imports, callers, and related files. Return verdict with file:line issues.
@@ -90,7 +90,7 @@ The codex agent will:
 **On REQUEST_CHANGES:** Fix issues and re-invoke codex agent.
 
 **Iteration protocol:**
-- Max 3 iterations. If still NEEDS_DISCUSSION after 3, apply best-judgment fix with a TODO comment and proceed (no pause).
+- If stuck on the same issue after multiple attempts, try a different approach entirely.
 - Do NOT re-run codex after code-critic convention fixes
 
 ## Core Reference
