@@ -34,13 +34,19 @@ elif echo "$PROMPT_LOWER" | grep -qE '\bbug\b|\bbroken\b|\berror\b|\bnot work|\b
   SUGGESTION="MANDATORY: Invoke bugfix-workflow skill FIRST, before fetching tickets, reading code, or any investigation. The workflow itself handles investigation steps."
   PRIORITY="must"
 
-# plan-workflow: Build/create keywords (fallback - most general)
-# Note: task-workflow triggers first on TASK file references, so this catches new feature requests
-# IMPORTANT: plan-workflow is the FULL workflow (worktree + docs + codex + PR)
-#            plan-implementation is just doc creation (embedded inside plan-workflow)
+# design-workflow / plan-workflow: Two-phase planning dispatch
+# If prompt references a DESIGN.md -> plan-workflow (task breakdown from existing design)
+# If no DESIGN.md -> design-workflow (create SPEC.md + DESIGN.md first)
+# Note: task-workflow triggers first on TASK file references
+# IMPORTANT: plan-implementation is just the inner doc creation step (used by both workflows)
 elif echo "$PROMPT_LOWER" | grep -qE '\bnew feature\b|\bimplement\b|\bbuild\b|\bcreate\b|\badd (a |the |new )?[a-z]+\b|\bplan\b'; then
-  SUGGESTION="MANDATORY: Invoke plan-workflow skill (NOT plan-implementation). plan-workflow creates worktree, documents, runs codex, and creates PR. plan-implementation is only the inner document creation step."
-  PRIORITY="must"
+  if echo "$PROMPT" | grep -qiE 'DESIGN\.md|design\.md'; then
+    SUGGESTION="MANDATORY: Invoke plan-workflow skill. DESIGN.md is referenced — skip design phase, go straight to task breakdown (PLAN.md + TASKs)."
+    PRIORITY="must"
+  else
+    SUGGESTION="MANDATORY: Invoke design-workflow skill (NOT plan-workflow or plan-implementation). design-workflow creates worktree, SPEC.md + DESIGN.md, runs codex architecture review, and creates PR. Task breakdown happens later via plan-workflow when user provides the DESIGN.md."
+    PRIORITY="must"
+  fi
 
 # Other MUST skills
 elif echo "$PROMPT_LOWER" | grep -qE '\bcreate pr\b|\bmake pr\b|\bready for pr\b|\bopen pr\b|\bsubmit pr\b'; then

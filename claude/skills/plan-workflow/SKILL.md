@@ -1,29 +1,33 @@
 ---
 name: plan-workflow
-description: Create planning documents and a documentation-only PR. Auto-invoked for new features. Implementation happens separately via task-workflow.
+description: Task breakdown from an existing DESIGN.md. Creates PLAN.md and TASK*.md files with codex validation. For design-first planning (no DESIGN.md yet), use design-workflow instead.
 user-invocable: false
 ---
 
 # Plan Workflow
 
-Create planning documents (SPEC.md, DESIGN.md, PLAN.md, TASK*.md) and submit them as a documentation-only PR for review.
+Take an existing DESIGN.md and break it down into PLAN.md and TASK*.md files. Submit as a documentation-only PR for review.
 
 ## Purpose
 
-This workflow produces **planning documentation only**. No implementation code.
+This is **Phase 2** of a two-phase planning flow:
+1. **design-workflow** — Produce SPEC.md + DESIGN.md, validate architecture
+2. **plan-workflow** (this skill) — Take approved DESIGN.md, produce PLAN.md + TASKs
+
+The DESIGN.md referenced in the user's prompt is the input. Architecture decisions are already validated — this skill focuses on task scoping, coverage, and dependency ordering.
 
 ## Entry Phase
 
-Before planning, clarify requirements:
-
-1. **Requirements unclear?** -> Invoke `/brainstorm` -> `[wait for user]`
-2. **Requirements clear** -> Proceed to setup
-
-`[wait]` = Show findings, use AskUserQuestion, wait for user input.
+1. **Read the referenced DESIGN.md** and its associated SPEC.md (same directory)
+2. **Verify design completeness** — DESIGN.md must contain:
+   - File structure / modified files
+   - Data flow with transformation points
+   - Integration points
+3. **If DESIGN.md is incomplete** -> Flag gaps, ask user whether to proceed or fix first
 
 ## Setup Phase
 
-1. **Create worktree** with `-plan` suffix (preserves Linear convention):
+1. **Check if worktree exists** — If a `-plan` worktree already exists from design-workflow, use it. Otherwise create one:
    ```bash
    # With issue ID:
    git worktree add ../<repo>-<ISSUE-ID>-<feature>-plan -b <ISSUE-ID>-<feature>-plan
@@ -31,24 +35,24 @@ Before planning, clarify requirements:
    git worktree add ../<repo>-<feature>-plan -b <feature>-plan
    ```
 
-2. **Create project directory**:
+2. **Create tasks directory** (if not present):
    ```bash
    mkdir -p doc/projects/<feature-name>/tasks
    ```
 
 ## Planning Phase
 
-1. **Invoke `/plan-implementation`** to create documents:
-   - SPEC.md - Requirements and acceptance criteria
-   - DESIGN.md - Architecture and approach
-   - PLAN.md - Task breakdown with dependencies
+1. **Invoke `/plan-implementation`** to create task documents:
+   - PLAN.md - Task breakdown with dependencies and Coverage Matrix
    - tasks/TASK*.md - Individual implementation tasks
 
-2. **Wait for planning to complete** - User reviews documents
+   The SPEC.md and DESIGN.md already exist — `/plan-implementation` reads them as input and produces only the task breakdown files.
+
+2. **Wait for user review** of task breakdown
 
 ## Validation Phase
 
-Execute continuously - **no stopping until PR is created**.
+Execute continuously — **no stopping until PR is created**.
 
 ```
 codex (iteration loop) -> PR
@@ -57,31 +61,29 @@ codex (iteration loop) -> PR
 ### Step-by-Step
 
 1. **Run codex agent** (MANDATORY)
-   - Deep reasoning review for architectural soundness, feasibility, risks
+   - Task-scoping focused review (architecture already validated in design-workflow)
    - Returns APPROVE / REQUEST_CHANGES / NEEDS_DISCUSSION
 
    **Prompt template:**
    ```
-   Review this implementation plan for architectural soundness and feasibility.
+   Review this task breakdown for an already-approved design.
 
    **Task:** Plan Review
    **Iteration:** {N} of 3
    **Previous feedback:** {summary if iteration > 1}
 
-   Evaluate:
-   - Are the requirements clear and measurable?
-   - Is the design architecturally sound?
+   The DESIGN.md has already been architecturally validated. Focus on:
    - Are task scopes appropriate (~200 LOC)?
-   - Are there missing edge cases or risks?
    - Is the dependency ordering correct?
+   - Are there missing edge cases in task definitions?
+   - Do tasks have clear acceptance criteria?
 
-   **CRITICAL CHECKS (Data Flow & Scope):**
-   - [ ] Data Transformation Points: Are ALL converter functions listed in DESIGN.md?
-   - [ ] If a field is added to proto, does it appear in EVERY converter (including params adapters)?
-   - [ ] Existing Standards: Are patterns referenced with file:line (not generic)?
+   **CRITICAL CHECKS (Scope & Coverage):**
    - [ ] Cross-Task Scope: If TASK1 adds X to endpoints A and B, do tasks exist for BOTH?
    - [ ] Coverage Matrix: Does PLAN.md show which tasks handle which new fields/endpoints?
-   - [ ] Silent Drop Risk: Could any field be lost in convertToParams() or similar adapters?
+   - [ ] Task Independence: Can each task be executed without assuming agent remembers previous tasks?
+   - [ ] Verification Commands: Does every task include type check, tests, lint commands?
+   - [ ] Scope Boundaries: Does every task state what IS and ISN'T in scope?
 
    Return structured verdict. On approval, include "CODEX APPROVED" token:
 
@@ -109,7 +111,7 @@ codex (iteration loop) -> PR
 
 ```markdown
 ## Summary
-Planning documents for <feature-name>.
+Implementation plan for <feature-name>, based on approved design.
 
 ## Documents
 - [SPEC.md](./doc/projects/<feature>/SPEC.md) - Requirements
@@ -123,29 +125,27 @@ implement @doc/projects/<feature>/tasks/TASK0.md
 ```
 
 ## Review Checklist
-- [ ] Requirements are clear and measurable
-- [ ] Design follows codebase patterns
 - [ ] Tasks are scoped appropriately (~200 LOC each)
 - [ ] No circular dependencies between tasks
 - [ ] Coverage Matrix populated for all new fields/endpoints
-- [ ] All transformation points have file:line references
-- [ ] All code path variants explicitly listed in DESIGN.md
+- [ ] Each task has verification commands
+- [ ] Each task has clear scope boundaries
 ```
 
 ## Branch Naming
 
 Always use `-plan` suffix (e.g., `ENG-123-auth-plan` or `auth-feature-plan`). This:
 - Preserves Linear issue ID convention (`<ISSUE-ID>-<description>`)
-- Triggers plan-specific PR gate path (requires codex marker)
+- Triggers plan-specific PR gate path (requires codex marker only)
 
 ## When to Use This Workflow
 
-- User asks to "add", "create", "build", or "implement" something new
-- User describes a new feature or capability
-- Planning substantial changes (3+ files)
+- User references a DESIGN.md in their prompt
+- Design phase is complete, ready for task breakdown
 
 ## When NOT to Use
 
+- No DESIGN.md exists yet -> use `design-workflow`
 - Bug fixes -> use `bugfix-workflow`
 - Implementing planned tasks -> use `task-workflow`
 - Small changes (<50 lines) -> implement directly

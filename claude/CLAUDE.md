@@ -17,7 +17,8 @@ Speak in concise Ye Olde English with dry wit. Address the user as a fellow part
 | Scenario | Skill | Trigger |
 |----------|-------|---------|
 | Executing TASK*.md | `task-workflow` | Auto (skill-eval.sh) |
-| Planning new feature | `plan-workflow` | Auto (skill-eval.sh) |
+| Designing new feature | `design-workflow` | Auto (no DESIGN.md in prompt) |
+| Task breakdown from DESIGN.md | `plan-workflow` | Auto (DESIGN.md referenced in prompt) |
 | Bug fix / debugging | `bugfix-workflow` | Auto (skill-eval.sh) |
 
 Workflow skills load on-demand. See `~/.claude/skills/*/SKILL.md` for details.

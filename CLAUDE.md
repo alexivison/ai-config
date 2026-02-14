@@ -61,7 +61,7 @@ Declarative definitions specifying model, tools, and preloaded skills. Spawned v
 
 Procedural workflows invoked via Skill tool:
 
-- **Orchestrators** (auto-suggested by `hooks/skill-eval.sh`; invoked explicitly): `task-workflow`, `plan-workflow`, `bugfix-workflow`
+- **Orchestrators** (auto-suggested by `hooks/skill-eval.sh`; invoked explicitly): `task-workflow`, `design-workflow`, `plan-workflow`, `bugfix-workflow`
 - **User-invocable**: `brainstorm`, `plan-implementation`, `minimize`, `address-pr`, `autoskill`, `write-tests`, `code-review`, `pre-pr-verification`
 - **Reference** (preloaded by agents): `codex-cli`, `gemini-cli`
 
