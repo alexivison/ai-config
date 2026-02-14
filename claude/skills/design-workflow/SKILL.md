@@ -1,7 +1,7 @@
 ---
 name: design-workflow
 description: Design-first planning phase. Creates SPEC.md and DESIGN.md with codex architecture validation. For task breakdown from an existing DESIGN.md, use plan-workflow instead.
-user-invocable: false
+user-invocable: true
 ---
 
 # Design Workflow

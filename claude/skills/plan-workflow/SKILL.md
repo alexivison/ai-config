@@ -1,7 +1,7 @@
 ---
 name: plan-workflow
 description: Task breakdown from an existing DESIGN.md. Creates PLAN.md and TASK*.md files with codex validation. For design-first planning (no DESIGN.md yet), use design-workflow instead.
-user-invocable: false
+user-invocable: true
 ---
 
 # Plan Workflow

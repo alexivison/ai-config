@@ -1,7 +1,7 @@
 ---
 name: task-workflow
 description: Execute a task from TASK*.md with full workflow. Auto-invoked when implementing planned tasks.
-user-invocable: false
+user-invocable: true
 ---
 
 # Task Workflow

@@ -1,7 +1,7 @@
 ---
 name: bugfix-workflow
 description: Debug and fix bugs. INVOKE FIRST when user reports bugs/errors - workflow handles investigation internally.
-user-invocable: false
+user-invocable: true
 ---
 
 # Bugfix Workflow
