@@ -107,31 +107,6 @@ codex (iteration loop) -> PR
    gh pr create --draft --title "Plan: <feature-name>" --body "..."
    ```
 
-## PR Template
-
-```markdown
-## Summary
-Implementation plan for <feature-name>, based on approved design.
-
-## Documents
-- [SPEC.md](./doc/projects/<feature>/SPEC.md) - Requirements
-- [DESIGN.md](./doc/projects/<feature>/DESIGN.md) - Architecture
-- [PLAN.md](./doc/projects/<feature>/PLAN.md) - Task breakdown
-
-## Implementation
-After this PR is merged, implement via:
-```
-implement @doc/projects/<feature>/tasks/TASK0.md
-```
-
-## Review Checklist
-- [ ] Tasks are scoped appropriately (~200 LOC each)
-- [ ] No circular dependencies between tasks
-- [ ] Coverage Matrix populated for all new fields/endpoints
-- [ ] Each task has verification commands
-- [ ] Each task has clear scope boundaries
-```
-
 ## Branch Naming
 
 Always use `-plan` suffix (e.g., `ENG-123-auth-plan` or `auth-feature-plan`). This:

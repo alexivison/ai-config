@@ -143,31 +143,6 @@ codex (iteration loop) -> PR
    gh pr create --draft --title "Design: <feature-name>" --body "..."
    ```
 
-## PR Template
-
-```markdown
-## Summary
-Design documents for <feature-name>.
-
-## Documents
-- [SPEC.md](./doc/projects/<feature>/SPEC.md) - Requirements (or link to external spec)
-- [DESIGN.md](./doc/projects/<feature>/DESIGN.md) - Architecture
-
-## Next Step
-After this design is approved, break down into tasks:
-```
-plan tasks from @doc/projects/<feature>/DESIGN.md
-```
-
-## Review Checklist
-- [ ] Requirements are clear and measurable
-- [ ] Design follows codebase patterns (with file:line references)
-- [ ] All data transformation points identified
-- [ ] All integration points listed
-- [ ] No silent field drop risks
-- [ ] All code path variants explicitly listed
-```
-
 ## Branch Naming
 
 Always use `-plan` suffix (e.g., `ENG-123-auth-plan` or `auth-feature-plan`). This:
