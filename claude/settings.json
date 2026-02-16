@@ -121,5 +121,6 @@
     "type": "command",
     "command": "~/.claude/scripts/context-bar.sh"
   },
-  "effortLevel": "max"
+  "effortLevel": "max",
+  "skipDangerousModePermissionPrompt": true
 }

@@ -5,23 +5,24 @@
 model = "gpt-5.3-codex"
 model_reasoning_effort = "xhigh"
 model_reasoning_summary = "detailed"
-
-# Approval policy for commands
 approval_policy = "on-request"
 
-# NOTE: personality setting removed - not a documented Codex CLI config key
-# Codex behavior is controlled via prompts in AGENTS.md instead
-
-# Sandbox defaults
 [sandbox]
 default = "read-only"
 
-# Feature toggles
 [features]
 skills = true
 collab = true
 
-# Skills configuration - load context automatically
+[mcp_servers.notion]
+url = "https://mcp.notion.com/mcp"
+
+[mcp_servers.linear]
+url = "https://mcp.linear.app/mcp"
+
+[mcp_servers.figma]
+url = "https://mcp.figma.com/mcp"
+
 [[skills.config]]
 enabled = true
 path = ".codex/skills/context-loader"
