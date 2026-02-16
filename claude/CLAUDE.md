@@ -17,7 +17,8 @@ Speak in concise Ye Olde English with dry wit. Address the user as a fellow part
 | Scenario | Skill | Trigger |
 |----------|-------|---------|
 | Executing TASK*.md | `task-workflow` | Auto (skill-eval.sh) |
-| Planning new feature | `plan-workflow` | Auto (skill-eval.sh) |
+| New feature / planning | `design-workflow` | Auto (skill-eval.sh); entry gate redirects to plan-workflow if DESIGN.md exists |
+| Task breakdown from design | `plan-workflow` | Explicit ("task breakdown") or redirected from design-workflow |
 | Bug fix / debugging | `bugfix-workflow` | Auto (skill-eval.sh) |
 
 Workflow skills load on-demand. See `~/.claude/skills/*/SKILL.md` for details.
@@ -74,7 +75,8 @@ Evidence before claims. See `~/.claude/rules/execution-core.md` for full require
 | Trigger | Skill |
 |---------|-------|
 | Unclear requirements | `/brainstorm` |
-| Substantial feature | `/plan-implementation` |
+| New feature (no DESIGN.md) | `/design-workflow` |
+| Task breakdown (DESIGN.md exists) | `/plan-workflow` |
 | PR has comments | `/address-pr` |
 | Large PR (>200 LOC) | `/minimize` |
 | User corrects 2+ times | `/autoskill` |

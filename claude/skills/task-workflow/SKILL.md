@@ -1,7 +1,7 @@
 ---
 name: task-workflow
 description: Execute a task from TASK*.md with full workflow. Auto-invoked when implementing planned tasks.
-user-invocable: false
+user-invocable: true
 ---
 
 # Task Workflow
@@ -44,13 +44,15 @@ After passing the gate, execute continuously — **no stopping until PR is creat
 
 **Important:** Always use test-runner agent for running tests, check-runner for lint/typecheck. This preserves context by isolating verbose output.
 
-## Checkpoint Updates
+## Plan Conformance (Checkbox Enforcement)
 
-After completing implementation, update checkboxes:
-- In TASK*.md file (the specific task)
-- In PLAN.md (the overall progress tracker)
+When PLAN.md exists, enforce:
 
-Commit checkbox updates WITH implementation, not separately.
+1. **Both files updated:** TASK*.md AND PLAN.md checkboxes must change `- [ ]` → `- [x]` after implementation.
+2. **Dependency/order changes:** If task execution reveals the need to reorder or add tasks, update PLAN.md explicitly before proceeding.
+3. **Commit together:** Checkbox updates go WITH implementation, not as separate commits.
+
+Forgetting PLAN.md is the most common violation. Verify both files are updated before proceeding to code-critic.
 
 ## Codex Step
 

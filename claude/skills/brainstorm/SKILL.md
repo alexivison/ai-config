@@ -1,6 +1,6 @@
 ---
 name: brainstorm
-description: Structured context capture before planning. Use before /plan-implementation for new features, when requirements are unclear, or when multiple approaches exist. Gathers understanding through targeted questions.
+description: Structured context capture before planning. Use before /plan-workflow for new features, when requirements are unclear, or when multiple approaches exist. Gathers understanding through targeted questions.
 user-invocable: true
 allowed-tools: Read, Grep, Glob, Bash(git:*)
 ---
@@ -11,7 +11,7 @@ Capture context and explore approaches before jumping into planning. This skill 
 
 ## When to Use
 
-- Before `/plan-implementation` for non-trivial features
+- Before `/plan-workflow` for non-trivial features
 - When requirements are vague or incomplete
 - When multiple valid approaches exist
 - When you need to understand existing code before modifying
@@ -110,12 +110,12 @@ After completing all phases, summarize and save to file.
 - [Any remaining uncertainties for implementation]
 
 ### Next Step
-Ready for `/plan-implementation` or [specific next action]
+Ready for `/plan-workflow` or [specific next action]
 ```
 
 ## Handoff to Planning
 
 When brainstorm is complete and user confirms:
 - Save the brainstorm summary to file
-- Offer to run `/plan-implementation` with captured context
+- Offer to run `/plan-workflow` with captured context
 - Reference the saved brainstorm file in planning docs

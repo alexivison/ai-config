@@ -76,6 +76,21 @@ Task 1 ───┬───> Task 2 ───┐
 |------------|--------|----------|
 | Backend API | In progress | Task 3 |
 
+## Plan Evaluation Record
+
+PLAN_EVALUATION_VERDICT: PASS | FAIL
+CODEX_VERDICT: APPROVE | REQUEST_CHANGES | NEEDS_DISCUSSION
+
+Evidence:
+- [ ] Existing standards referenced with concrete paths
+- [ ] Data transformation points mapped
+- [ ] Tasks have explicit scope boundaries
+- [ ] Dependencies and verification commands listed per task
+- [ ] Requirements reconciled against source inputs
+- [ ] Whole-architecture coherence evaluated
+
+Source reconciliation: [References or "None"]
+
 ## Definition of Done
 
 - [ ] All task checkboxes complete

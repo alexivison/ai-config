@@ -34,12 +34,17 @@ elif echo "$PROMPT_LOWER" | grep -qE '\bbug\b|\bbroken\b|\berror\b|\bnot work|\b
   SUGGESTION="MANDATORY: Invoke bugfix-workflow skill FIRST, before fetching tickets, reading code, or any investigation. The workflow itself handles investigation steps."
   PRIORITY="must"
 
-# plan-workflow: Build/create keywords (fallback - most general)
-# Note: task-workflow triggers first on TASK file references, so this catches new feature requests
-# IMPORTANT: plan-workflow is the FULL workflow (worktree + docs + codex + PR)
-#            plan-implementation is just doc creation (embedded inside plan-workflow)
+# plan-workflow: Explicit task-breakdown triggers (check BEFORE general feature keywords)
+# Keyword-only heuristic — actual DESIGN.md validation is in the skill entry gate.
+elif echo "$PROMPT_LOWER" | grep -qE '\btask breakdown\b|\bbreak.*(design|plan) into tasks\b|\bcreate tasks from\b|\bplan from design\b|\bplan-workflow\b'; then
+  SUGGESTION="MANDATORY: Invoke plan-workflow skill. Create task breakdown (PLAN.md + TASKs) from the approved DESIGN.md."
+  PRIORITY="must"
+
+# design-workflow: New feature keywords (default entry point for two-phase planning)
+# The skill entry gate redirects to plan-workflow if DESIGN.md already exists.
+# No filesystem or prompt-content detection here — skills own the routing contract.
 elif echo "$PROMPT_LOWER" | grep -qE '\bnew feature\b|\bimplement\b|\bbuild\b|\bcreate\b|\badd (a |the |new )?[a-z]+\b|\bplan\b'; then
-  SUGGESTION="MANDATORY: Invoke plan-workflow skill (NOT plan-implementation). plan-workflow creates worktree, documents, runs codex, and creates PR. plan-implementation is only the inner document creation step."
+  SUGGESTION="MANDATORY: Invoke design-workflow skill (Phase 1). Create SPEC.md + DESIGN.md. If DESIGN.md already exists, the skill redirects to plan-workflow."
   PRIORITY="must"
 
 # Other MUST skills

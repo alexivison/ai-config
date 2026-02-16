@@ -8,131 +8,52 @@ user-invocable: false
 
 ## Safety
 
-Always use `-s read-only` sandbox mode. Never run Codex with write permissions.
+Always `-s read-only`. Never write permissions.
 
-## Supported Task Types
+## Task Types
 
-| Task | Command Pattern |
-|------|-----------------|
-| Code review | `codex exec -s read-only "Review these changes for bugs, security, maintainability"` |
-| Architecture review | `codex exec -s read-only "Analyze architecture of these files for patterns and complexity"` |
-| Plan review | `codex exec -s read-only "Review this plan for: {plan review checklist below}"` |
+| Task | Command |
+|------|---------|
+| Code review | `codex exec -s read-only "Review changes for bugs, security, maintainability"` |
+| Architecture | `codex exec -s read-only "Analyze architecture for patterns and complexity"` |
+| Plan review | `codex exec -s read-only "Review plan for: {checklist}"` |
 | Design decision | `codex exec -s read-only "Compare approaches: {options}"` |
-| Debugging | `codex exec -s read-only "Analyze this error/behavior: {description}"` |
-| Trade-off analysis | `codex exec -s read-only "Evaluate trade-offs between: {options}"` |
+| Debugging | `codex exec -s read-only "Analyze error: {description}"` |
 
-## Plan Review Checklist (CRITICAL)
+## Plan Review Checklist
 
-When reviewing plans (DESIGN.md, PLAN.md, TASK*.md), include these checks in your Codex prompt:
+Include in plan review prompts:
+- Data flow: ALL transformation points mapped? Fields in ALL converters?
+- Standards: Existing patterns referenced? Naming consistent?
+- Cross-task: Scope boundaries explicit? Combined coverage complete?
+- Bug prevention: Silent field drops? All code paths covered?
 
-### Data Flow Integrity
-- [ ] Are ALL data transformation points mapped in DESIGN.md?
-- [ ] If a field is added to proto, does it appear in ALL converters?
-- [ ] Are params conversion functions checked (e.g., path A → path B adapters)?
+## Execution
 
-### Existing Standards
-- [ ] Are existing patterns referenced (e.g., DataSource, Repository)?
-- [ ] Is naming consistent with codebase conventions?
-- [ ] Are integration points with existing code identified?
+1. Gather context — read domain rules from `claude/rules/` or `.claude/rules/`
+2. Invoke synchronously: `codex exec -s read-only "..."` with `timeout: 300000`
+3. Parse output, extract verdict
+4. If accidental background execution: use TaskStop to clean up
+5. Return structured result
 
-### Cross-Task Consistency
-- [ ] If TASK1 adds X to endpoints A and B, do separate tasks handle BOTH?
-- [ ] Are task scope boundaries explicit (what IS and ISN'T in scope)?
-- [ ] Do task scopes sum to complete coverage?
-
-### Bug Prevention
-- [ ] Could any field be silently dropped in a conversion?
-- [ ] Are all code paths covered (all variants that share the schema)?
-- [ ] Are adapter patterns identified where data might be lost?
-
-**Example of scope mismatch to catch:**
-> TASK1 adds `new_field` to schema affecting code paths A and B.
-> TASK2 only handles path A → BUG: path B silently drops the field.
-
-## Execution Process
-
-1. **Understand the task** — What type of analysis is needed?
-2. **Gather context** — Read relevant domain rules from `claude/rules/` or `.claude/rules/` if they exist
-3. **Invoke Codex** — Run `codex exec -s read-only "..."` with appropriate prompt
-4. **Parse output** — Extract key findings and verdict
-5. **Cleanup** — Stop any background tasks before returning (see Cleanup Protocol)
-6. **Return structured result** — Use the output format below
-
-## Bash Execution Rules (CRITICAL)
-
-**NEVER use `run_in_background: true`** when invoking `codex exec`. Always run synchronously. If you violate this rule accidentally, the Cleanup Protocol below will catch orphaned processes.
-
-**Use extended timeout** for Codex CLI (it uses extended reasoning):
-```
-timeout: 300000  # 5 minutes - Codex needs time for deep analysis
-```
-
-Example invocation:
-```bash
-codex exec -s read-only "Your prompt here"
-```
-With Bash tool parameters: `{ "command": "codex exec -s read-only \"...\"", "timeout": 300000 }`
-
-## Cleanup Protocol
-
-**Fallback for accidental background execution.** If you mistakenly used `run_in_background: true` (violating Bash Execution Rules above), clean up before returning:
-
-1. **Detect:** If Bash tool results contain a `task_id`, a background task was created
-2. **Stop:** Use `TaskStop` to terminate the orphaned process:
-   ```
-   TaskStop with task_id: "{task_id}"
-   ```
-3. **Handle errors:** If TaskStop fails, log the task ID in your response and continue — the main agent will handle escalation
-4. **Return:** Only then return your structured response
-
-This defense-in-depth prevents orphaned Codex processes from continuing after you've returned.
+**NEVER** use `run_in_background: true`. Always synchronous.
 
 ## Output Format
 
-Always return structured output for the main agent to parse:
-
 ```markdown
 ## Codex Analysis
 
-**Task:** {task type - review/architecture/plan/design/debug/trade-off}
-**Scope:** {files or topic analyzed}
+**Task:** {type}
+**Scope:** {files/topic}
 
 ### Findings
-{Key findings from Codex, with file:line references where applicable}
-
-### Recommendations
-- {Actionable items}
+{With file:line references}
 
 ### Verdict
-**APPROVE** | **REQUEST_CHANGES** | **NEEDS_DISCUSSION**
-{One sentence reason}
-```
-
-### For Code/Architecture/Plan Review (PR workflow)
-
-When used for pre-PR review, include "CODEX APPROVED" explicitly on approval:
-
-```markdown
-## Codex Analysis
-
-**Task:** Code + Architecture Review
-**Scope:** {changed files}
-
-### Findings
-{Analysis from Codex}
-
-### Verdict
-**APPROVE** — CODEX APPROVED
+**APPROVE** — CODEX APPROVED | **REQUEST_CHANGES** | **NEEDS_DISCUSSION**
 {Reason}
 ```
 
-## Iteration Support
+## Iteration
 
-When invoked with iteration parameters:
-- `iteration`: Current attempt (1, 2, 3)
-- `previous_feedback`: What was found before
-
-On iteration 2+:
-1. First verify previous issues are addressed
-2. Check for new issues introduced by fixes
-3. After 3 iterations without resolution → NEEDS_DISCUSSION
+On iteration 2+: verify previous issues addressed, check for new issues. After 3 without resolution → NEEDS_DISCUSSION.
