@@ -35,17 +35,21 @@ elif echo "$PROMPT_LOWER" | grep -qE '\bbug\b|\bbroken\b|\berror\b|\bnot work|\b
   PRIORITY="must"
 
 # design-workflow / plan-workflow: Two-phase planning dispatch
-# If prompt references a DESIGN.md -> plan-workflow (task breakdown from existing design)
-# If no DESIGN.md -> design-workflow (create SPEC.md + DESIGN.md first)
-# Note: task-workflow triggers first on TASK file references
-# plan-workflow handles the full planning lifecycle (SPEC, DESIGN, PLAN, TASKs)
-# design-workflow handles the design-only phase when no DESIGN.md exists yet
+# Route based on DESIGN.md existence: present → plan-workflow, absent → design-workflow
+# Check both: prompt reference AND file system (doc/projects/**/DESIGN.md)
 elif echo "$PROMPT_LOWER" | grep -qE '\bnew feature\b|\bimplement\b|\bbuild\b|\bcreate\b|\badd (a |the |new )?[a-z]+\b|\bplan\b'; then
+  DESIGN_EXISTS=false
   if echo "$PROMPT" | grep -qiE 'DESIGN\.md|design\.md'; then
-    SUGGESTION="MANDATORY: Invoke plan-workflow skill. DESIGN.md is referenced — skip design phase, go straight to task breakdown (PLAN.md + TASKs)."
+    DESIGN_EXISTS=true
+  elif ls doc/projects/*/DESIGN.md doc/projects/*/*/DESIGN.md 2>/dev/null | grep -q .; then
+    DESIGN_EXISTS=true
+  fi
+
+  if [ "$DESIGN_EXISTS" = true ]; then
+    SUGGESTION="MANDATORY: Invoke plan-workflow skill. DESIGN.md exists — create task breakdown (PLAN.md + TASKs) from the approved design."
     PRIORITY="must"
   else
-    SUGGESTION="MANDATORY: Invoke design-workflow skill (NOT plan-workflow). design-workflow creates worktree, SPEC.md + DESIGN.md, runs codex architecture review, and creates PR. Task breakdown happens later via plan-workflow when user provides the DESIGN.md."
+    SUGGESTION="MANDATORY: Invoke design-workflow skill (Phase 1). No DESIGN.md found — create SPEC.md + DESIGN.md first. Task breakdown via plan-workflow happens after design is approved."
     PRIORITY="must"
   fi
 

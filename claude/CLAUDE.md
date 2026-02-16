@@ -75,7 +75,8 @@ Evidence before claims. See `~/.claude/rules/execution-core.md` for full require
 | Trigger | Skill |
 |---------|-------|
 | Unclear requirements | `/brainstorm` |
-| Substantial feature | `/plan-workflow` |
+| New feature (no DESIGN.md) | `/design-workflow` |
+| Task breakdown (DESIGN.md exists) | `/plan-workflow` |
 | PR has comments | `/address-pr` |
 | Large PR (>200 LOC) | `/minimize` |
 | User corrects 2+ times | `/autoskill` |
