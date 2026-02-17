@@ -8,21 +8,24 @@ user-invocable: false
 
 ## Safety
 
-- `codex review`: inherently read-only, no sandbox flag needed.
-- `codex exec`: always `-s read-only`. Never write permissions.
+- `codex exec review`: inherently read-only (no sandbox flag needed).
+- `codex exec` (non-review): always `-s read-only`. Never write permissions.
 
 ## Task Types
 
-### Code Review (use `codex review`)
+### Code Review (use `codex exec review`)
 
 ```bash
-codex review --base main --title "{PR title or change summary}"
+codex exec review --base main --title "{PR title or change summary}" --json 2>/dev/null \
+  | jq -rs '[.[] | select(.item.type == "agent_message")] | last | .item.text'
 ```
 
+- `codex exec review` is the non-interactive equivalent of the TUI `/review` command. **Do NOT use bare `codex review`** — it is a TUI slash command and may produce empty stdout in non-interactive contexts.
 - `--base main` diffs the current branch against `main` (uses merge-base).
 - `--title` gives GPT-5.3 context about the intent of the changes.
+- `--json` outputs JSONL events; the jq pipeline extracts the final agent message (the actual review findings). Without `--json`, `codex exec review` can silently return nothing.
 - **No custom prompt** — GPT-5.3 uses its own built-in review logic at `xhigh` reasoning. This is intentional: it eliminates prompt-direction loss through the Haiku relay.
-- Output: prioritized, actionable findings on stdout.
+- Output after jq: review findings as plain text (no reasoning traces — those are separate JSONL items filtered out by the pipeline).
 
 ### Non-Review Tasks (use `codex exec`)
 
@@ -44,10 +47,14 @@ Use structured, slot-filled prompts. Never relay vague natural-language descript
 
 ## Execution
 
-### For `codex review`:
+### For code review (`codex exec review`):
 1. Gather context — determine base branch (usually `main`)
-2. Invoke synchronously: `codex review --base main --title "..."` with `timeout: 300000`
-3. Capture full stdout output
+2. Invoke synchronously with `timeout: 300000`:
+   ```bash
+   codex exec review --base main --title "..." --json 2>/dev/null \
+     | jq -rs '[.[] | select(.item.type == "agent_message")] | last | .item.text'
+   ```
+3. The jq pipeline extracts the final review findings as plain text
 4. If accidental background execution: use TaskStop to clean up
 5. Return using passthrough format (see Output Rules below)
 
