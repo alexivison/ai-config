@@ -1,7 +1,7 @@
 ---
 name: minimizer
 description: "Review diff for unnecessary complexity and bloat. Returns APPROVE or REQUEST_CHANGES. Identifies issues only — never writes code."
-model: haiku
+model: sonnet
 tools: Bash, Read, Grep, Glob
 disallowedTools: Write, Edit
 color: red
