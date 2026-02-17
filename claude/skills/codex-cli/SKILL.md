@@ -47,35 +47,43 @@ Use structured, slot-filled prompts. Never relay vague natural-language descript
 ### For `codex review`:
 1. Gather context — determine base branch (usually `main`)
 2. Invoke synchronously: `codex review --base main --title "..."` with `timeout: 300000`
-3. Parse stdout findings, extract verdict
+3. Capture full stdout output
 4. If accidental background execution: use TaskStop to clean up
-5. Return structured result
+5. Return using passthrough format (see Output Rules below)
 
 ### For `codex exec`:
 1. Gather context — read domain rules from `claude/rules/` or `.claude/rules/`
 2. Build prompt using structured template (TASK/SCOPE/OUTPUT)
 3. Invoke synchronously: `codex exec -s read-only "..."` with `timeout: 300000`
-4. Parse output, extract verdict
+4. Capture full stdout output
 5. If accidental background execution: use TaskStop to clean up
-6. Return structured result
+6. Return using passthrough format (see Output Rules below)
 
 **NEVER** use `run_in_background: true`. Always synchronous.
 
-## Output Format
+## Output Rules
+
+**Pass through the full Codex output verbatim.** Do NOT summarize, reformat, or drop findings. The main agent needs the complete analysis from GPT-5.3 — any lossy summarization by this wrapper defeats the purpose.
+
+Return format:
 
 ```markdown
 ## Codex Analysis
 
 **Task:** {type}
-**Scope:** {files/topic}
 
-### Findings
-{With file:line references}
+### Full Output
+{Paste the COMPLETE Codex CLI stdout here — every finding, every line, unchanged}
 
 ### Verdict
 **APPROVE** — CODEX APPROVED | **REQUEST_CHANGES** | **NEEDS_DISCUSSION**
-{Reason}
 ```
+
+Rules:
+- **NEVER summarize** Codex findings — include them all verbatim.
+- **NEVER drop** file:line references, severity labels, or context from the raw output.
+- **NEVER paraphrase** — if Codex said it, pass it through exactly.
+- The only thing you add is the verdict line based on the overall findings.
 
 ## Iteration
 
