@@ -1,16 +1,30 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Multi-agent configuration for AI-assisted development. Three CLI agents orchestrated through a shared workflow.
 
-## What This Repo Is
+## Overview
 
-Centralized configuration for Claude Code, Gemini CLI, and Codex CLI. Deployed via symlinks:
+```
+Claude Code (Orchestrator — Claude Opus)
+    ├── Internal agents (spawned via Task tool)
+    │   ├── code-critic      Code review, iterates to APPROVE
+    │   ├── minimizer        Bloat/complexity review
+    │   ├── test-runner       Run tests, return failures
+    │   ├── check-runner      Typecheck/lint, return errors
+    │   └── security-scanner  Vulnerability + secret scanning
+    │
+    ├── Codex CLI (GPT-5.3 — deep reasoning)
+    │   ├── Code + architecture review
+    │   ├── Plan + design review
+    │   ├── Debugging analysis
+    │   └── Trade-off evaluation
+    │
+    └── Gemini CLI (Gemini Pro/Flash — research)
+        ├── Log analysis (2M token context)
+        └── Web search synthesis
+```
 
-- `~/.claude` → `claude/`
-- `~/.gemini` → `gemini/`
-- `~/.codex` → `codex/`
-
-Configuration only — no build/test/lint. Files are Markdown, JSON, and shell scripts.
+Claude Code orchestrates all work. Internal agents run as isolated sub-processes. Codex and Gemini are external CLIs invoked through sonnet-model wrapper agents that relay output verbatim.
 
 ## Installation
 
@@ -20,12 +34,19 @@ Configuration only — no build/test/lint. Files are Markdown, JSON, and shell s
 ./uninstall.sh                # Remove symlinks (keeps repo)
 ```
 
-## Architecture
+Creates symlinks:
+- `~/.claude` → `claude/`
+- `~/.gemini` → `gemini/`
+- `~/.codex` → `codex/`
 
-Claude configuration (`claude/`) is organized into five layers:
+## Agent Configurations
+
+### Claude Code (`claude/`)
+
+Primary orchestrator. Handles implementation, git operations, and workflow coordination. Configuration organized in five layers:
 
 ```
-Hooks (observe Claude Code events)
+Hooks (observe events, enforce rules)
   ↓ suggest/enforce
 Skills (orchestrate multi-step workflows)
   ↓ spawn
@@ -33,46 +54,70 @@ Agents (execute specialized tasks in isolation)
   ↓ reference
 Rules (domain standards and constraints)
   ↓ governed by
-Global Instructions (claude/CLAUDE.md — loaded in every session)
+Global Instructions (claude/CLAUDE.md)
 ```
 
-Gemini and Codex are minimal sub-agent configs. See `gemini/GEMINI.md` and `codex/AGENTS.md`.
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| Global instructions | `claude/CLAUDE.md` | Loaded every session. Workflow dispatch, agent routing, execution contract |
+| Settings | `claude/settings.json` | Permissions, hook wiring, model selection |
+| Agents | `claude/agents/*.md` | Declarative definitions (model, tools, preloaded skills) |
+| Skills | `claude/skills/*/SKILL.md` | Procedural workflows invoked via Skill tool |
+| Rules | `claude/rules/*.md` | Domain standards, one domain per file |
+| Hooks | `claude/hooks/*.sh` | Event-driven scripts for enforcement and markers |
 
-### Global Instructions (`claude/CLAUDE.md`)
+### Codex CLI (`codex/`)
 
-**Warning:** Loaded in every Claude Code session across all projects via the `~/.claude` symlink. Treat edits with the same care as a shared library API.
+Deep reasoning engine. Called by Claude Code for tasks requiring extended thinking.
 
-Contains workflow dispatch tables, sub-agent routing, skill invocation rules (MUST vs SHOULD), and the autonomous execution contract.
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| Config | `codex/config.toml` | Model (GPT-5.3), reasoning effort (xhigh), sandbox (read-only) |
+| Agent instructions | `codex/AGENTS.md` | Task types, output format, verdict conventions |
+| Context loader | `codex/skills/context-loader/SKILL.md` | Loads project rules at task start |
 
-### Agents (`claude/agents/*.md`)
+### Gemini CLI (`gemini/`)
 
-Declarative definitions specifying model, tools, and preloaded skills. Spawned via Task tool for context isolation.
+Research and large-scale analysis. Called by Claude Code for log analysis and web research.
 
-| Agent | Purpose | Model |
-|-------|---------|-------|
-| code-critic | Code review, iterates to APPROVE | sonnet |
-| minimizer | Bloat/complexity review, iterates to APPROVE | sonnet |
-| codex | Deep reasoning via Codex CLI | sonnet wrapper |
-| gemini | Log analysis + web research via Gemini CLI | sonnet wrapper |
-| test-runner | Run tests, return failures only | haiku |
-| check-runner | Typecheck/lint, return errors only | haiku |
-| security-scanner | Vulnerability + secret scanning | sonnet |
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| Settings | `gemini/settings.json` | Auth, preview features |
+| Agent instructions | `gemini/GEMINI.md` | Output contract, task types, format templates |
 
-### Skills (`claude/skills/*/SKILL.md`)
+## Internal Agents
 
-Procedural workflows invoked via Skill tool:
+Spawned by Claude Code via Task tool for context isolation. Each runs as a sub-process with its own model and toolset.
 
-- **Orchestrators** (auto-suggested by `hooks/skill-eval.sh`; invoked explicitly): `task-workflow`, `design-workflow`, `plan-workflow`, `bugfix-workflow`
-- **User-invocable**: `brainstorm`, `address-pr`, `autoskill`, `write-tests`, `code-review`, `pre-pr-verification`
-- **Reference** (preloaded by agents): `codex-cli`, `gemini-cli`
+| Agent | Model | Purpose | Verdict |
+|-------|-------|---------|---------|
+| code-critic | sonnet | Code review, iterates to APPROVE | APPROVE / REQUEST_CHANGES |
+| minimizer | sonnet | Bloat/complexity review | APPROVE / REQUEST_CHANGES |
+| codex | sonnet (wrapper) | Invokes Codex CLI, relays output verbatim | CODEX APPROVED / REQUEST_CHANGES |
+| gemini | sonnet (wrapper) | Invokes Gemini CLI, relays output verbatim | N/A (investigation) |
+| test-runner | haiku | Run tests, return failures only | PASS / FAIL |
+| check-runner | haiku | Typecheck/lint, return errors only | PASS / CLEAN / FAIL |
+| security-scanner | sonnet | Vulnerability + secret scanning | ISSUES_FOUND / CLEAN |
 
-### Rules (`claude/rules/*.md`)
+**Wrapper agents** (codex, gemini) exist to bridge external CLIs into Claude Code's Task tool pipeline. The sonnet model ensures high-fidelity passthrough of CLI output without summarization loss.
 
-Reference documents loaded on-demand. `execution-core.md` and `autonomous-flow.md` define the workflow contract. Language rules in `rules/backend/` and `rules/frontend/`.
+## Workflow
 
-### Hooks (`claude/hooks/*.sh`)
+### Core Sequence
 
-Event-driven shell scripts that enforce workflow rules and create checkpoint markers.
+```
+/write-tests → implement → checkboxes → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
+```
+
+### Skills
+
+| Type | Skills |
+|------|--------|
+| Orchestrators | `task-workflow`, `design-workflow`, `plan-workflow`, `bugfix-workflow` |
+| User-invocable | `brainstorm`, `address-pr`, `autoskill`, `write-tests`, `code-review`, `pre-pr-verification` |
+| Reference (preloaded by wrapper agents) | `codex-cli`, `gemini-cli` |
+
+### Hooks
 
 | Hook | Event | Purpose |
 |------|-------|---------|
@@ -80,26 +125,24 @@ Event-driven shell scripts that enforce workflow rules and create checkpoint mar
 | skill-eval.sh | UserPromptSubmit | Detect keywords, suggest skills |
 | worktree-guard.sh | PreToolUse(Bash) | Block `git checkout/switch` in shared repos |
 | pr-gate.sh | PreToolUse(Bash) | Block `gh pr create` without markers |
-| agent-trace.sh | PostToolUse(Task) | Log + create agent markers (`/tmp/claude-{agent}-*`) |
-| skill-marker.sh | PostToolUse(Skill) | Log + create skill markers (`/tmp/claude-pr-verified-*`) |
+| agent-trace.sh | PostToolUse(Task) | Log agent runs + create markers |
+| skill-marker.sh | PostToolUse(Skill) | Log skill runs + create markers |
 
 ### Marker System
 
-Workflow enforcement relies on session-scoped marker files. Two hooks create them; `pr-gate.sh` validates them before allowing PR creation.
+Workflow enforcement via session-scoped marker files. Hooks create them; `pr-gate.sh` validates before PR creation.
 
-| Marker | Created by hook | Required for |
-|--------|----------------|-------------|
-| `/tmp/claude-tests-passed-{sid}` | agent-trace.sh (test-runner PASS) | Code PRs |
-| `/tmp/claude-checks-passed-{sid}` | agent-trace.sh (check-runner PASS/CLEAN) | Code PRs |
-| `/tmp/claude-code-critic-{sid}` | agent-trace.sh (code-critic APPROVE) | Code PRs |
-| `/tmp/claude-minimizer-{sid}` | agent-trace.sh (minimizer APPROVE) | Code PRs |
-| `/tmp/claude-codex-{sid}` | agent-trace.sh (codex "CODEX APPROVED") | Code PRs + Plan PRs |
-| `/tmp/claude-security-scanned-{sid}` | agent-trace.sh (security-scanner any) | Code PRs |
-| `/tmp/claude-pr-verified-{sid}` | skill-marker.sh (pre-pr-verification) | Code PRs |
+| Marker | Created by | Required for |
+|--------|-----------|-------------|
+| `claude-tests-passed-{sid}` | agent-trace.sh (test-runner PASS) | Code PRs |
+| `claude-checks-passed-{sid}` | agent-trace.sh (check-runner PASS/CLEAN) | Code PRs |
+| `claude-code-critic-{sid}` | agent-trace.sh (code-critic APPROVE) | Code PRs |
+| `claude-minimizer-{sid}` | agent-trace.sh (minimizer APPROVE) | Code PRs |
+| `claude-codex-{sid}` | agent-trace.sh (codex "CODEX APPROVED") | Code PRs + Plan PRs |
+| `claude-security-scanned-{sid}` | agent-trace.sh (security-scanner any) | Code PRs |
+| `claude-pr-verified-{sid}` | skill-marker.sh (pre-pr-verification) | Code PRs |
 
-Plan PRs (branch suffix `-plan`) need only the codex marker. Code PRs need all.
-
-**Cleanup caveat:** `session-cleanup.sh` cleans most markers after 24h but does not clean `claude-codex-*`. Codex markers persist until manual deletion or reboot.
+All markers stored in `/tmp/`. Plan PRs (branch suffix `-plan`) need only the codex marker. Code PRs need all.
 
 ## Editing Guidelines
 
@@ -107,36 +150,47 @@ Plan PRs (branch suffix `-plan`) need only the codex marker. Code PRs need all.
 |-----------|---------------|
 | `claude/CLAUDE.md` | Global impact — test in a separate repo after editing |
 | `claude/settings.json` | Hook wiring + permissions; takes effect next session |
-| `claude/hooks/*.sh` | Must be idempotent, fast (5–30s timeout). `agent-trace.sh` → `pr-gate.sh` dependency |
-| `claude/skills/*/SKILL.md` | Frontmatter: `name`, `description`, `user-invocable`. Auto-suggested skills also need a trigger pattern in `skill-eval.sh` |
+| `claude/hooks/*.sh` | Must be idempotent, fast (5-30s timeout) |
+| `claude/skills/*/SKILL.md` | Frontmatter: `name`, `description`, `user-invocable` |
 | `claude/agents/*.md` | Keep concise; procedural logic belongs in skills |
 | `claude/rules/*.md` | One domain per file |
+| `codex/AGENTS.md` | Loaded by Codex CLI. Output format must match marker detection in agent-trace.sh |
+| `codex/config.toml` | Model, reasoning effort, sandbox policy |
+| `gemini/GEMINI.md` | Loaded by Gemini CLI. Output contract for wrapper agent |
 
-## Testing Configuration Changes
+## Testing Changes
 
-**Global instructions or rules:**
+**Claude global instructions or rules:**
 ```bash
-# Start a session in a different repo to verify behavior
 cd ~/some-other-project && claude
 ```
 
 **Hooks:**
 1. Edit `claude/hooks/*.sh`
-2. Run `./install.sh --symlinks-only` (re-links if needed)
-3. Start a new session and run through a workflow
+2. Run `./install.sh --symlinks-only`
+3. Start a new session and trigger the workflow
 4. Verify markers: `ls /tmp/claude-*`
 
 **Skills or agents:**
 1. Edit the definition file
-2. Invoke in a session (`/skill-name` or trigger the agent via workflow)
+2. Invoke in a session (`/skill-name` or trigger via workflow)
 3. Verify output matches expectations
+
+**Codex or Gemini config:**
+1. Edit the config file
+2. Test directly: `codex exec -s read-only "test prompt"` or `gemini "test prompt"`
+3. Then test through Claude Code's wrapper agent to verify end-to-end
 
 ## Troubleshooting
 
-**Symlinks broken:** `ls -la ~/.claude ~/.gemini ~/.codex` to verify, then `./install.sh --symlinks-only` to re-create.
+**Symlinks broken:** `ls -la ~/.claude ~/.gemini ~/.codex` — then `./install.sh --symlinks-only`.
 
-**PR gate blocking unexpectedly:** `ls /tmp/claude-*` to check markers. Common causes: skipped workflow step, or markers expired (most cleaned after 24h by `session-cleanup.sh`; codex markers persist longer).
+**PR gate blocking:** `ls /tmp/claude-*` to check markers. Common causes: skipped workflow step, or markers expired (cleaned after 24h; codex markers persist longer).
 
-**Hook timeout:** Check `timeout` field in `settings.json` hook entries. Look for network calls or blocking I/O in the script.
+**Hook timeout:** Check `timeout` in `claude/settings.json` hook entries.
 
-**Skill not suggested:** Check keyword patterns in `hooks/skill-eval.sh`.
+**Skill not suggested:** Check keyword patterns in `claude/hooks/skill-eval.sh`.
+
+**Codex CLI errors:** Check `~/.codex/log/codex-tui.log` for model selection and error messages.
+
+**Gemini CLI errors:** Check `~/.gemini/tmp/*/logs.json` for session logs.
