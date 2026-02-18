@@ -23,7 +23,6 @@ Personal configuration for [Claude Code](https://claude.ai/claude-code) CLI.
 |-------|---------|
 | `test-runner` | Runs tests, returns only failures (isolates verbose output) |
 | `check-runner` | Runs typecheck/lint, returns only errors (isolates verbose output) |
-| `sage` | Analyzes logs (2M context), web research with synthesis (via Gemini CLI) |
 | `security-scanner` | Scans for secrets, vulnerabilities, OWASP issues (via /pre-pr-verification) |
 | `code-critic` | Iterative code review using `/code-review` guidelines |
 | `wizard` | Deep reasoning via Codex CLI for code/architecture review, design decisions, debugging |
@@ -134,4 +133,3 @@ These stay local and aren't version controlled:
 - `scripts/*.plist` - macOS LaunchAgent configs
 - `plans/` - Local planning files
 - `investigations/` - Wizard (Codex) debugging output
-- `logs/` - Sage (Gemini) log analysis output

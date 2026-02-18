@@ -36,7 +36,7 @@ Shared execution sequence for all workflow skills.
 
 ## Valid Pause Conditions
 
-1. **Investigation findings** — wizard (debugging), sage always require user review
+1. **Investigation findings** — wizard (debugging) always requires user review
 2. **NEEDS_DISCUSSION** — From code-critic or wizard
 3. **3 strikes** — 3 failed fix attempts on same issue
 4. **Explicit blockers** — Missing dependencies, unclear requirements
@@ -45,7 +45,7 @@ Shared execution sequence for all workflow skills.
 
 | Class | When to Pause | Show to User |
 |-------|---------------|--------------|
-| Investigation (wizard debug, sage) | Always | Full findings |
+| Investigation (wizard debug) | Always | Full findings |
 | Verification (test-runner, check-runner, security-scanner) | Never | Summary only |
 | Iterative (code-critic, minimizer, wizard) | NEEDS_DISCUSSION or 3 failures | Verdict each iteration |
 

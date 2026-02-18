@@ -71,15 +71,6 @@ elif echo "$PROMPT_LOWER" | grep -qE '\bunclear\b|\bmultiple (approach|option|wa
 elif echo "$PROMPT_LOWER" | grep -qE '\blearn from (this|session)\b|\bremember (this|that)\b|\bsave (this |that |)preference\b|\bextract pattern\b|/autoskill'; then
   SUGGESTION="RECOMMENDED: Invoke /autoskill to learn from this session."
   PRIORITY="should"
-# Log analysis triggers (use sage agent)
-elif echo "$PROMPT_LOWER" | grep -qE '\banalyze (the |these |my |production |server |application |error )?logs?\b|\blog (file|analysis)\b|\b\.log\b|\b/var/log/|\berror logs?\b|\bproduction logs?\b|\bserver logs?\b'; then
-  SUGGESTION="RECOMMENDED: Use sage agent for log analysis (2M token context, advanced multi-model support)."
-  PRIORITY="should"
-# Web search / research triggers (use sage agent)
-# NOTE: Patterns require explicit external intent to avoid overlap with codebase research
-elif echo "$PROMPT_LOWER" | grep -qE '\bresearch (online|the web|externally)\b|\blook up (online|externally)\b|\bsearch the web\b|\bwhat do (experts|others|people) say\b|\bfind external (info|documentation)\b'; then
-  SUGGESTION="RECOMMENDED: Use sage agent for research queries requiring external information."
-  PRIORITY="should"
 fi
 
 # Output with priority level

@@ -68,7 +68,7 @@ session_id=$(echo "$hook_input" | jq -r '.session_id // "unknown"')
 cwd=$(echo "$hook_input" | jq -r '.cwd // ""')
 project=$(basename "$cwd")
 
-# Extract CLI-level metadata from native logs for wizard/sage agents
+# Extract CLI-level metadata from native logs for wizard agent
 cli_model=""
 cli_errors=""
 
@@ -77,14 +77,6 @@ if [ "$agent_type" = "wizard" ]; then
   if [ -f "$codex_log" ]; then
     cli_model=$(tail -200 "$codex_log" | grep "Selected model:" | tail -1 | sed 's/.*Selected model: //; s/,.*//')
     cli_errors=$(tail -200 "$codex_log" | grep " ERROR " | grep -v "channel closed" | tail -5 | sed 's/.*ERROR //' | tr '\n' '; ' | sed 's/; $//')
-  fi
-fi
-
-if [ "$agent_type" = "sage" ]; then
-  latest_session=$(find "$HOME/.gemini/tmp" -name "session-*.json" -type f 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
-  if [ -n "$latest_session" ]; then
-    cli_model=$(jq -r '[.messages[] | select(.model) | .model] | last // empty' "$latest_session" 2>/dev/null)
-    cli_errors=$(jq -r '[.messages[] | select(.type == "error") | .content] | join("; ")' "$latest_session" 2>/dev/null)
   fi
 fi
 
