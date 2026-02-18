@@ -5,7 +5,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TOOLS=("claude" "gemini" "codex")
+TOOLS=("claude" "codex")
 
 echo "ai-config uninstaller"
 echo "====================="

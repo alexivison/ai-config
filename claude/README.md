@@ -23,10 +23,9 @@ Personal configuration for [Claude Code](https://claude.ai/claude-code) CLI.
 |-------|---------|
 | `test-runner` | Runs tests, returns only failures (isolates verbose output) |
 | `check-runner` | Runs typecheck/lint, returns only errors (isolates verbose output) |
-| `gemini` | Analyzes logs (2M context), web research with synthesis |
 | `security-scanner` | Scans for secrets, vulnerabilities, OWASP issues (via /pre-pr-verification) |
 | `code-critic` | Iterative code review using `/code-review` guidelines |
-| `codex` | Deep reasoning via Codex CLI for code/architecture review, design decisions, debugging |
+| `wizard` | Deep reasoning via Codex CLI for code/architecture review, design decisions, debugging |
 | `minimizer` | Bloat/complexity review, runs parallel with code-critic |
 
 ## Skills
@@ -72,13 +71,13 @@ Personal configuration for [Claude Code](https://claude.ai/claude-code) CLI.
 
 ## Workflow
 
-Core sequence: `/write-tests` → implement → checkboxes → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
+Core sequence: `/write-tests` → implement → checkboxes → [code-critic + minimizer] → wizard → /pre-pr-verification → commit → PR
 
 Key principles:
 - **Evidence before claims** — never state "tests pass" without running them
 - **Autonomous flow** — no stopping between steps unless blocked
 - **Code-critic + minimizer mandatory** — for all implementation changes (not just TASK*.md)
-- **Codex mandatory** — for combined code + architecture review before PR
+- **Wizard mandatory** — for combined code + architecture review before PR
 - **Pre-PR verification mandatory** — for all PRs, including ad-hoc changes
 
 ## Scripts
@@ -133,5 +132,4 @@ These stay local and aren't version controlled:
 - `plugins/`, `projects/` - Per-machine data
 - `scripts/*.plist` - macOS LaunchAgent configs
 - `plans/` - Local planning files
-- `investigations/` - Codex debugging output
-- `logs/` - Gemini log analysis output
+- `investigations/` - Wizard (Codex) debugging output
