@@ -55,7 +55,7 @@
       "Bash(gh pr close:*)"
     ]
   },
-  "model": "opus",
+  "model": "opus[1m]",
   "hooks": {
     "SessionStart": [
       {
@@ -121,6 +121,6 @@
     "type": "command",
     "command": "~/.claude/scripts/context-bar.sh"
   },
-  "effortLevel": "max",
-  "skipDangerousModePermissionPrompt": true
+  "skipDangerousModePermissionPrompt": true,
+  "effortLevel": "max"
 }
