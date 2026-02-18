@@ -1,7 +1,7 @@
 ---
 name: gemini
 description: "Gemini-powered analysis agent. Uses 2M token context for large logs (gemini-3-pro-preview), Flash model for web search synthesis (gemini-3-flash-preview)."
-model: haiku
+model: sonnet
 tools: Bash, Glob, Grep, Read, Write, WebSearch, WebFetch
 skills:
   - gemini-cli

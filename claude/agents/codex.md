@@ -1,7 +1,7 @@
 ---
 name: codex
 description: "Deep reasoning via Codex CLI. Handles code review, architecture analysis, plan review, design decisions, debugging, and trade-off evaluation."
-model: haiku
+model: sonnet
 tools: Bash, Read, Grep, Glob, TaskStop
 skills:
   - codex-cli
