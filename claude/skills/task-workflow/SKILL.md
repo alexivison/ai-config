@@ -34,7 +34,7 @@ After passing the gate, execute continuously — **no stopping until PR is creat
 2. **Implement** — Write the code to make tests pass
 3. **GREEN phase** — Run test-runner agent to verify tests pass
 4. **Checkboxes** — Update both TASK*.md AND PLAN.md: `- [ ]` → `- [x]` (MANDATORY — both files)
-5. **code-critic + minimizer** — MANDATORY after implementing. Run in parallel. Fix issues until both APPROVE
+5. **code-critic + minimizer** — MANDATORY after implementing. Run in parallel. Fix issues until both APPROVE. **After fixing any REQUEST_CHANGES, re-run BOTH critics** — even if only one requested changes. Do not proceed to codex until both return APPROVE in the same run.
 6. **codex** — Spawn codex agent for combined code + architecture review
 7. **Re-run code-critic + minimizer** — If Codex made changes, verify conventions and minimalism
 8. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)
