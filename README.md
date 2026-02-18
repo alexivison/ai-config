@@ -1,7 +1,7 @@
 # ai-config
 
 <p align="center">
-  <img src="assets/the-adventuring-party.png" alt="The Adventuring Party — Claude the Adventurer, Codex the Wizard, Gemini the Sage" width="700">
+  <img src="assets/the-adventuring-party.png" alt="The Adventuring Party — Claude the Adventurer, Codex the Wizard" width="700">
 </p>
 
 <p align="center"><em>"Evidence before claims. Tests before implementation."</em></p>
@@ -14,14 +14,12 @@ Shared configuration for an adventuring party of AI coding assistants. Each memb
 |--------|------|----------|
 | **Claude** | The Adventurer | Blade and code alike — handles all implementation. Companion and tactician of the party. |
 | **Codex** | The Wizard | Dispatched for deep reasoning and arcane logic. Sees truths hidden from lesser minds. |
-| **Gemini** | The Sage | Keeper of lore and seeker of knowledge. Consulted for research and ancient wisdom. |
 
 ## Structure
 
 ```
 ai-config/
 ├── claude/          # Claude Code configuration
-├── gemini/          # Google Gemini CLI configuration
 ├── codex/           # OpenAI Codex CLI configuration
 ├── install.sh       # Install CLIs and create symlinks
 ├── uninstall.sh     # Remove symlinks
@@ -43,7 +41,7 @@ cd ~/Code/ai-config
 ```
 
 The installer will:
-1. Create config symlinks (`~/.claude`, `~/.gemini`, `~/.codex`)
+1. Create config symlinks (`~/.claude`, `~/.codex`)
 2. Offer to install missing CLI tools (optional)
 3. Offer to run authentication for each tool (optional)
 
@@ -52,7 +50,6 @@ The installer will:
 | Member | Install Command |
 |--------|-----------------|
 | Claude | `curl -fsSL https://cli.anthropic.com/install.sh \| sh` |
-| Gemini | `npm install -g @google/gemini-cli` |
 | Codex | `brew install --cask codex` |
 
 ## Uninstallation
@@ -74,5 +71,4 @@ Removes symlinks but keeps the repository.
 ## Documentation
 
 - **Claude Code**: See [claude/README.md](claude/README.md) for the Adventurer's full configuration
-- **Gemini**: Google Gemini CLI settings and credentials
 - **Codex**: OpenAI Codex CLI settings, skills, and agents

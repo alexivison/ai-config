@@ -1,8 +1,0 @@
-# Credentials
-google_accounts.json
-oauth_creds.json
-
-# Local state
-installation_id
-state.json
-tmp/

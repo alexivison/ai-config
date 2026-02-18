@@ -49,7 +49,7 @@ elif echo "$PROMPT_LOWER" | grep -qE '\bnew feature\b|\bimplement\b|\bbuild\b|\b
 
 # Other MUST skills
 elif echo "$PROMPT_LOWER" | grep -qE '\bcreate pr\b|\bmake pr\b|\bready for pr\b|\bopen pr\b|\bsubmit pr\b'; then
-  SUGGESTION="MANDATORY: Run code-critic + minimizer + codex + /pre-pr-verification BEFORE creating PR. PR gate will block without these."
+  SUGGESTION="MANDATORY: Run code-critic + minimizer + wizard + /pre-pr-verification BEFORE creating PR. PR gate will block without these."
   PRIORITY="must"
 elif echo "$PROMPT_LOWER" | grep -qE '\breview (this|my|the) code\b|\bcode review\b|\breview (this|my) pr\b|\bcheck this code\b|\bfeedback on.*code'; then
   SUGGESTION="MANDATORY: Invoke /code-review skill for systematic review."
@@ -70,15 +70,6 @@ elif echo "$PROMPT_LOWER" | grep -qE '\bunclear\b|\bmultiple (approach|option|wa
   PRIORITY="should"
 elif echo "$PROMPT_LOWER" | grep -qE '\blearn from (this|session)\b|\bremember (this|that)\b|\bsave (this |that |)preference\b|\bextract pattern\b|/autoskill'; then
   SUGGESTION="RECOMMENDED: Invoke /autoskill to learn from this session."
-  PRIORITY="should"
-# Log analysis triggers (use gemini agent)
-elif echo "$PROMPT_LOWER" | grep -qE '\banalyze (the |these |my |production |server |application |error )?logs?\b|\blog (file|analysis)\b|\b\.log\b|\b/var/log/|\berror logs?\b|\bproduction logs?\b|\bserver logs?\b'; then
-  SUGGESTION="RECOMMENDED: Use gemini agent for log analysis (2M token context, advanced multi-model support)."
-  PRIORITY="should"
-# Web search / research triggers (use gemini agent)
-# NOTE: Patterns require explicit external intent to avoid overlap with codebase research
-elif echo "$PROMPT_LOWER" | grep -qE '\bresearch (online|the web|externally)\b|\blook up (online|externally)\b|\bsearch the web\b|\bwhat do (experts|others|people) say\b|\bfind external (info|documentation)\b'; then
-  SUGGESTION="RECOMMENDED: Use gemini agent for research queries requiring external information."
   PRIORITY="should"
 fi
 
