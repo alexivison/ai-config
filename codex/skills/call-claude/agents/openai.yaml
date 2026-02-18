@@ -1,0 +1,3 @@
+interface:
+  display_name: "Call Claude"
+  short_description: "Call Claude CLI safely from Codex"
