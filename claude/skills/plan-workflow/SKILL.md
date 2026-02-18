@@ -30,7 +30,7 @@ This boundary is non-negotiable. Plan-workflow does NOT create SPEC.md or DESIGN
 4. Create `tasks/TASK*.md` — small, independently executable tasks (~200 LOC each).
 5. Evaluate plan against Required Planning Checks and Review Checklist.
 6. Refine docs and re-evaluate until PLAN_EVALUATION_VERDICT: PASS.
-7. Run codex for plan review (MANDATORY).
+7. Run wizard for plan review (MANDATORY).
 8. Create draft docs-only PR.
 
 ## Outputs
@@ -79,7 +79,7 @@ Record in `PLAN.md` under `## Plan Evaluation Record`:
 
 ```
 PLAN_EVALUATION_VERDICT: PASS | FAIL
-CODEX_VERDICT: APPROVE | REQUEST_CHANGES | NEEDS_DISCUSSION
+WIZARD_VERDICT: APPROVE | REQUEST_CHANGES | NEEDS_DISCUSSION
 ```
 
 Include:
@@ -87,9 +87,9 @@ Include:
 - Source reconciliation with references (or explicit "None")
 - If FAIL: blocking gaps listed, docs revised, evaluation rerun
 
-## Codex Review (MANDATORY)
+## Wizard Review (MANDATORY)
 
-After evaluation passes, run codex agent:
+After evaluation passes, run wizard agent:
 
 ```
 Review this implementation plan for architectural soundness and feasibility.
@@ -121,7 +121,7 @@ Return structured verdict. On approval: "CODEX APPROVED"
 
 ## Branch Naming
 
-Always `-plan` suffix (e.g., `ENG-123-auth-plan`). Triggers plan-specific PR gate (codex marker only).
+Always `-plan` suffix (e.g., `ENG-123-auth-plan`). Triggers plan-specific PR gate (wizard marker only).
 
 ## Templates
 

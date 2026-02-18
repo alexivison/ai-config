@@ -2,11 +2,11 @@
 auth.json
 
 # Local state
-history.jsonl
+history.jsonl*
 log/
 sessions/
+shell_snapshots/
 version.json
 
 # System-generated
 skills/.system/
-rules/

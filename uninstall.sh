@@ -1,13 +1,13 @@
 #!/bin/bash
-# ai-config-claude uninstaller
+# ai-config uninstaller
 # Removes symlinks created by install.sh (does not remove the repo)
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TOOLS=("claude" "gemini" "codex")
+TOOLS=("claude" "codex")
 
-echo "ai-config-claude uninstaller"
+echo "ai-config uninstaller"
 echo "====================="
 echo ""
 
@@ -39,4 +39,4 @@ done
 
 echo ""
 echo "Uninstall complete!"
-echo "The ai-config-claude repo remains at: $SCRIPT_DIR"
+echo "The ai-config repo remains at: $SCRIPT_DIR"

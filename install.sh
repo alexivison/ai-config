@@ -1,5 +1,5 @@
 #!/bin/bash
-# ai-config-claude installer
+# ai-config installer
 # Installs CLI tools, creates symlinks, and handles authentication
 
 set -e
@@ -30,7 +30,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "ai-config-claude installer"
+echo "ai-config installer"
 echo "==================="
 echo "Repo location: $SCRIPT_DIR"
 echo ""
@@ -142,37 +142,6 @@ setup_claude() {
 }
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# GEMINI
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-setup_gemini() {
-    echo ""
-    echo "━━━ gemini ━━━"
-
-    create_symlink "gemini" || return
-
-    if [[ "$SYMLINKS_ONLY" == true ]]; then
-        return
-    fi
-
-    if ! command -v gemini &> /dev/null; then
-        if command -v npm &> /dev/null; then
-            prompt_install "gemini" \
-                "npm install -g @google/gemini-cli" \
-                "npm install -g @google/gemini-cli"
-        else
-            echo "⚠  npm not found. Install Node.js first, then run:"
-            echo "   npm install -g @google/gemini-cli"
-        fi
-    else
-        echo "✓  gemini CLI already installed"
-    fi
-
-    if command -v gemini &> /dev/null; then
-        prompt_auth "gemini" "oauth_creds.json"
-    fi
-}
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # CODEX
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 setup_codex() {
@@ -226,7 +195,6 @@ if [[ $REPLY =~ ^[Nn]$ ]]; then
 fi
 
 setup_claude
-setup_gemini
 setup_codex
 
 echo ""
@@ -234,7 +202,7 @@ echo "━━━━━━━━━━━━━━━━━━━━"
 echo "Installation complete!"
 echo ""
 echo "Installed symlinks:"
-for tool in claude gemini codex; do
+for tool in claude codex; do
     target="$HOME/.$tool"
     if [[ -L "$target" ]]; then
         echo "  ~/.$tool → $(readlink "$target")"

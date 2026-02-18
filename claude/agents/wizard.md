@@ -1,5 +1,5 @@
 ---
-name: codex
+name: wizard
 description: "Deep reasoning via Codex CLI. Handles code review, architecture analysis, plan review, design decisions, debugging, and trade-off evaluation."
 model: sonnet
 tools: Bash, Read, Grep, Glob, TaskStop
@@ -27,7 +27,7 @@ You are a Codex CLI wrapper agent. Your job is to invoke Codex for deep reasonin
 
 ## Important
 
-**The main agent must NEVER run `codex exec` directly.** Always use the Task tool to spawn this codex agent instead.
+**The main agent must NEVER run `codex exec` directly.** Always use the Task tool to spawn this wizard agent instead.
 
 Once this agent returns APPROVE, do NOT run additional background codex analysis — it is redundant.
 

@@ -4,7 +4,7 @@
 #   - /tmp/claude-pr-verified-{session_id} (from /pre-pr-verification)
 #   - /tmp/claude-code-critic-{session_id} (from code-critic APPROVE)
 #   - /tmp/claude-minimizer-{session_id} (from minimizer APPROVE)
-#   - /tmp/claude-codex-{session_id} (from codex agent APPROVE)
+#   - /tmp/claude-codex-{session_id} (from wizard agent APPROVE)
 #   - /tmp/claude-tests-passed-{session_id} (from test-runner PASS)
 #   - /tmp/claude-checks-passed-{session_id} (from check-runner PASS)
 #   - /tmp/claude-security-scanned-{session_id} (from security-scanner via /pre-pr-verification)
@@ -31,7 +31,7 @@ if echo "$COMMAND" | grep -qE 'gh pr create'; then
   BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
 
   if echo "$BRANCH_NAME" | grep -qE '\-plan$'; then
-    # Plan PR - need codex marker only
+    # Plan PR - need wizard (codex) marker only
     CODEX_MARKER="/tmp/claude-codex-$SESSION_ID"
 
     if [ ! -f "$CODEX_MARKER" ]; then
@@ -39,7 +39,7 @@ if echo "$COMMAND" | grep -qE 'gh pr create'; then
 {
   "hookSpecificOutput": {
     "permissionDecision": "deny",
-    "permissionDecisionReason": "BLOCKED: Plan PR requires codex APPROVE. Missing: codex"
+    "permissionDecisionReason": "BLOCKED: Plan PR requires wizard APPROVE. Missing: wizard"
   }
 }
 EOF
@@ -63,7 +63,7 @@ EOF
   [ ! -f "$VERIFY_MARKER" ] && MISSING="$MISSING /pre-pr-verification"
   [ ! -f "$SECURITY_MARKER" ] && MISSING="$MISSING security-scanner"
   [ ! -f "$CODE_CRITIC_MARKER" ] && MISSING="$MISSING code-critic"
-  [ ! -f "$CODEX_MARKER" ] && MISSING="$MISSING codex"
+  [ ! -f "$CODEX_MARKER" ] && MISSING="$MISSING wizard"
   [ ! -f "$TESTS_MARKER" ] && MISSING="$MISSING test-runner"
   [ ! -f "$CHECKS_MARKER" ] && MISSING="$MISSING check-runner"
   [ ! -f "$MINIMIZE_MARKER" ] && MISSING="$MISSING minimizer"

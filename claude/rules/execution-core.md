@@ -5,7 +5,7 @@ Shared execution sequence for all workflow skills.
 ## Core Sequence
 
 ```
-/write-tests → implement → checkboxes → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
+/write-tests → implement → checkboxes → [code-critic + minimizer] → wizard → /pre-pr-verification → commit → PR
 ```
 
 ## Decision Matrix
@@ -21,22 +21,22 @@ Shared execution sequence for all workflow skills.
 | minimizer | APPROVE | Wait for code-critic | NO |
 | minimizer | REQUEST_CHANGES | Fix and re-run | NO |
 | minimizer | NEEDS_DISCUSSION / 3rd failure | Ask user | YES |
-| code-critic + minimizer | Both APPROVE | Run codex | NO |
-| codex | APPROVE (no changes) | Run /pre-pr-verification | NO |
-| codex | APPROVE (with changes) | Re-run code-critic + minimizer, then codex | NO |
-| codex | REQUEST_CHANGES | Fix and re-run code-critic + minimizer, then codex | NO |
-| codex | NEEDS_DISCUSSION | Ask user | YES |
+| code-critic + minimizer | Both APPROVE | Run wizard | NO |
+| wizard | APPROVE (no changes) | Run /pre-pr-verification | NO |
+| wizard | APPROVE (with changes) | Re-run code-critic + minimizer, then wizard | NO |
+| wizard | REQUEST_CHANGES | Fix and re-run code-critic + minimizer, then wizard | NO |
+| wizard | NEEDS_DISCUSSION | Ask user | YES |
 | /pre-pr-verification | All pass | Create commit and PR | NO |
 | /pre-pr-verification | Failures | Fix and re-run | NO |
-| codex (plan) | APPROVE | Create plan PR | NO |
-| codex (plan) | REQUEST_CHANGES | Fix and re-run | NO |
-| codex (plan) | NEEDS_DISCUSSION | Ask user | YES |
+| wizard (plan) | APPROVE | Create plan PR | NO |
+| wizard (plan) | REQUEST_CHANGES | Fix and re-run | NO |
+| wizard (plan) | NEEDS_DISCUSSION | Ask user | YES |
 | security-scanner | HIGH/CRITICAL | Ask user | YES |
 
 ## Valid Pause Conditions
 
-1. **Investigation findings** — codex (debugging), gemini always require user review
-2. **NEEDS_DISCUSSION** — From code-critic, minimizer, or codex
+1. **Investigation findings** — wizard (debugging) always requires user review
+2. **NEEDS_DISCUSSION** — From code-critic, minimizer, or wizard
 3. **3 strikes** — 3 failed fix attempts on same issue
 4. **Explicit blockers** — Missing dependencies, unclear requirements
 
@@ -44,9 +44,9 @@ Shared execution sequence for all workflow skills.
 
 | Class | When to Pause | Show to User |
 |-------|---------------|--------------|
-| Investigation (codex debug, gemini) | Always | Full findings |
+| Investigation (wizard debug) | Always | Full findings |
 | Verification (test-runner, check-runner, security-scanner) | Never | Summary only |
-| Iterative (code-critic, minimizer, codex) | NEEDS_DISCUSSION or 3 failures | Verdict each iteration |
+| Iterative (code-critic, minimizer, wizard) | NEEDS_DISCUSSION or 3 failures | Verdict each iteration |
 
 ## Verification Principle
 
@@ -63,4 +63,4 @@ Evidence before claims. Never state success without fresh proof.
 
 ## PR Gate
 
-Before `gh pr create`: /pre-pr-verification invoked THIS session, all checks passed, codex APPROVE, verification summary in PR description. See `autonomous-flow.md` for marker details.
+Before `gh pr create`: /pre-pr-verification invoked THIS session, all checks passed, wizard APPROVE, verification summary in PR description. See `autonomous-flow.md` for marker details.

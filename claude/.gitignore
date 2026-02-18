@@ -20,6 +20,7 @@ research/
 investigations/
 logs/
 usage-data/
+backups/
 
 # Debug and telemetry
 debug/

@@ -1,6 +1,6 @@
 ---
 name: codex-cli
-description: Procedural CLI invocation details for the Codex agent
+description: Procedural CLI invocation details for the wizard agent
 user-invocable: false
 ---
 

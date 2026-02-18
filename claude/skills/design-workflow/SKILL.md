@@ -1,12 +1,12 @@
 ---
 name: design-workflow
-description: Design-first planning phase. Creates SPEC.md and DESIGN.md with codex architecture validation. For task breakdown from an existing DESIGN.md, use plan-workflow instead.
+description: Design-first planning phase. Creates SPEC.md and DESIGN.md with wizard architecture validation. For task breakdown from an existing DESIGN.md, use plan-workflow instead.
 user-invocable: true
 ---
 
 # Design Workflow
 
-Create SPEC.md + DESIGN.md, validate architecture via codex, submit as draft PR. This is **Phase 1** of two-phase planning.
+Create SPEC.md + DESIGN.md, validate architecture via wizard, submit as draft PR. This is **Phase 1** of two-phase planning.
 
 ## Routing
 
@@ -66,13 +66,13 @@ Requirements and acceptance criteria only. No implementation details.
 
 Run continuously until PR created.
 
-1. **Codex agent** (MANDATORY) — architecture review, not task scoping
+1. **Wizard agent** (MANDATORY) — architecture review, not task scoping
 2. Handle verdict: APPROVE → PR, REQUEST_CHANGES → fix/rerun, NEEDS_DISCUSSION → ask user
 3. Create draft PR with design docs only
 
 ## Branch Naming
 
-Always `-plan` suffix. Triggers plan-specific PR gate (codex marker only).
+Always `-plan` suffix. Triggers plan-specific PR gate (wizard marker only).
 
 ## Templates
 

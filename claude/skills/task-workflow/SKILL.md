@@ -25,7 +25,7 @@ State which items were checked before proceeding.
 After passing the gate, execute continuously — **no stopping until PR is created**.
 
 ```
-/write-tests (if needed) → implement → checkboxes → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
+/write-tests (if needed) → implement → checkboxes → [code-critic + minimizer] → wizard → /pre-pr-verification → commit → PR
 ```
 
 ### Step-by-Step
@@ -34,12 +34,12 @@ After passing the gate, execute continuously — **no stopping until PR is creat
 2. **Implement** — Write the code to make tests pass
 3. **GREEN phase** — Run test-runner agent to verify tests pass
 4. **Checkboxes** — Update both TASK*.md AND PLAN.md: `- [ ]` → `- [x]` (MANDATORY — both files)
-5. **code-critic + minimizer** — MANDATORY after implementing. Run in parallel. Fix issues until both APPROVE. **After fixing any REQUEST_CHANGES, re-run BOTH critics** — even if only one requested changes. Do not proceed to codex until both return APPROVE in the same run.
-6. **codex** — Spawn codex agent for combined code + architecture review
-7. **Handle codex verdict:**
+5. **code-critic + minimizer** — MANDATORY after implementing. Run in parallel. Fix issues until both APPROVE. **After fixing any REQUEST_CHANGES, re-run BOTH critics** — even if only one requested changes. Do not proceed to wizard until both return APPROVE in the same run.
+6. **wizard** — Spawn wizard agent for combined code + architecture review
+7. **Handle wizard verdict:**
    - **APPROVE (no changes):** Proceed to Step 8.
-   - **APPROVE (with changes):** Main agent applied fixes based on codex feedback — re-run code-critic + minimizer (Step 5), then re-run codex (Step 6).
-   - **REQUEST_CHANGES:** Fix the flagged issues and re-run code-critic + minimizer (Step 5), then re-run codex (Step 6).
+   - **APPROVE (with changes):** Main agent applied fixes based on wizard feedback — re-run code-critic + minimizer (Step 5), then re-run wizard (Step 6).
+   - **REQUEST_CHANGES:** Fix the flagged issues and re-run code-critic + minimizer (Step 5), then re-run wizard (Step 6).
    - **NEEDS_DISCUSSION:** Ask user for guidance before proceeding.
 8. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)
 9. **Commit & PR** — Create commit and draft PR
@@ -58,9 +58,9 @@ When PLAN.md exists, enforce:
 
 Forgetting PLAN.md is the most common violation. Verify both files are updated before proceeding to code-critic.
 
-## Codex Step
+## Wizard Step
 
-After both code-critic and minimizer APPROVE, spawn **codex** agent for deep review:
+After both code-critic and minimizer APPROVE, spawn **wizard** agent for deep review:
 
 **Prompt template:**
 ```
@@ -73,7 +73,7 @@ Review uncommitted changes for bugs, security, and architectural fit.
 Check imports, callers, and related files. Return verdict with file:line issues.
 ```
 
-The codex agent will:
+The wizard agent will:
 1. Read domain rules from `claude/rules/` or `.claude/rules/`
 2. Run `codex exec -s read-only` for deep analysis
 3. Return structured verdict (APPROVE/REQUEST_CHANGES/NEEDS_DISCUSSION)
@@ -82,7 +82,7 @@ On APPROVE, the "CODEX APPROVED" marker is created automatically.
 
 **Iteration protocol:**
 - Max 3 iterations, then NEEDS_DISCUSSION
-- Do NOT re-run codex after convention/style fixes from critics — only after logic or structural changes
+- Do NOT re-run wizard after convention/style fixes from critics — only after logic or structural changes
 
 ## Core Reference
 

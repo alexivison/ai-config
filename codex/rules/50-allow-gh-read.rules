@@ -1,0 +1,30 @@
+# Allow GitHub CLI Read Operations
+# These commands are safe to run without confirmation.
+
+prefix_rule(
+    pattern = ["gh", "pr", ["view", "list", "diff", "checks"]],
+    decision = "allow",
+    justification = "Read-only PR operations are safe.",
+    match = [
+        "gh pr view 123",
+        "gh pr list",
+        "gh pr diff 123",
+        "gh pr checks 123",
+    ],
+    not_match = ["gh pr create", "gh pr merge 123"],
+)
+
+prefix_rule(
+    pattern = ["gh", "issue", ["view", "list"]],
+    decision = "allow",
+    justification = "Read-only issue operations are safe.",
+    match = ["gh issue view 42", "gh issue list"],
+    not_match = ["gh issue create", "gh issue close 42"],
+)
+
+prefix_rule(
+    pattern = ["gh", "repo", "view"],
+    decision = "allow",
+    justification = "Viewing repository info is safe.",
+    match = ["gh repo view", "gh repo view openai/codex"],
+)

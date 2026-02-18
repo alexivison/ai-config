@@ -68,23 +68,15 @@ session_id=$(echo "$hook_input" | jq -r '.session_id // "unknown"')
 cwd=$(echo "$hook_input" | jq -r '.cwd // ""')
 project=$(basename "$cwd")
 
-# Extract CLI-level metadata from native logs for codex/gemini agents
+# Extract CLI-level metadata from native logs for wizard agent
 cli_model=""
 cli_errors=""
 
-if [ "$agent_type" = "codex" ]; then
+if [ "$agent_type" = "wizard" ]; then
   codex_log="$HOME/.codex/log/codex-tui.log"
   if [ -f "$codex_log" ]; then
     cli_model=$(tail -200 "$codex_log" | grep "Selected model:" | tail -1 | sed 's/.*Selected model: //; s/,.*//')
     cli_errors=$(tail -200 "$codex_log" | grep " ERROR " | grep -v "channel closed" | tail -5 | sed 's/.*ERROR //' | tr '\n' '; ' | sed 's/; $//')
-  fi
-fi
-
-if [ "$agent_type" = "gemini" ]; then
-  latest_session=$(find "$HOME/.gemini/tmp" -name "session-*.json" -type f 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
-  if [ -n "$latest_session" ]; then
-    cli_model=$(jq -r '[.messages[] | select(.model) | .model] | last // empty' "$latest_session" 2>/dev/null)
-    cli_errors=$(jq -r '[.messages[] | select(.type == "error") | .content] | join("; ")' "$latest_session" 2>/dev/null)
   fi
 fi
 
@@ -146,10 +138,10 @@ if [ "$agent_type" = "check-runner" ]; then
   fi
 fi
 
-# codex: dedicated Codex CLI agent for deep reasoning tasks
+# wizard: Codex CLI wrapper agent for deep reasoning tasks
 # Only PR review approval creates marker (requires explicit "CODEX APPROVED" token)
 # Design decisions, debugging, and other tasks don't gate PRs
-if [ "$agent_type" = "codex" ]; then
+if [ "$agent_type" = "wizard" ]; then
   if echo "$full_response" | grep -q "CODEX APPROVED"; then
     touch "/tmp/claude-codex-$session_id"
   fi

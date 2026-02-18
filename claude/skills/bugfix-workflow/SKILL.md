@@ -14,8 +14,7 @@ Debug and fix bugs with investigation before implementation.
 
 1. **Create worktree first** — `git worktree add ../repo-branch-name -b branch-name`
 2. **Understand the bug** — Read relevant code, reproduce if possible
-3. **Complex bug?** → Invoke `codex` agent with debugging task → `[wait for user]`
-4. **Logs relevant?** → Invoke `gemini` agent → `[wait for user]`
+3. **Complex bug?** → Invoke `wizard` agent with debugging task → `[wait for user]`
 
 `[wait]` = Show findings, use AskUserQuestion, wait for user input.
 
@@ -28,7 +27,7 @@ State which items were checked before proceeding.
 Execute continuously — **no stopping until PR is created**.
 
 ```
-/write-tests (regression) → implement fix → [code-critic + minimizer] → codex → /pre-pr-verification → PR
+/write-tests (regression) → implement fix → [code-critic + minimizer] → wizard → /pre-pr-verification → PR
 ```
 
 **Note:** Bugfixes typically don't have PLAN.md checkbox updates (they're not part of planned work).
@@ -39,11 +38,11 @@ Execute continuously — **no stopping until PR is created**.
 2. **Implement Fix** — Fix the bug to make the test pass
 3. **GREEN phase** — Run test-runner agent to verify tests pass
 4. **code-critic + minimizer** — MANDATORY after implementing. Run in parallel. Fix issues until both APPROVE
-5. **codex** — Spawn codex agent for combined code + architecture review
-6. **Handle codex verdict:**
+5. **wizard** — Spawn wizard agent for combined code + architecture review
+6. **Handle wizard verdict:**
    - **APPROVE (no changes):** Proceed to Step 7.
-   - **APPROVE (with changes):** Main agent applied fixes based on codex feedback — re-run code-critic + minimizer (Step 4), then re-run codex (Step 5).
-   - **REQUEST_CHANGES:** Fix the flagged issues and re-run code-critic + minimizer (Step 4), then re-run codex (Step 5).
+   - **APPROVE (with changes):** Main agent applied fixes based on wizard feedback — re-run code-critic + minimizer (Step 4), then re-run wizard (Step 5).
+   - **REQUEST_CHANGES:** Fix the flagged issues and re-run code-critic + minimizer (Step 4), then re-run wizard (Step 5).
    - **NEEDS_DISCUSSION:** Ask user for guidance before proceeding.
 7. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)
 8. **Commit & PR** — Create commit and draft PR
@@ -66,9 +65,9 @@ This ensures the bug is actually fixed and won't regress.
 - Something that worked before stopped working
 - Unexpected behavior that needs investigation
 
-## Codex Investigation Step
+## Wizard Investigation Step
 
-For complex bugs, spawn **codex** agent with debugging task:
+For complex bugs, spawn **wizard** agent with debugging task:
 
 **Prompt template:**
 ```
@@ -96,9 +95,9 @@ Return structured findings with verdict:
 
 **On NEEDS_DISCUSSION:** Present options, ask user for guidance.
 
-## Codex Review Step
+## Wizard Review Step
 
-See [task-workflow/SKILL.md](../task-workflow/SKILL.md#codex-step) for the code + architecture review invocation details and iteration protocol.
+See [task-workflow/SKILL.md](../task-workflow/SKILL.md#wizard-step) for the code + architecture review invocation details and iteration protocol.
 
 ## Core Reference
 
