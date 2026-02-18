@@ -1,4 +1,4 @@
-# ai-config-claude
+# ai-config
 
 <p align="center">
   <img src="assets/the-adventuring-party.png" alt="The Adventuring Party — Claude the Adventurer, Codex the Wizard, Gemini the Sage" width="700">
@@ -19,7 +19,7 @@ Shared configuration for an adventuring party of AI coding assistants. Each memb
 ## Structure
 
 ```
-ai-config-claude/
+ai-config/
 ├── claude/          # Claude Code configuration
 ├── gemini/          # Google Gemini CLI configuration
 ├── codex/           # OpenAI Codex CLI configuration
@@ -32,10 +32,10 @@ ai-config-claude/
 
 ```bash
 # Clone the repo
-git clone git@github.com:alexivison/ai-config-claude.git ~/Code/ai-config-claude
+git clone git@github.com:alexivison/ai-config.git ~/Code/ai-config
 
 # Full install (symlinks + CLI installation + auth)
-cd ~/Code/ai-config-claude
+cd ~/Code/ai-config
 ./install.sh
 
 # Or symlinks only (install CLIs yourself)
@@ -58,7 +58,7 @@ The installer will:
 ## Uninstallation
 
 ```bash
-cd ~/Code/ai-config-claude
+cd ~/Code/ai-config
 ./uninstall.sh
 ```
 

@@ -1,0 +1,13 @@
+# Deny Destructive Git Operations
+# Prevents accidental data loss from irreversible git commands.
+
+NEVER run these commands without explicit user confirmation:
+
+- `git push --force` or `git push -f` (overwrites remote history)
+- `git reset --hard` (discards uncommitted changes)
+- `git clean -fd` or `git clean -f` (deletes untracked files permanently)
+- `git checkout -- <file>` (discards working tree changes)
+- `git branch -D` (force-deletes branch without merge check)
+- `git stash drop` (permanently removes stash entry)
+
+If a task requires any of these, STOP and explain the risk before proceeding.

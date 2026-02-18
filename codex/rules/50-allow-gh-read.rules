@@ -1,0 +1,13 @@
+# Allow GitHub CLI Read Operations
+# These commands are safe to run without confirmation.
+
+Auto-allow these read-only gh commands:
+
+- `gh pr view` — view pull request details
+- `gh pr list` — list pull requests
+- `gh pr diff` — view pull request diff
+- `gh pr checks` — view PR check status
+- `gh issue view` — view issue details
+- `gh issue list` — list issues
+- `gh repo view` — view repository info
+- `gh api` (GET requests) — read GitHub API data

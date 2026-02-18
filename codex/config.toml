@@ -1,14 +1,18 @@
-# Codex CLI Project Configuration
-# Enables project-specific Codex settings for Claude Code integration
+# Codex CLI Configuration
+# Direct use: workspace-write (planning, research, docs)
+# Sub-agent: Claude Code overrides with -s read-only at call time
 
 # Default model configuration
 model = "gpt-5.3-codex"
 model_reasoning_effort = "xhigh"
 model_reasoning_summary = "detailed"
 approval_policy = "on-request"
+sandbox_mode = "workspace-write"
 
-[sandbox]
-default = "read-only"
+[tui]
+alternate_screen = true
+animations = true
+notifications = true
 
 [features]
 skills = true

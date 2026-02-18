@@ -27,7 +27,7 @@ Symlinks: `~/.claude` → `claude/`, `~/.gemini` → `gemini/`, `~/.codex` → `
 | Agent | Config root | Key files |
 |-------|-------------|-----------|
 | Claude Code | `claude/` | `CLAUDE.md`, `settings.json`, `agents/*.md`, `skills/*/SKILL.md`, `rules/*.md`, `hooks/*.sh` |
-| Codex CLI | `codex/` | `config.toml`, `AGENTS.md`, `skills/context-loader/SKILL.md` |
+| Codex CLI | `codex/` | `config.toml`, `AGENTS.md`, `skills/planning/SKILL.md` |
 | Gemini CLI | `gemini/` | `GEMINI.md`, `settings.json` |
 
 ## Workflow

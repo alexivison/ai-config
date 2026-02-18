@@ -1,0 +1,8 @@
+# Codex CLI Rules
+# Numbered rules load in order. This file is the index.
+
+# Safety
+# 10-deny-destructive-git.rules — blocks force-push, reset --hard, clean -fd, checkout --
+
+# Permissions
+# 50-allow-gh-read.rules — auto-allows gh pr view and similar read operations

@@ -1,6 +1,8 @@
 # Codex CLI — Deep Reasoning Agent
 
-**You are called by Claude Code for deep analysis: code review, architecture review, plan review, design decisions, debugging, and trade-off evaluation.** You are read-only — never modify files.
+**Two modes of operation:**
+- **Sub-agent** — Called by Claude Code for deep analysis (code review, architecture, plan review, debugging). Claude overrides sandbox to read-only at call time.
+- **Direct use** — Planning, research, and documentation. Writes design docs, creates PRs.
 
 ## Context Loading
 
@@ -17,6 +19,16 @@ else
   CONFIG_ROOT=''
 fi
 ```
+
+## Verification Principle
+
+No claims without command output. Never state something about the codebase without showing evidence (file path, line number, command result).
+
+| Claim | Evidence Required |
+|-------|-------------------|
+| "Pattern X is used" | `file:line` reference |
+| "Tests pass" | Command output |
+| "No callers exist" | grep/search result |
 
 ## Output Format
 
