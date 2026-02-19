@@ -81,7 +81,7 @@ Key principles:
 
 | Script | Purpose |
 |--------|---------|
-| `context-bar.sh` | Status line display |
+| `status-line.sh` | Status line display |
 | `weekly-report.sh` | Generate weekly summary of investigations and projects |
 | `agent-stats.sh` | Summarize sub-agent activity (today/week/all) |
 
