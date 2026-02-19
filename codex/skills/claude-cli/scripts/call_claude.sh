@@ -8,7 +8,8 @@ Usage:
   call_claude.sh [options] --prompt-file /path/to/prompt.txt
 
 Options:
-  --model <model>                    Claude model alias/name (default: opus)
+  --model <model>                    Claude model alias/name (default: opus[1m])
+  --effort <level>                   Reasoning effort (default: high)
   --tools <tools>                    Tool list for Claude (default: "")
   --permission-mode <mode>           Claude permission mode
   --output-format <fmt>              text|json|stream-json (default: text)
@@ -32,7 +33,8 @@ if ! command -v claude >/dev/null 2>&1; then
   exit 1
 fi
 
-MODEL="opus"
+MODEL="opus[1m]"
+EFFORT="high"
 TOOLS=""
 PERMISSION_MODE=""
 OUTPUT_FORMAT="text"
@@ -46,6 +48,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --model)
       MODEL="${2:-}"
+      shift 2
+      ;;
+    --effort)
+      EFFORT="${2:-}"
       shift 2
       ;;
     --tools)
@@ -114,6 +120,7 @@ cmd=(
   claude
   -p
   --model "$MODEL"
+  --effort "$EFFORT"
   --disable-slash-commands
   --tools "$TOOLS"
   --output-format "$OUTPUT_FORMAT"

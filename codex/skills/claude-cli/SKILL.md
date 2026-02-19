@@ -32,7 +32,8 @@ Run Claude non-interactively from Codex and return the result in the current ses
 
 ```bash
 codex/skills/claude-cli/scripts/call_claude.sh \
-  --model opus \
+  --model "opus[1m]" \
+  --effort high \
   --prompt "Analyze this proposal and list the top 5 risks with mitigations: ..."
 ```
 
@@ -40,7 +41,8 @@ codex/skills/claude-cli/scripts/call_claude.sh \
 
 ```bash
 codex/skills/claude-cli/scripts/call_claude.sh \
-  --model opus \
+  --model "opus[1m]" \
+  --effort high \
   --tools Read \
   --permission-mode bypassPermissions \
   --prompt "Review doc/projects/example/PLAN.md for architecture gaps, dependency ordering issues, and missing verification. Return APPROVE|REQUEST_CHANGES|NEEDS_DISCUSSION with file:line findings."
@@ -50,7 +52,8 @@ codex/skills/claude-cli/scripts/call_claude.sh \
 
 ```bash
 codex/skills/claude-cli/scripts/call_claude.sh \
-  --model opus \
+  --model "opus[1m]" \
+  --effort high \
   --output-format json \
   --json-schema '{"type":"object","properties":{"verdict":{"type":"string"},"findings":{"type":"array","items":{"type":"string"}}},"required":["verdict","findings"]}' \
   --prompt "Review the plan and return schema-compliant JSON."
