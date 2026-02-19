@@ -1,97 +1,104 @@
 ---
 name: codex-cli
-description: Procedural CLI invocation details for the wizard agent
+description: Invoke Codex CLI for deep reasoning, review, and analysis
 user-invocable: false
 ---
 
-# Codex CLI Procedures
+# Codex CLI — Direct Invocation
 
 ## Safety
 
+- Sandbox always defaults to `read-only` (never `workspace-write`).
 - `codex exec review`: inherently read-only (no sandbox flag needed).
-- `codex exec` (non-review): always `-s read-only`. Never write permissions.
+- Timeout: 300s default via portable wrapper (`gtimeout` > `timeout` > none).
 
-## Task Types
+## Command Patterns
 
-### Code Review (use `codex exec review`)
+### Code Review
 
 ```bash
-codex exec review --base main --title "{PR title or change summary}" --json 2>/dev/null \
-  | jq -rs '[.[] | select(.item.type == "agent_message")] | last | .item.text'
+~/.claude/skills/codex-cli/scripts/call_codex.sh \
+  --review --base main --title "{PR title or change summary}"
 ```
 
-- `codex exec review` is the non-interactive equivalent of the TUI `/review` command. **Do NOT use bare `codex review`** — it is a TUI slash command and may produce empty stdout in non-interactive contexts.
-- `--base main` diffs the current branch against `main` (uses merge-base).
+- Uses `codex exec review` with built-in GPT-5.3 review logic — no custom prompt needed.
+- `--base main` diffs current branch against `main` (uses merge-base).
 - `--title` gives GPT-5.3 context about the intent of the changes.
-- `--json` outputs JSONL events; the jq pipeline extracts the final agent message (the actual review findings). Without `--json`, `codex exec review` can silently return nothing.
-- **No custom prompt** — GPT-5.3 uses its own built-in review logic at `xhigh` reasoning. This is intentional: it eliminates prompt-direction loss through the Sonnet relay.
-- Output after jq: review findings as plain text (no reasoning traces — those are separate JSONL items filtered out by the pipeline).
+- Output: review findings as plain text (jq extracts final agent message internally).
 
-### Non-Review Tasks (use `codex exec`)
+### Architecture Analysis
 
-Use structured, slot-filled prompts. Never relay vague natural-language descriptions.
+```bash
+~/.claude/skills/codex-cli/scripts/call_codex.sh \
+  --prompt "TASK: Architecture analysis. SCOPE: {files/modules}. EVALUATE: 1) Pattern consistency 2) Coupling/cohesion 3) Complexity hotspots. OUTPUT: Findings with file:line refs, then verdict."
+```
 
-| Task | Command |
-|------|---------|
-| Architecture | `codex exec -s read-only "TASK: Architecture analysis. SCOPE: {files/modules}. EVALUATE: 1) Pattern consistency 2) Coupling/cohesion 3) Complexity hotspots. OUTPUT: Findings with file:line refs, then verdict."` |
-| Plan review | `codex exec -s read-only "TASK: Plan review. PLAN: {summary}. CHECKLIST: 1) Data flow — all transformation points mapped, fields in all converters? 2) Standards — existing patterns referenced, naming consistent? 3) Cross-task — scope boundaries explicit, combined coverage complete? 4) Bug prevention — silent field drops, all code paths covered? OUTPUT: Pass/fail per checklist item, then verdict."` |
-| Design decision | `codex exec -s read-only "TASK: Design comparison. OPTIONS: A) {option_a} B) {option_b}. CRITERIA: 1) Complexity 2) Maintainability 3) Performance 4) Risk. OUTPUT: Pros/cons matrix, recommendation with rationale."` |
-| Debugging | `codex exec -s read-only "TASK: Error analysis. ERROR: {error_message}. CONTEXT: {file:line, stack trace snippet}. ANALYZE: 1) Root cause 2) Contributing factors 3) Fix options. OUTPUT: Diagnosis with evidence, ranked fixes."` |
+### Plan Review
 
-### Prompt Template Rules
+```bash
+~/.claude/skills/codex-cli/scripts/call_codex.sh \
+  --prompt "TASK: Plan review. PLAN: {summary}. CHECKLIST: 1) Data flow mapped? 2) Standards referenced? 3) Cross-task scope explicit? 4) Bug prevention covered? OUTPUT: Pass/fail per item, then verdict."
+```
+
+### Design Decision
+
+```bash
+~/.claude/skills/codex-cli/scripts/call_codex.sh \
+  --prompt "TASK: Design comparison. OPTIONS: A) {option_a} B) {option_b}. CRITERIA: 1) Complexity 2) Maintainability 3) Performance 4) Risk. OUTPUT: Pros/cons matrix, recommendation."
+```
+
+### Debugging
+
+```bash
+~/.claude/skills/codex-cli/scripts/call_codex.sh \
+  --prompt "TASK: Error analysis. ERROR: {error_message}. CONTEXT: {file:line, stack trace}. ANALYZE: 1) Root cause 2) Contributing factors 3) Fix options. OUTPUT: Diagnosis with evidence, ranked fixes."
+```
+
+## Prompt Template Rules
 
 - **Always use TASK/SCOPE/OUTPUT structure** — gives GPT-5.3 clear framing.
 - **Fill all slots** before invocation — `{placeholders}` must be replaced with actual values.
-- **Never paraphrase the user's request** as a bare sentence — always decompose into structured fields.
+- **Never paraphrase** as a bare sentence — always decompose into structured fields.
 - **Keep prompts under 300 chars** — concise prompts reduce drift.
 
 ## Execution
 
-### For code review (`codex exec review`):
-1. Gather context — determine base branch (usually `main`)
-2. Invoke synchronously with `timeout: 300000`:
-   ```bash
-   codex exec review --base main --title "..." --json 2>/dev/null \
-     | jq -rs '[.[] | select(.item.type == "agent_message")] | last | .item.text'
-   ```
-3. The jq pipeline extracts the final review findings as plain text
-4. If accidental background execution: use TaskStop to clean up
-5. Return using passthrough format (see Output Rules below)
+1. Gather context — determine base branch, read domain rules from `claude/rules/` or `.claude/rules/`
+2. Build prompt using structured template (review mode needs no prompt)
+3. Invoke synchronously with `timeout: 300000` — **NEVER** use `run_in_background: true`
+4. Read and analyze the complete Codex output
+5. Decide verdict based on findings
 
-### For `codex exec`:
-1. Gather context — read domain rules from `claude/rules/` or `.claude/rules/`
-2. Build prompt using structured template (TASK/SCOPE/OUTPUT)
-3. Invoke synchronously: `codex exec -s read-only "..."` with `timeout: 300000`
-4. Capture full stdout output
-5. If accidental background execution: use TaskStop to clean up
-6. Return using passthrough format (see Output Rules below)
+## Verdict Protocol
 
-**NEVER** use `run_in_background: true`. Always synchronous.
+After analyzing Codex output, signal the verdict via a **separate** Bash call:
 
-## Output Rules
-
-**Pass through the full Codex output verbatim.** Do NOT summarize, reformat, or drop findings. The main agent needs the complete analysis from GPT-5.3 — any lossy summarization by this wrapper defeats the purpose.
-
-Return format:
-
-```markdown
-## Codex Analysis
-
-**Task:** {type}
-
-### Full Output
-{Paste the COMPLETE Codex CLI stdout here — every finding, every line, unchanged}
-
-### Verdict
-**APPROVE** — CODEX APPROVED | **REQUEST_CHANGES** | **NEEDS_DISCUSSION**
+```bash
+~/.claude/skills/codex-cli/scripts/codex-verdict.sh approve
 ```
 
-Rules:
-- **NEVER summarize** Codex findings — include them all verbatim.
-- **NEVER drop** file:line references, severity labels, or context from the raw output.
-- **NEVER paraphrase** — if Codex said it, pass it through exactly.
-- The only thing you add is the verdict line based on the overall findings.
+Valid verdicts: `approve`, `request_changes`, `needs_discussion`.
+
+**CRITICAL:** `codex-verdict.sh` and `gh pr create` must be **separate Bash calls**, never chained with `&&`. The PR gate fires at PreToolUse before any command executes — a chained call would be denied before the marker is written.
+
+### When to approve
+
+- No bugs, security issues, or architectural concerns found
+- All prior feedback addressed (on iteration 2+)
+
+### When to request changes
+
+- Bugs, security issues, or architectural misfit found
+- Provide specific file:line references
+
+### When to escalate (needs_discussion)
+
+- Multiple valid approaches, unclear which is correct
+- Findings contradict project conventions
+- After 5 iterations without resolution
 
 ## Iteration
 
-On iteration 2+: verify previous issues addressed, check for new issues. After 3 without resolution → NEEDS_DISCUSSION.
+- Max 5 iterations, then NEEDS_DISCUSSION.
+- On iteration 2+: verify previous issues addressed, check for new issues.
+- Do NOT re-run after convention/style fixes from critics — only after logic or structural changes.

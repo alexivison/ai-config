@@ -14,7 +14,7 @@ Debug and fix bugs with investigation before implementation.
 
 1. **Create worktree first** — `git worktree add ../repo-branch-name -b branch-name`
 2. **Understand the bug** — Read relevant code, reproduce if possible
-3. **Complex bug?** → Invoke `wizard` agent with debugging task → `[wait for user]`
+3. **Complex bug?** → Invoke `~/.claude/skills/codex-cli/scripts/call_codex.sh` with debugging task → `[wait for user]`
 
 `[wait]` = Show findings, use AskUserQuestion, wait for user input.
 
@@ -27,7 +27,7 @@ State which items were checked before proceeding.
 Execute continuously — **no stopping until PR is created**.
 
 ```
-/write-tests (regression) → implement fix → [code-critic + minimizer] → wizard → /pre-pr-verification → commit → PR
+/write-tests (regression) → implement fix → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
 ```
 
 **Note:** Bugfixes typically don't have PLAN.md checkbox updates (they're not part of planned work).
@@ -37,9 +37,9 @@ Execute continuously — **no stopping until PR is created**.
 1. **Regression Test** — Invoke `/write-tests` to write a test that reproduces the bug (RED phase via test-runner)
 2. **Implement Fix** — Fix the bug to make the test pass
 3. **GREEN phase** — Run test-runner agent to verify tests pass
-4. **code-critic + minimizer** — Run in parallel with diff focus. Triage findings by severity (see [Review Governance](../task-workflow/SKILL.md#review-governance)). Fix only blocking issues. Proceed to wizard when no blocking findings remain.
-5. **wizard** — Invoke wizard for code + architecture review. Include bug context in scope boundaries.
-6. **Handle wizard verdict** — Triage findings by severity. Classify fix impact for tiered re-review (see [execution-core.md](~/.claude/rules/execution-core.md)).
+4. **code-critic + minimizer** — Run in parallel with diff focus. Triage findings by severity (see [Review Governance](../task-workflow/SKILL.md#review-governance)). Fix only blocking issues. Proceed to codex when no blocking findings remain.
+5. **codex** — Invoke `~/.claude/skills/codex-cli/scripts/call_codex.sh` for combined code + architecture review. Include bug context in scope boundaries.
+6. **Handle codex verdict** — Triage findings by severity. Classify fix impact for tiered re-review (see [execution-core.md](~/.claude/rules/execution-core.md)). Signal verdict via `codex-verdict.sh`.
 7. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)
 8. **Commit & PR** — Create commit and draft PR
 
@@ -61,9 +61,9 @@ This ensures the bug is actually fixed and won't regress.
 - Something that worked before stopped working
 - Unexpected behavior that needs investigation
 
-## Wizard Investigation Step
+## Codex Investigation Step
 
-For complex bugs, spawn **wizard** agent with debugging task:
+For complex bugs, invoke Codex directly with debugging task:
 
 **Prompt template:**
 ```
@@ -97,13 +97,13 @@ Bugfix workflows follow the same review governance as task workflows:
 - **Scope context** in all sub-agent prompts (bug description + affected files = scope)
 - **Finding triage** by severity (blocking vs non-blocking vs out-of-scope)
 - **Issue ledger** to prevent oscillation and re-raising of closed findings
-- **Tiered re-review** after wizard fixes
+- **Tiered re-review** after codex fixes
 
 See [task-workflow/SKILL.md](../task-workflow/SKILL.md#review-governance) for full review governance rules.
 
-## Wizard Review Step
+## Codex Review Step
 
-See [task-workflow/SKILL.md](../task-workflow/SKILL.md#wizard-step) for the code + architecture review invocation details and iteration protocol.
+See [task-workflow/SKILL.md](../task-workflow/SKILL.md#codex-step) for the code + architecture review invocation details and iteration protocol.
 
 ## Core Reference
 

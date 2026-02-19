@@ -26,7 +26,7 @@ State which items were checked before proceeding.
 After passing the gate, execute continuously — **no stopping until PR is created**.
 
 ```
-/write-tests (if needed) → implement → checkboxes → [code-critic + minimizer] → wizard → /pre-pr-verification → commit → PR
+/write-tests (if needed) → implement → checkboxes → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
 ```
 
 ### Step-by-Step
@@ -35,9 +35,9 @@ After passing the gate, execute continuously — **no stopping until PR is creat
 2. **Implement** — Write the code to make tests pass
 3. **GREEN phase** — Run test-runner agent to verify tests pass
 4. **Checkboxes** — Update both TASK*.md AND PLAN.md: `- [ ]` → `- [x]` (MANDATORY — both files)
-5. **code-critic + minimizer** — Run in parallel with scope context and diff focus (see [Review Governance](#review-governance)). Triage findings by severity. Fix only blocking issues. Proceed to wizard when no blocking findings remain.
-6. **wizard** — Invoke wizard for code + architecture review with scope context
-7. **Handle wizard verdict** — Triage findings (see [Finding Triage](#finding-triage)). Classify fix impact for tiered re-review.
+5. **code-critic + minimizer** — Run in parallel with scope context and diff focus (see [Review Governance](#review-governance)). Triage findings by severity. Fix only blocking issues. Proceed to codex when no blocking findings remain.
+6. **codex** — Invoke `~/.claude/skills/codex-cli/scripts/call_codex.sh` for combined code + architecture review with scope context
+7. **Handle codex verdict** — Triage findings (see [Finding Triage](#finding-triage)). Classify fix impact for tiered re-review. Signal verdict via `codex-verdict.sh`.
 8. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)
 9. **Commit & PR** — Create commit and draft PR
 
@@ -51,7 +51,7 @@ The review loop is the most expensive part of the workflow. These rules prevent 
 
 ### Scope Context in Sub-Agent Prompts
 
-**Every** code-critic, minimizer, and wizard prompt MUST include:
+**Every** code-critic, minimizer, and codex prompt MUST include:
 
 ```
 SCOPE BOUNDARIES:
@@ -67,7 +67,7 @@ Instruct critics to run `git diff` and review only changed code. Pre-existing co
 
 ### Finding Triage
 
-After receiving any critic or wizard verdict, the main agent classifies each finding BEFORE acting:
+After receiving any critic or codex verdict, the main agent classifies each finding BEFORE acting:
 
 | Severity | Examples | Action |
 |----------|---------|--------|
@@ -86,12 +86,12 @@ Track all findings mentally across iterations:
 
 ### Iteration Caps
 
-| Finding Tier | Max Critic Rounds | Max Wizard Rounds | Then |
+| Finding Tier | Max Critic Rounds | Max Codex Rounds | Then |
 |-------------|------------------|------------------|------|
 | Blocking | 3 | 3 | NEEDS_DISCUSSION |
 | Non-blocking | 1 | 1 | Accept or drop |
 
-### Tiered Re-Review After Wizard Fixes
+### Tiered Re-Review After Codex Fixes
 
 | Fix Impact | Example | Re-Review Required |
 |-----------|---------|-------------------|
@@ -109,38 +109,33 @@ When PLAN.md exists, enforce:
 
 Forgetting PLAN.md is the most common violation. Verify both files are updated before proceeding to code-critic.
 
-## Wizard Step
+## Codex Step
 
-After critics have no remaining blocking findings, invoke **wizard** for deep review:
+After critics have no remaining blocking findings, invoke Codex directly for deep review:
 
-**Prompt template:**
-```
-Review uncommitted changes for bugs, security, and architectural fit.
-
-**Task:** Code + Architecture Review
-**Iteration:** {N} of 3
-**Previous feedback:** {summary of findings and resolutions from issue ledger}
-
-SCOPE BOUNDARIES:
-- IN SCOPE: {from TASK file}
-- OUT OF SCOPE: {from TASK file}
-Findings on out-of-scope code are automatically rejected.
-
-Check imports, callers, and related files. Return verdict with file:line issues.
-Each finding must include: severity (blocking/non-blocking), file:line, evidence.
+**Review invocation:**
+```bash
+~/.claude/skills/codex-cli/scripts/call_codex.sh \
+  --review --base main --title "{PR title or change summary}"
 ```
 
-The wizard agent will:
-1. Read domain rules from `claude/rules/` or `.claude/rules/`
-2. Run `codex exec -s read-only` for deep analysis
-3. Return structured verdict (APPROVE/REQUEST_CHANGES/NEEDS_DISCUSSION)
+**Non-review invocation (architecture, debugging):**
+```bash
+~/.claude/skills/codex-cli/scripts/call_codex.sh \
+  --prompt "TASK: Code + Architecture Review. SCOPE: {changed files}. ITERATION: {N} of 3. PREVIOUS: {summary from issue ledger}. SCOPE BOUNDARIES: IN={in scope from TASK}, OUT={out of scope from TASK}. OUTPUT: Findings with severity (blocking/non-blocking), file:line refs, then verdict."
+```
 
-On APPROVE, the "CODEX APPROVED" marker is created automatically.
+After analyzing Codex output, signal verdict via a **separate** Bash call:
+```bash
+~/.claude/skills/codex-cli/scripts/codex-verdict.sh approve
+```
+
+The `codex-trace.sh` hook creates the "CODEX APPROVED" marker automatically when `codex-verdict.sh approve` runs.
 
 **Iteration protocol:**
 - Max 3 iterations for blocking findings, then NEEDS_DISCUSSION
-- Non-blocking wizard findings do not trigger re-review — note and proceed
-- Do NOT re-run wizard after convention/style fixes — only after logic or structural changes
+- Non-blocking codex findings do not trigger re-review — note and proceed
+- Do NOT re-run codex after convention/style fixes — only after logic or structural changes
 
 ## Core Reference
 

@@ -5,7 +5,7 @@ Shared execution sequence for all workflow skills. Bugfix-workflow omits the che
 ## Core Sequence
 
 ```
-/write-tests → implement → checkboxes → [code-critic + minimizer] → wizard → /pre-pr-verification → commit → PR
+/write-tests → implement → checkboxes → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
 ```
 
 ## Review Governance
@@ -14,7 +14,7 @@ The review loop is the most expensive part of the workflow. These rules prevent 
 
 ### Finding Severity Classification
 
-The main agent classifies every critic/wizard finding before acting:
+The main agent classifies every critic/codex finding before acting:
 
 | Severity | Definition | Loop Behavior |
 |----------|-----------|---------------|
@@ -22,11 +22,11 @@ The main agent classifies every critic/wizard finding before acting:
 | **Non-blocking** | Style, consistency, "could be simpler", defensive edge cases | Note in issue ledger, do NOT re-run loop |
 | **Out-of-scope** | Pre-existing code not touched by diff, requirements not in TASK file | Reject — log as backlog item if genuinely useful |
 
-**Only blocking findings continue the review loop.** Non-blocking findings are noted and may be fixed in the same pass, but do not trigger a re-run of critics or wizard.
+**Only blocking findings continue the review loop.** Non-blocking findings are noted and may be fixed in the same pass, but do not trigger a re-run of critics or codex.
 
 ### Issue Ledger
 
-The main agent maintains a mental ledger of all findings across iterations. Each finding has: source (critic/minimizer/wizard), file:line, claim, status (open/fixed/rejected), resolution.
+The main agent maintains a mental ledger of all findings across iterations. Each finding has: source (critic/minimizer/codex), file:line, claim, status (open/fixed/rejected), resolution.
 
 **Rules:**
 - A closed finding cannot be re-raised without new evidence (new code that wasn't there before).
@@ -35,20 +35,20 @@ The main agent maintains a mental ledger of all findings across iterations. Each
 
 ### Iteration Caps (per severity tier)
 
-| Finding Tier | Max Critic Iterations | Max Wizard Iterations | Then |
+| Finding Tier | Max Critic Iterations | Max Codex Iterations | Then |
 |-------------|----------------------|----------------------|------|
 | Blocking (correctness/security) | 3 | 3 | NEEDS_DISCUSSION |
 | Non-blocking (style/nit) | 1 | 1 | Accept or drop |
 
-### Tiered Re-Review After Wizard Fixes
+### Tiered Re-Review After Codex Fixes
 
-Not every wizard fix requires the full cascade. The main agent classifies the semantic impact:
+Not every codex fix requires the full cascade. The main agent classifies the semantic impact:
 
 | Fix Type | Example | Re-Review Required |
 |----------|---------|-------------------|
 | Targeted one-symbol swap | `in` → `Object.hasOwn`, typo fix | test-runner only |
 | Logic change within function | Restructured control flow, added guard | test-runner + critics (diff-scoped) |
-| New export, changed signature, security path | Added public API, modified auth | Full cascade (critics + wizard) |
+| New export, changed signature, security path | Added public API, modified auth | Full cascade (critics + codex) |
 
 ### Scope Enforcement
 
@@ -83,20 +83,20 @@ Critics review the **diff**, not the entire codebase. Context files may be read 
 | minimizer | REQUEST_CHANGES (blocking) | Fix and re-run both critics | NO |
 | minimizer | REQUEST_CHANGES (non-blocking only) | Note findings, wait for code-critic | NO |
 | minimizer | NEEDS_DISCUSSION / oscillation / cap hit | Ask user | YES |
-| code-critic + minimizer | No blocking findings remain (both APPROVE, or all remaining findings are non-blocking) | Run wizard | NO |
-| wizard | APPROVE (no changes) | Run /pre-pr-verification | NO |
-| wizard | APPROVE (with changes) | Classify fix impact → tiered re-review | NO |
-| wizard | REQUEST_CHANGES (blocking) | Fix → tiered re-review → re-run wizard | NO |
-| wizard | REQUEST_CHANGES (non-blocking only) | Note findings, proceed to /pre-pr-verification | NO |
-| wizard | NEEDS_DISCUSSION | Ask user | YES |
+| code-critic + minimizer | No blocking findings remain (both APPROVE, or all remaining findings are non-blocking) | Run codex | NO |
+| codex | APPROVE (no changes) | Run /pre-pr-verification | NO |
+| codex | APPROVE (with changes) | Classify fix impact → tiered re-review | NO |
+| codex | REQUEST_CHANGES (blocking) | Fix → tiered re-review → re-run codex | NO |
+| codex | REQUEST_CHANGES (non-blocking only) | Note findings, proceed to /pre-pr-verification | NO |
+| codex | NEEDS_DISCUSSION | Ask user | YES |
 | /pre-pr-verification | All pass | Create commit and PR | NO |
 | /pre-pr-verification | Failures | Fix and re-run | NO |
 | security-scanner | HIGH/CRITICAL | Ask user | YES |
 
 ## Valid Pause Conditions
 
-1. **Investigation findings** — wizard (debugging) always requires user review
-2. **NEEDS_DISCUSSION** — From code-critic, minimizer, or wizard
+1. **Investigation findings** — codex (debugging) always requires user review
+2. **NEEDS_DISCUSSION** — From code-critic, minimizer, or codex
 3. **3 strikes** — 3 failed fix attempts on same issue
 4. **Oscillation detected** — Critic reverses its own prior feedback
 5. **Iteration cap hit** — Per severity tier (see above)
@@ -106,9 +106,9 @@ Critics review the **diff**, not the entire codebase. Context files may be read 
 
 | Class | When to Pause | Show to User |
 |-------|---------------|--------------|
-| Investigation (wizard debug) | Always | Full findings |
+| Investigation (codex debug) | Always | Full findings |
 | Verification (test-runner, check-runner, security-scanner) | Never | Summary only |
-| Iterative (code-critic, minimizer, wizard) | NEEDS_DISCUSSION, oscillation, or cap hit | Verdict each iteration |
+| Iterative (code-critic, minimizer, codex) | NEEDS_DISCUSSION, oscillation, or cap hit | Verdict each iteration |
 
 ## Verification Principle
 
@@ -125,4 +125,4 @@ Evidence before claims. Never state success without fresh proof.
 
 ## PR Gate
 
-Before `gh pr create`: /pre-pr-verification invoked THIS session, all checks passed, wizard APPROVE, verification summary in PR description. See `autonomous-flow.md` for marker details.
+Before `gh pr create`: /pre-pr-verification invoked THIS session, all checks passed, codex APPROVE (via `codex-verdict.sh`), verification summary in PR description. See `autonomous-flow.md` for marker details.
