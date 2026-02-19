@@ -36,6 +36,8 @@
       "Bash(uniq:*)",
       "Bash(xargs:*)",
       "Bash(xxd:*)",
+      "Bash(~/.claude/skills/codex-cli/scripts/call_codex.sh:*)",
+      "Bash(~/.claude/skills/codex-cli/scripts/codex-verdict.sh:*)",
       "WebFetch(domain:*)",
       "WebSearch",
       "mcp__chrome-devtools__:*",
@@ -101,6 +103,16 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/agent-trace.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/codex-trace.sh",
             "timeout": 5
           }
         ]

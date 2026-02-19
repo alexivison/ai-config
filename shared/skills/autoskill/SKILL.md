@@ -65,7 +65,7 @@ Capture if: repeated or stated as general rule, applies to future sessions, spec
 | GREEN (test-runner) | M | M |
 | checkboxes (TASK+PLAN) | M | -- |
 | code-critic | M | M |
-| wizard | M | M |
+| codex | M | M |
 | /pre-pr-verification | M | M |
 | commit + PR | M | M |
 

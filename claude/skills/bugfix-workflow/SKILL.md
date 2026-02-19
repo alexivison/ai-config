@@ -14,7 +14,7 @@ Debug and fix bugs with investigation before implementation.
 
 1. **Create worktree first** — `git worktree add ../repo-branch-name -b branch-name`
 2. **Understand the bug** — Read relevant code, reproduce if possible
-3. **Complex bug?** → Invoke `wizard` agent with debugging task → `[wait for user]`
+3. **Complex bug?** → Invoke `~/.claude/skills/codex-cli/scripts/call_codex.sh` with debugging task → `[wait for user]`
 
 `[wait]` = Show findings, use AskUserQuestion, wait for user input.
 
@@ -27,7 +27,7 @@ State which items were checked before proceeding.
 Execute continuously — **no stopping until PR is created**.
 
 ```
-/write-tests (regression) → implement fix → [code-critic + minimizer] → wizard → /pre-pr-verification → commit → PR
+/write-tests (regression) → implement fix → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
 ```
 
 **Note:** Bugfixes typically don't have PLAN.md checkbox updates (they're not part of planned work).
@@ -38,12 +38,12 @@ Execute continuously — **no stopping until PR is created**.
 2. **Implement Fix** — Fix the bug to make the test pass
 3. **GREEN phase** — Run test-runner agent to verify tests pass
 4. **code-critic + minimizer** — MANDATORY after implementing. Run in parallel. Fix issues until both APPROVE. **After fixing any REQUEST_CHANGES, re-run BOTH critics.** If either returns NEEDS_DISCUSSION, ask user for guidance.
-5. **wizard** — Spawn wizard agent for combined code + architecture review
-6. **Handle wizard verdict:**
-   - **APPROVE (no changes):** Proceed to Step 7.
-   - **APPROVE (with changes):** Apply wizard's suggested fixes → re-run code-critic + minimizer (Step 4). Re-run wizard (Step 5) only if logic or structural changes were made; skip if changes were convention/style only.
-   - **REQUEST_CHANGES:** Fix the flagged issues and re-run code-critic + minimizer (Step 4), then re-run wizard (Step 5).
-   - **NEEDS_DISCUSSION:** Ask user for guidance before proceeding.
+5. **codex** — Invoke `~/.claude/skills/codex-cli/scripts/call_codex.sh` for combined code + architecture review
+6. **Handle codex verdict:**
+   - **APPROVE (no changes):** Run `~/.claude/skills/codex-cli/scripts/codex-verdict.sh approve`, proceed to Step 7.
+   - **APPROVE (with changes):** Run `~/.claude/skills/codex-cli/scripts/codex-verdict.sh approve`, then apply codex's suggested fixes → re-run code-critic + minimizer (Step 4). Re-run codex (Step 5) only if logic or structural changes were made; if style-only, proceed directly to Step 7.
+   - **REQUEST_CHANGES:** Fix the flagged issues and re-run code-critic + minimizer (Step 4), then re-run codex (Step 5).
+   - **NEEDS_DISCUSSION:** Run `~/.claude/skills/codex-cli/scripts/codex-verdict.sh needs_discussion`, ask user for guidance before proceeding.
 7. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)
 8. **Commit & PR** — Create commit and draft PR
 
@@ -65,9 +65,9 @@ This ensures the bug is actually fixed and won't regress.
 - Something that worked before stopped working
 - Unexpected behavior that needs investigation
 
-## Wizard Investigation Step
+## Codex Investigation Step
 
-For complex bugs, spawn **wizard** agent with debugging task:
+For complex bugs, invoke Codex directly with debugging task:
 
 **Prompt template:**
 ```
@@ -95,9 +95,9 @@ Return structured findings with verdict:
 
 **On NEEDS_DISCUSSION:** Present options, ask user for guidance.
 
-## Wizard Review Step
+## Codex Review Step
 
-See [task-workflow/SKILL.md](../task-workflow/SKILL.md#wizard-step) for the code + architecture review invocation details and iteration protocol.
+See [task-workflow/SKILL.md](../task-workflow/SKILL.md#codex-step) for the code + architecture review invocation details and iteration protocol.
 
 ## Core Reference
 

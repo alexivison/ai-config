@@ -4,7 +4,7 @@
 #   - /tmp/claude-pr-verified-{session_id} (from /pre-pr-verification)
 #   - /tmp/claude-code-critic-{session_id} (from code-critic APPROVE)
 #   - /tmp/claude-minimizer-{session_id} (from minimizer APPROVE)
-#   - /tmp/claude-codex-{session_id} (from wizard agent APPROVE)
+#   - /tmp/claude-codex-{session_id} (from codex CLI APPROVE via codex-verdict.sh)
 #   - /tmp/claude-tests-passed-{session_id} (from test-runner PASS)
 #   - /tmp/claude-checks-passed-{session_id} (from check-runner PASS)
 #   - /tmp/claude-security-scanned-{session_id} (from security-scanner via /pre-pr-verification)
@@ -38,7 +38,7 @@ if echo "$COMMAND" | grep -qE 'gh pr create'; then
   [ ! -f "$VERIFY_MARKER" ] && MISSING="$MISSING /pre-pr-verification"
   [ ! -f "$SECURITY_MARKER" ] && MISSING="$MISSING security-scanner"
   [ ! -f "$CODE_CRITIC_MARKER" ] && MISSING="$MISSING code-critic"
-  [ ! -f "$CODEX_MARKER" ] && MISSING="$MISSING wizard"
+  [ ! -f "$CODEX_MARKER" ] && MISSING="$MISSING codex"
   [ ! -f "$TESTS_MARKER" ] && MISSING="$MISSING test-runner"
   [ ! -f "$CHECKS_MARKER" ] && MISSING="$MISSING check-runner"
   [ ! -f "$MINIMIZE_MARKER" ] && MISSING="$MISSING minimizer"

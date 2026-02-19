@@ -5,7 +5,7 @@ Shared execution sequence for all workflow skills. Bugfix-workflow omits the che
 ## Core Sequence
 
 ```
-/write-tests → implement → checkboxes → [code-critic + minimizer] → wizard → /pre-pr-verification → commit → PR
+/write-tests → implement → checkboxes → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
 ```
 
 ## Decision Matrix
@@ -21,19 +21,19 @@ Shared execution sequence for all workflow skills. Bugfix-workflow omits the che
 | minimizer | APPROVE | Wait for code-critic | NO |
 | minimizer | REQUEST_CHANGES | Fix and re-run both critics | NO |
 | minimizer | NEEDS_DISCUSSION / 5th iteration | Ask user | YES |
-| code-critic + minimizer | Both APPROVE | Run wizard | NO |
-| wizard | APPROVE (no changes) | Run /pre-pr-verification | NO |
-| wizard | APPROVE (with changes) | Re-run code-critic + minimizer; re-run wizard unless changes were style-only | NO |
-| wizard | REQUEST_CHANGES | Fix, re-run code-critic + minimizer, then wizard | NO |
-| wizard | NEEDS_DISCUSSION | Ask user | YES |
+| code-critic + minimizer | Both APPROVE | Run codex | NO |
+| codex | APPROVE (no changes) | Run /pre-pr-verification | NO |
+| codex | APPROVE (with changes) | Re-run code-critic + minimizer; re-run codex unless changes were style-only | NO |
+| codex | REQUEST_CHANGES | Fix, re-run code-critic + minimizer, then codex | NO |
+| codex | NEEDS_DISCUSSION | Ask user | YES |
 | /pre-pr-verification | All pass | Create commit and PR | NO |
 | /pre-pr-verification | Failures | Fix and re-run | NO |
 | security-scanner | HIGH/CRITICAL | Ask user | YES |
 
 ## Valid Pause Conditions
 
-1. **Investigation findings** — wizard (debugging) always requires user review
-2. **NEEDS_DISCUSSION** — From code-critic, minimizer, or wizard
+1. **Investigation findings** — codex (debugging) always requires user review
+2. **NEEDS_DISCUSSION** — From code-critic, minimizer, or codex
 3. **3 strikes** — 3 failed fix attempts on same issue
 4. **Explicit blockers** — Missing dependencies, unclear requirements
 
@@ -41,9 +41,9 @@ Shared execution sequence for all workflow skills. Bugfix-workflow omits the che
 
 | Class | When to Pause | Show to User |
 |-------|---------------|--------------|
-| Investigation (wizard debug) | Always | Full findings |
+| Investigation (codex debug) | Always | Full findings |
 | Verification (test-runner, check-runner, security-scanner) | Never | Summary only |
-| Iterative (code-critic, minimizer, wizard) | NEEDS_DISCUSSION or 5th iteration | Verdict each iteration |
+| Iterative (code-critic, minimizer, codex) | NEEDS_DISCUSSION or 5th iteration | Verdict each iteration |
 
 ## Verification Principle
 
@@ -60,4 +60,4 @@ Evidence before claims. Never state success without fresh proof.
 
 ## PR Gate
 
-Before `gh pr create`: /pre-pr-verification invoked THIS session, all checks passed, wizard APPROVE, verification summary in PR description. See `autonomous-flow.md` for marker details.
+Before `gh pr create`: /pre-pr-verification invoked THIS session, all checks passed, codex APPROVE (via `codex-verdict.sh`), verification summary in PR description. See `autonomous-flow.md` for marker details.

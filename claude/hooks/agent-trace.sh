@@ -68,18 +68,6 @@ session_id=$(echo "$hook_input" | jq -r '.session_id // "unknown"')
 cwd=$(echo "$hook_input" | jq -r '.cwd // ""')
 project=$(basename "$cwd")
 
-# Extract CLI-level metadata from native logs for wizard agent
-cli_model=""
-cli_errors=""
-
-if [ "$agent_type" = "wizard" ]; then
-  codex_log="$HOME/.codex/log/codex-tui.log"
-  if [ -f "$codex_log" ]; then
-    cli_model=$(tail -200 "$codex_log" | grep "Selected model:" | tail -1 | sed 's/.*Selected model: //; s/,.*//')
-    cli_errors=$(tail -200 "$codex_log" | grep " ERROR " | grep -v "channel closed" | tail -5 | sed 's/.*ERROR //' | tr '\n' '; ' | sed 's/; $//')
-  fi
-fi
-
 # Create trace entry
 timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 
@@ -91,8 +79,6 @@ trace_entry=$(jq -n \
   --arg desc "$description" \
   --arg model "$model" \
   --arg verdict "$verdict" \
-  --arg cli_model "$cli_model" \
-  --arg cli_errors "$cli_errors" \
   '{
     timestamp: $ts,
     session: $session,
@@ -100,9 +86,7 @@ trace_entry=$(jq -n \
     agent: $agent,
     description: $desc,
     model: $model,
-    verdict: $verdict,
-    cli_model: (if $cli_model != "" then $cli_model else null end),
-    cli_errors: (if $cli_errors != "" then $cli_errors else null end)
+    verdict: $verdict
   }')
 
 # Append to trace file
@@ -135,15 +119,6 @@ fi
 if [ "$agent_type" = "check-runner" ]; then
   if [ "$verdict" = "PASS" ] || [ "$verdict" = "CLEAN" ]; then
     touch "/tmp/claude-checks-passed-$session_id"
-  fi
-fi
-
-# wizard: Codex CLI wrapper agent for deep reasoning tasks
-# Only PR review approval creates marker (requires explicit "CODEX APPROVED" token)
-# Design decisions, debugging, and other tasks don't gate PRs
-if [ "$agent_type" = "wizard" ]; then
-  if echo "$full_response" | grep -q "CODEX APPROVED"; then
-    touch "/tmp/claude-codex-$session_id"
   fi
 fi
 

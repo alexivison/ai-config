@@ -36,7 +36,7 @@ elif echo "$PROMPT_LOWER" | grep -qE '\bbug\b|\bbroken\b|\berror\b|\bnot work|\b
 
 # Other MUST skills
 elif echo "$PROMPT_LOWER" | grep -qE '\bcreate pr\b|\bmake pr\b|\bready for pr\b|\bopen pr\b|\bsubmit pr\b'; then
-  SUGGESTION="MANDATORY: Run code-critic + minimizer + wizard + /pre-pr-verification BEFORE creating PR. PR gate will block without these."
+  SUGGESTION="MANDATORY: Run code-critic + minimizer + codex + /pre-pr-verification BEFORE creating PR. PR gate will block without these."
   PRIORITY="must"
 elif echo "$PROMPT_LOWER" | grep -qE '\breview (this|my|the) code\b|\bcode review\b|\breview (this|my) pr\b|\bcheck this code\b|\bfeedback on.*code'; then
   SUGGESTION="MANDATORY: Invoke /code-review skill for systematic review."
