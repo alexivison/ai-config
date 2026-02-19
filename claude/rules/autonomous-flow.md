@@ -20,6 +20,10 @@ See [execution-core.md](execution-core.md) for the complete matrix.
 | "All checks pass." [stop] | Continue to commit/PR |
 | "Ready to create PR." [stop] | Just create it |
 | "Should I continue?" | Just continue |
+| Chasing non-blocking critic nits for 2+ iterations | Triage by severity, note and move on (cap is 1 round) |
+| Implementing every codex finding without triage | Classify as blocking/non-blocking/out-of-scope first |
+| Re-running full cascade after one-line codex fix | Use tiered re-review (test-runner only for targeted swaps) |
+| Critic oscillating (reverse own prior feedback) | Main agent decides, proceed |
 
 ## Enforcement
 

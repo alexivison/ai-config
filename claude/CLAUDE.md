@@ -36,9 +36,11 @@ Workflow skills load on-demand. See `~/.claude/skills/*/SKILL.md` for details.
 tests → implement → checkboxes → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
 ```
 
-**Checkboxes = TASK*.md + PLAN.md** — Update both files. Forgetting PLAN.md is a common violation.
+**Checkboxes:** Task-workflow = TASK*.md + PLAN.md. Bugfix-workflow = no checkboxes (no PLAN.md).
 
-**Only pause for:** Investigation findings, NEEDS_DISCUSSION, 3 strikes.
+**Only pause for:** Investigation findings, NEEDS_DISCUSSION, 3 strikes, oscillation detected, iteration cap hit, explicit blockers.
+
+**Review governance:** Triage all critic/codex findings by severity before acting. Only blocking findings continue the loop. See `~/.claude/rules/execution-core.md`.
 
 **Post-PR changes:** Re-run `/pre-pr-verification` before amending.
 

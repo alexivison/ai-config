@@ -65,6 +65,7 @@ Capture if: repeated or stated as general rule, applies to future sessions, spec
 | GREEN (test-runner) | M | M |
 | checkboxes (TASK+PLAN) | M | -- |
 | code-critic | M | M |
+| minimizer | M | M |
 | codex | M | M |
 | /pre-pr-verification | M | M |
 | commit + PR | M | M |
@@ -74,7 +75,7 @@ M = mandatory, C = conditional, -- = N/A
 ### Violation Checks
 
 **Check 1: Step Ordering & Completeness** (HIGH confidence)
-Verify mandatory steps executed in order. Guard: legitimate pause points (NEEDS_DISCUSSION, 3-strikes, investigation findings, user-initiated) are valid terminal states — don't flag downstream steps.
+Verify mandatory steps executed in order. Guard: legitimate pause points (NEEDS_DISCUSSION, 3-strikes, investigation findings, user-initiated, oscillation detected, iteration cap hit) are valid terminal states — don't flag downstream steps.
 
 **Check 2: Illegitimate Pauses** (MED-HIGH confidence)
 Detect assistant-initiated stops between mandatory steps without valid reason. Signals: "Should I continue?", "Would you like me to...", stopping after partial completion.

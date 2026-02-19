@@ -37,13 +37,9 @@ Execute continuously — **no stopping until PR is created**.
 1. **Regression Test** — Invoke `/write-tests` to write a test that reproduces the bug (RED phase via test-runner)
 2. **Implement Fix** — Fix the bug to make the test pass
 3. **GREEN phase** — Run test-runner agent to verify tests pass
-4. **code-critic + minimizer** — MANDATORY after implementing. Run in parallel. Fix issues until both APPROVE. **After fixing any REQUEST_CHANGES, re-run BOTH critics.** If either returns NEEDS_DISCUSSION, ask user for guidance.
-5. **codex** — Invoke `~/.claude/skills/codex-cli/scripts/call_codex.sh` for combined code + architecture review
-6. **Handle codex verdict:**
-   - **APPROVE (no changes):** Run `~/.claude/skills/codex-cli/scripts/codex-verdict.sh approve`, proceed to Step 7.
-   - **APPROVE (with changes):** Run `~/.claude/skills/codex-cli/scripts/codex-verdict.sh approve`, then apply codex's suggested fixes → re-run code-critic + minimizer (Step 4). Re-run codex (Step 5) only if logic or structural changes were made; if style-only, proceed directly to Step 7.
-   - **REQUEST_CHANGES:** Fix the flagged issues and re-run code-critic + minimizer (Step 4), then re-run codex (Step 5).
-   - **NEEDS_DISCUSSION:** Run `~/.claude/skills/codex-cli/scripts/codex-verdict.sh needs_discussion`, ask user for guidance before proceeding.
+4. **code-critic + minimizer** — Run in parallel with diff focus. Triage findings by severity (see [Review Governance](../task-workflow/SKILL.md#review-governance)). Fix only blocking issues. Proceed to codex when no blocking findings remain.
+5. **codex** — Invoke `~/.claude/skills/codex-cli/scripts/call_codex.sh` for combined code + architecture review. Include bug context in scope boundaries.
+6. **Handle codex verdict** — Triage findings by severity. Classify fix impact for tiered re-review (see [execution-core.md](~/.claude/rules/execution-core.md)). Signal verdict via `codex-verdict.sh`.
 7. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)
 8. **Commit & PR** — Create commit and draft PR
 
@@ -95,6 +91,16 @@ Return structured findings with verdict:
 
 **On NEEDS_DISCUSSION:** Present options, ask user for guidance.
 
+## Review Governance
+
+Bugfix workflows follow the same review governance as task workflows:
+- **Scope context** in all sub-agent prompts (bug description + affected files = scope)
+- **Finding triage** by severity (blocking vs non-blocking vs out-of-scope)
+- **Issue ledger** to prevent oscillation and re-raising of closed findings
+- **Tiered re-review** after codex fixes
+
+See [task-workflow/SKILL.md](../task-workflow/SKILL.md#review-governance) for full review governance rules.
+
 ## Codex Review Step
 
 See [task-workflow/SKILL.md](../task-workflow/SKILL.md#codex-step) for the code + architecture review invocation details and iteration protocol.
@@ -102,6 +108,7 @@ See [task-workflow/SKILL.md](../task-workflow/SKILL.md#codex-step) for the code 
 ## Core Reference
 
 See [execution-core.md](~/.claude/rules/execution-core.md) for:
+- Review governance (severity tiers, iteration caps, tiered re-review)
 - Decision matrix (when to continue vs pause)
 - Sub-agent behavior rules
 - Verification requirements
