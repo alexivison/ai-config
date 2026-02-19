@@ -30,7 +30,7 @@ Personal configuration for [Claude Code](https://claude.ai/claude-code) CLI.
 
 ## Skills
 
-### User-Invocable
+### Shared (symlinked from `shared/skills/`)
 
 | Skill | Triggers |
 |-------|----------|
