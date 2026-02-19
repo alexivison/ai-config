@@ -10,7 +10,7 @@ user-invocable: false
 
 - Sandbox always defaults to `read-only` (never `workspace-write`).
 - `codex exec review`: inherently read-only (no sandbox flag needed).
-- Timeout: 300s default via portable wrapper (`gtimeout` > `timeout` > none).
+- Timeout: 900s default for review, 300s for exec. Portable wrapper (`gtimeout` > `timeout` > `perl`).
 
 ## Command Patterns
 
@@ -65,7 +65,7 @@ user-invocable: false
 
 1. Gather context — determine base branch, read domain rules from `claude/rules/` or `.claude/rules/`
 2. Build prompt using structured template (review mode needs no prompt)
-3. Invoke synchronously with `timeout: 300000` — **NEVER** use `run_in_background: true`
+3. Invoke synchronously — **NEVER** use `run_in_background: true`. Set Bash tool `timeout` to exceed the script timeout: `timeout: 600000` for exec, `timeout: 960000` for review. This prevents Claude Code from auto-backgrounding the command.
 4. Read and analyze the complete Codex output
 5. Decide verdict based on findings
 

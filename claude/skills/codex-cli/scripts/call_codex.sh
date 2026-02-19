@@ -15,7 +15,7 @@ Options:
   --sandbox <mode>                   Sandbox level (default: read-only)
   --prompt <text>                    Inline prompt text
   --prompt-file <path>               File containing prompt text
-  --timeout <seconds>                Script-level timeout (default: 300)
+  --timeout <seconds>                Script-level timeout (default: 900 review, 300 exec)
   -h, --help                         Show this help
 
 Examples:
@@ -52,7 +52,7 @@ TITLE=""
 SANDBOX="read-only"
 PROMPT=""
 PROMPT_FILE=""
-TIMEOUT=300
+TIMEOUT=""  # set after arg parsing based on mode
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -95,6 +95,15 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+# Default timeout: 900s for review (large diffs take time), 300s for exec
+if [[ -z "$TIMEOUT" ]]; then
+  if [[ "$MODE" = "review" ]]; then
+    TIMEOUT=900
+  else
+    TIMEOUT=300
+  fi
+fi
 
 # Build timeout prefix
 TIMEOUT_PREFIX=()
