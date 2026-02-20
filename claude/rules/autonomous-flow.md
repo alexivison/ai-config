@@ -28,6 +28,7 @@ See [execution-core.md](execution-core.md) for the complete matrix.
 | Calling codex-verdict.sh approve without call_codex.sh | Evidence gate blocks — run codex first |
 | Editing code after codex approval, then creating PR | Markers auto-invalidated — re-run review cascade |
 | Manually creating /tmp/claude-* marker files | Markers are hook-created evidence only — never touch directly |
+| Fixing critic findings then calling codex without re-running critics | `codex-gate.sh` blocks — re-run critics first |
 
 ## Enforcement
 

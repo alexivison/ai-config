@@ -116,3 +116,4 @@ Any code edits after verification invalidate prior results — rerun verificatio
 ### Code Style
 - Prefer early guard returns over nested if clauses.
 - Keep comments short — only remark on logically difficult code.
+- Never use Bash for file editing (sed, awk, echo >) — always use Edit/Write tools. Hook-based marker invalidation depends on this.

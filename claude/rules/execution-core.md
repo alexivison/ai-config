@@ -50,6 +50,22 @@ The `marker-invalidate.sh` hook automatically deletes review markers when implem
 - Editing code after codex approval invalidates the approval — you must re-run the review cascade
 - Fixing a critic finding and re-running critics is the normal flow (markers deleted, then re-created)
 - Checkpoint markers are evidence of review — they cannot be manually created or faked
+- Invalidation depends on code edits going through Edit/Write tools. Agents must not use Bash for file editing (sed, awk, echo >) — this is enforced by CLAUDE.md rules and Claude Code's built-in tool guidance.
+- Checkpoint markers are created by hooks and must not be manually created by agents. Manual marker creation via `touch` is permitted only in isolated human-run test harnesses.
+
+### Codex Review Gate
+
+The `codex-gate.sh` hook blocks `call_codex.sh --review` invocations unless both critic APPROVE markers exist (`code-critic` and `minimizer`). This creates a hard gate: you cannot invoke codex review without first earning critic approval.
+
+**Enforcement chain:**
+1. Critics return REQUEST_CHANGES — no APPROVE markers created
+2. Agent fixes code — tries to call `call_codex.sh --review`
+3. `codex-gate.sh` BLOCKS: missing markers listed in deny message
+4. Agent re-runs critics — critics APPROVE — markers created
+5. Agent retries `call_codex.sh --review` — gate allows
+6. If codex finds issues and agent edits code — `marker-invalidate.sh` deletes critic markers — gate blocks codex again — full cascade re-runs
+
+If critics returned REQUEST_CHANGES, you MUST re-run them after fixing. The codex gate will block you otherwise — there is no way to skip this.
 
 ## Review Governance
 
@@ -121,7 +137,7 @@ Critics review the **diff**, not the entire codebase. Context files may be read 
 | Self-review | PASS | Run code-critic + minimizer (parallel) | NO |
 | Self-review | FAIL | Fix issues, re-run self-review | NO |
 | code-critic | APPROVE | Wait for minimizer | NO |
-| code-critic | REQUEST_CHANGES (blocking) | Fix and re-run both critics | NO |
+| code-critic | REQUEST_CHANGES (blocking) | Fix and re-run both critics (codex gate enforces this — codex review is blocked until critics APPROVE) | NO |
 | code-critic | REQUEST_CHANGES (non-blocking only) | Note findings, wait for minimizer | NO |
 | code-critic | NEEDS_DISCUSSION / oscillation / cap hit | Ask user | YES |
 | minimizer | APPROVE | Wait for code-critic | NO |

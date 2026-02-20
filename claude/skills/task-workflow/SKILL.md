@@ -42,7 +42,7 @@ After passing the gate, execute continuously — **no stopping until PR is creat
    - Diff matches intent? (`git diff`)
    - No obvious bugs?
    Fix any failures before proceeding. Do not invoke critics on code you know is incomplete.
-6. **code-critic + minimizer** — Run in parallel with scope context and diff focus (see [Review Governance](#review-governance)). Triage findings by severity. Fix only blocking issues. Proceed to codex when no blocking findings remain.
+6. **code-critic + minimizer** — Run in parallel with scope context and diff focus (see [Review Governance](#review-governance)). Triage findings by severity. Fix only blocking issues. Proceed to codex when no blocking findings remain. After fixing blocking critic findings, you MUST re-run both critics. The codex review gate requires critic APPROVE markers — if critics only returned REQUEST_CHANGES, those markers don't exist and codex invocation will be blocked.
 7. **codex** — Invoke `~/.claude/skills/codex-cli/scripts/call_codex.sh` for combined code + architecture review with scope context
 8. **Handle codex verdict** — Triage findings (see [Finding Triage](#finding-triage)). Classify fix impact for tiered re-review. Signal verdict via `codex-verdict.sh`.
 9. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)

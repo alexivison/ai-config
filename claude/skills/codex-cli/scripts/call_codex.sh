@@ -5,8 +5,8 @@ usage() {
   cat <<'EOF'
 Usage:
   call_codex.sh --review [options]
-  call_codex.sh [options] --prompt "..."
-  call_codex.sh [options] --prompt-file /path/to/prompt.txt
+  call_codex.sh --prompt "..." [options]
+  call_codex.sh --prompt-file /path/to/prompt.txt [options]
 
 Options:
   --review                           Switch to review mode (codex exec review)
@@ -24,6 +24,13 @@ Examples:
   call_codex.sh --prompt-file /tmp/review-prompt.txt
 EOF
 }
+
+# Mode flag must be first argument (enables reliable hook detection)
+FIRST_ARG="${1:-}"
+case "$FIRST_ARG" in
+  --review|--prompt|--prompt-file|-h|--help) ;;
+  *) echo "Error: first argument must be --review, --prompt, --prompt-file, or --help" >&2; exit 1 ;;
+esac
 
 if ! command -v codex >/dev/null 2>&1; then
   echo "Error: 'codex' CLI not found in PATH." >&2
@@ -57,6 +64,7 @@ TIMEOUT=""  # set after arg parsing based on mode
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --review)
+      [[ "$FIRST_ARG" != "--review" ]] && { echo "Error: Cannot combine --review with --prompt or --prompt-file." >&2; exit 1; }
       MODE="review"
       shift
       ;;
@@ -73,10 +81,12 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --prompt)
+      [[ "$FIRST_ARG" = "--review" ]] && { echo "Error: Cannot combine --review with --prompt or --prompt-file." >&2; exit 1; }
       PROMPT="${2-}"
       shift 2
       ;;
     --prompt-file)
+      [[ "$FIRST_ARG" = "--review" ]] && { echo "Error: Cannot combine --review with --prompt or --prompt-file." >&2; exit 1; }
       PROMPT_FILE="${2:-}"
       shift 2
       ;;
@@ -127,6 +137,8 @@ if [[ "$MODE" = "review" ]]; then
   fi
   "${cmd[@]}" 2>/dev/null \
     | jq -rs '[.[] | select(.item.type == "agent_message")] | last | .item.text'
+  # Sentinel for codex-trace.sh evidence detection (emitted only on successful review)
+  echo "CODEX_REVIEW_RAN"
 else
   # Exec mode — structured prompt required
   if [[ -n "$PROMPT" && -n "$PROMPT_FILE" ]]; then
