@@ -5,8 +5,51 @@ Shared execution sequence for all workflow skills. Bugfix-workflow omits the che
 ## Core Sequence
 
 ```
-/write-tests → implement → checkboxes → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
+/write-tests → implement → checkboxes → self-review → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
 ```
+
+## Self-Review
+
+Before invoking external reviewers, the main agent performs a self-review to catch obvious issues cheaply. This prevents wasting sub-agent resources on code that clearly needs more work.
+
+### Checklist
+
+1. **Acceptance criteria met?** — Re-read TASK file acceptance criteria. Does the implementation satisfy each one?
+2. **Tests cover acceptance criteria?** — Each acceptance criterion has at least one test exercising it.
+3. **No debug artifacts?** — No `console.log`, `TODO: remove`, commented-out code, or hardcoded test values.
+4. **Diff matches intent?** — Run `git diff` and verify every changed line is intentional and in-scope.
+5. **No obvious bugs?** — Null checks, off-by-one, missing error handling at system boundaries.
+
+### Output Format
+
+```
+## Self-Review
+- [x] Acceptance criteria met (list each: criterion → evidence)
+- [x] Tests cover acceptance criteria
+- [x] No debug artifacts
+- [x] Diff matches intent
+- [x] No obvious bugs
+PASS — proceeding to critics
+```
+
+If any check fails, fix before proceeding. Do not invoke critics on code you know is incomplete.
+
+## Marker Invalidation
+
+The `marker-invalidate.sh` hook automatically deletes review markers when implementation files are edited. This prevents stale approvals from surviving code changes.
+
+### How It Works
+
+- **Trigger:** PostToolUse on Edit|Write
+- **Skips:** `.md`, `/tmp/`, `.log`, `.jsonl` files (non-implementation)
+- **Deletes:** code-critic, minimizer, codex, codex-ran, tests-passed, checks-passed, pr-verified, security-scanned markers
+- **Effect:** After any implementation edit, all review steps must be re-run
+
+### Implications
+
+- Editing code after codex approval invalidates the approval — you must re-run the review cascade
+- Fixing a critic finding and re-running critics is the normal flow (markers deleted, then re-created)
+- Checkpoint markers are evidence of review — they cannot be manually created or faked
 
 ## Review Governance
 
@@ -74,7 +117,9 @@ Critics review the **diff**, not the entire codebase. Context files may be read 
 |------|---------|-------------|--------|
 | /write-tests | Tests written (RED) | Implement code | NO |
 | Implement | Code written | Update checkboxes | NO |
-| Checkboxes | Updated (TASK + PLAN) | Run code-critic + minimizer (parallel) | NO |
+| Checkboxes | Updated (TASK + PLAN) | Run self-review | NO |
+| Self-review | PASS | Run code-critic + minimizer (parallel) | NO |
+| Self-review | FAIL | Fix issues, re-run self-review | NO |
 | code-critic | APPROVE | Wait for minimizer | NO |
 | code-critic | REQUEST_CHANGES (blocking) | Fix and re-run both critics | NO |
 | code-critic | REQUEST_CHANGES (non-blocking only) | Note findings, wait for minimizer | NO |
@@ -92,6 +137,8 @@ Critics review the **diff**, not the entire codebase. Context files may be read 
 | /pre-pr-verification | All pass | Create commit and PR | NO |
 | /pre-pr-verification | Failures | Fix and re-run | NO |
 | security-scanner | HIGH/CRITICAL | Ask user | YES |
+| Edit/Write (impl file) | Markers invalidated (hook) | Re-run invalidated steps before PR | NO |
+| codex-verdict.sh approve | No codex-ran marker | Approval blocked — run call_codex.sh first | NO |
 
 ## Valid Pause Conditions
 

@@ -27,7 +27,7 @@ State which items were checked before proceeding.
 Execute continuously — **no stopping until PR is created**.
 
 ```
-/write-tests (regression) → implement fix → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
+/write-tests (regression) → implement fix → self-review → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
 ```
 
 **Note:** Bugfixes typically don't have PLAN.md checkbox updates (they're not part of planned work).
@@ -37,11 +37,18 @@ Execute continuously — **no stopping until PR is created**.
 1. **Regression Test** — Invoke `/write-tests` to write a test that reproduces the bug (RED phase via test-runner)
 2. **Implement Fix** — Fix the bug to make the test pass
 3. **GREEN phase** — Run test-runner agent to verify tests pass
-4. **code-critic + minimizer** — Run in parallel with diff focus. Triage findings by severity (see [Review Governance](../task-workflow/SKILL.md#review-governance)). Fix only blocking issues. Proceed to codex when no blocking findings remain.
-5. **codex** — Invoke `~/.claude/skills/codex-cli/scripts/call_codex.sh` for combined code + architecture review. Include bug context in scope boundaries.
-6. **Handle codex verdict** — Triage findings by severity. Classify fix impact for tiered re-review (see [execution-core.md](~/.claude/rules/execution-core.md)). Signal verdict via `codex-verdict.sh`.
-7. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)
-8. **Commit & PR** — Create commit and draft PR
+4. **Self-Review** — Before invoking critics, verify your own work (see [execution-core.md](~/.claude/rules/execution-core.md#self-review)):
+   - Bug root cause addressed? (not just symptom masked)
+   - Regression test covers the exact failure mode?
+   - No debug artifacts?
+   - Diff matches intent? (`git diff`)
+   - No obvious secondary bugs introduced?
+   Fix any failures before proceeding.
+5. **code-critic + minimizer** — Run in parallel with diff focus. Triage findings by severity (see [Review Governance](../task-workflow/SKILL.md#review-governance)). Fix only blocking issues. Proceed to codex when no blocking findings remain.
+6. **codex** — Invoke `~/.claude/skills/codex-cli/scripts/call_codex.sh` for combined code + architecture review. Include bug context in scope boundaries.
+7. **Handle codex verdict** — Triage findings by severity. Classify fix impact for tiered re-review (see [execution-core.md](~/.claude/rules/execution-core.md)). Signal verdict via `codex-verdict.sh`.
+8. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)
+9. **Commit & PR** — Create commit and draft PR
 
 **Important:** Always use test-runner agent for running tests, check-runner for lint/typecheck. This preserves context by isolating verbose output.
 

@@ -26,7 +26,7 @@ State which items were checked before proceeding.
 After passing the gate, execute continuously — **no stopping until PR is created**.
 
 ```
-/write-tests (if needed) → implement → checkboxes → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
+/write-tests (if needed) → implement → checkboxes → self-review → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
 ```
 
 ### Step-by-Step
@@ -35,11 +35,18 @@ After passing the gate, execute continuously — **no stopping until PR is creat
 2. **Implement** — Write the code to make tests pass
 3. **GREEN phase** — Run test-runner agent to verify tests pass
 4. **Checkboxes** — Update both TASK*.md AND PLAN.md: `- [ ]` → `- [x]` (MANDATORY — both files)
-5. **code-critic + minimizer** — Run in parallel with scope context and diff focus (see [Review Governance](#review-governance)). Triage findings by severity. Fix only blocking issues. Proceed to codex when no blocking findings remain.
-6. **codex** — Invoke `~/.claude/skills/codex-cli/scripts/call_codex.sh` for combined code + architecture review with scope context
-7. **Handle codex verdict** — Triage findings (see [Finding Triage](#finding-triage)). Classify fix impact for tiered re-review. Signal verdict via `codex-verdict.sh`.
-8. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)
-9. **Commit & PR** — Create commit and draft PR
+5. **Self-Review** — Before invoking critics, verify your own work (see [execution-core.md](~/.claude/rules/execution-core.md#self-review)):
+   - Acceptance criteria met? (each criterion → evidence)
+   - Tests cover acceptance criteria?
+   - No debug artifacts?
+   - Diff matches intent? (`git diff`)
+   - No obvious bugs?
+   Fix any failures before proceeding. Do not invoke critics on code you know is incomplete.
+6. **code-critic + minimizer** — Run in parallel with scope context and diff focus (see [Review Governance](#review-governance)). Triage findings by severity. Fix only blocking issues. Proceed to codex when no blocking findings remain.
+7. **codex** — Invoke `~/.claude/skills/codex-cli/scripts/call_codex.sh` for combined code + architecture review with scope context
+8. **Handle codex verdict** — Triage findings (see [Finding Triage](#finding-triage)). Classify fix impact for tiered re-review. Signal verdict via `codex-verdict.sh`.
+9. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)
+10. **Commit & PR** — Create commit and draft PR
 
 **Note:** Step 4 (Checkboxes) MUST include PLAN.md. Forgetting PLAN.md is a common violation.
 
@@ -107,7 +114,9 @@ When PLAN.md exists, enforce:
 2. **Dependency/order changes:** If task execution reveals the need to reorder or add tasks, update PLAN.md explicitly before proceeding.
 3. **Commit together:** Checkbox updates go WITH implementation, not as separate commits.
 
-Forgetting PLAN.md is the most common violation. Verify both files are updated before proceeding to code-critic.
+Forgetting PLAN.md is the most common violation. Verify both files are updated before proceeding to self-review.
+
+**Pre-filled checkbox prohibition:** Never write `- [x]` when creating new checklist items. All new items start as `- [ ]` and are only checked after the work is done and verified. Pre-filling checkboxes is falsifying evidence.
 
 ## Codex Step
 
@@ -122,7 +131,7 @@ After critics have no remaining blocking findings, invoke Codex directly for dee
 **Non-review invocation (architecture, debugging):**
 ```bash
 ~/.claude/skills/codex-cli/scripts/call_codex.sh \
-  --prompt "TASK: Code + Architecture Review. SCOPE: {changed files}. ITERATION: {N} of 3. PREVIOUS: {summary from issue ledger}. SCOPE BOUNDARIES: IN={in scope from TASK}, OUT={out of scope from TASK}. OUTPUT: Findings with severity (blocking/non-blocking), file:line refs, then verdict."
+  --prompt "TASK: Code + Architecture Review. SCOPE: {changed files}. ITERATION: {N} of 3. PREVIOUS: {summary from issue ledger}. SCOPE BOUNDARIES: IN={in scope from TASK}, OUT={out of scope from TASK}. ACCEPTANCE CRITERIA: {from TASK file}. OUTPUT: Findings with severity (blocking/non-blocking), file:line refs, acceptance criteria coverage assessment, then verdict."
 ```
 
 After analyzing Codex output, signal verdict via a **separate** Bash call:

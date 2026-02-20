@@ -33,7 +33,7 @@ Workflow skills load on-demand. See `~/.claude/skills/*/SKILL.md` for details.
 
 **Do NOT stop between steps.** Core sequence:
 ```
-tests → implement → checkboxes → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
+tests → implement → checkboxes → self-review → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
 ```
 
 **Checkboxes:** Task-workflow = TASK*.md + PLAN.md. Bugfix-workflow = no checkboxes (no PLAN.md).

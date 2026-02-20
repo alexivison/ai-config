@@ -4,7 +4,7 @@ When executing a task from TASK*.md, **do not stop until PR is created** (or a v
 
 ## The Flow
 
-**Code workflow:** `/write-tests → implement → checkboxes → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR`
+**Code workflow:** `/write-tests → implement → checkboxes → self-review → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR`
 
 
 ## Decision Matrix
@@ -24,6 +24,10 @@ See [execution-core.md](execution-core.md) for the complete matrix.
 | Implementing every codex finding without triage | Classify as blocking/non-blocking/out-of-scope first |
 | Re-running full cascade after one-line codex fix | Use tiered re-review (test-runner only for targeted swaps) |
 | Critic oscillating (reverse own prior feedback) | Main agent decides, proceed |
+| Skipping self-review before critics | Run self-review checklist — critics depend on it |
+| Calling codex-verdict.sh approve without call_codex.sh | Evidence gate blocks — run codex first |
+| Editing code after codex approval, then creating PR | Markers auto-invalidated — re-run review cascade |
+| Manually creating /tmp/claude-* marker files | Markers are hook-created evidence only — never touch directly |
 
 ## Enforcement
 

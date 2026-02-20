@@ -118,6 +118,16 @@
         ]
       },
       {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/marker-invalidate.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "matcher": "Skill",
         "hooks": [
           {
