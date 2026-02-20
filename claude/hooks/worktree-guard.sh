@@ -2,16 +2,24 @@
 
 # Claude Code worktree guard hook
 # Blocks branch switching/creation in main worktree, suggests git worktree instead
+#
+# Triggered: PreToolUse on Bash tool
+# Outputs JSON on all paths (required by hook runner when sharing a hook group)
 
 INPUT=$(cat)
 if ! COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null); then
+    echo '{}'
     exit 0
 fi
 
-[ -z "$COMMAND" ] && exit 0
+if [ -z "$COMMAND" ]; then
+    echo '{}'
+    exit 0
+fi
 
 # Check for branch switching/creation commands
 if ! echo "$COMMAND" | grep -qE 'git\s+(checkout|switch)'; then
+    echo '{}'
     exit 0
 fi
 
@@ -19,11 +27,13 @@ fi
 if echo "$COMMAND" | grep -qE 'git\s+checkout\s+--' || \
    echo "$COMMAND" | grep -qE 'git\s+checkout\s+HEAD\s' || \
    echo "$COMMAND" | grep -qE 'git\s+checkout\s+[^-].*\.'; then
+    echo '{}'
     exit 0
 fi
 
 # Allow switching to main/master
 if echo "$COMMAND" | grep -qE 'git\s+(checkout|switch)\s+(main|master)\s*$'; then
+    echo '{}'
     exit 0
 fi
 
@@ -31,10 +41,11 @@ fi
 WORKING_DIR=$(echo "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
 [ -z "$WORKING_DIR" ] && WORKING_DIR=$(pwd)
 
-cd "$WORKING_DIR" 2>/dev/null || exit 0
+cd "$WORKING_DIR" 2>/dev/null || { echo '{}'; exit 0; }
 
 # Not in a git repo - allow (nothing to protect)
 if ! git rev-parse --is-inside-work-tree &>/dev/null; then
+    echo '{}'
     exit 0
 fi
 
@@ -43,19 +54,18 @@ MAIN_WORKTREE=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit
 GIT_ROOT=$(git rev-parse --show-toplevel)
 
 if [ "$GIT_ROOT" != "$MAIN_WORKTREE" ]; then
+    echo '{}'
     exit 0
 fi
 
-# Block with helpful message
+# Block with proper JSON deny format
 REPO_NAME=$(basename "$GIT_ROOT" 2>/dev/null || echo "repo")
-cat >&2 << EOF
-BLOCKED: Branch switching in main worktree.
-
-Use git worktree instead:
-  git worktree add ../${REPO_NAME}-<branch-name> -b <branch-name>
-  cd ../${REPO_NAME}-<branch-name>
-
-This prevents conflicts when multiple agents work on the same repo.
+cat << EOF
+{
+  "hookSpecificOutput": {
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "BLOCKED: Branch switching in main worktree. Use: git worktree add ../${REPO_NAME}-<branch> -b <branch>"
+  }
+}
 EOF
-
-exit 2
+exit 0
