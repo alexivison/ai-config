@@ -20,7 +20,6 @@ When dispatched by the Paladin, treat it as delegated Rogue intent.
 ## Workflow Selection
 
 - Use `planning` for specs and design work.
-- No implementation or review workflows in this repo — dispatch the Paladin instead.
 
 ## Non-Negotiable Gates
 
@@ -42,32 +41,3 @@ When dispatched by the Paladin, treat it as delegated Rogue intent.
 2. Otherwise: `git worktree add ../<repo>-<branch> -b <branch>`.
 3. One session per worktree. Never use `git checkout` or `git switch` in shared repos.
 4. After PR merge, clean up: `git worktree remove ../<repo>-<branch>`.
-
-## Output Format
-
-```markdown
-## Codex Analysis
-
-**Task:** {Code Review | Architecture | Plan Review | Design | Debug | Trade-off}
-**Scope:** {what was analyzed}
-
-### Summary
-{Key findings}
-
-### Findings
-- **file:line** - Description
-
-### Recommendations
-- {Actionable items}
-
-### Verdict
-**APPROVE** | **REQUEST_CHANGES** | **NEEDS_DISCUSSION**
-{One sentence reason}
-```
-
-On approval, include marker: `**APPROVE** — CODEX APPROVED`
-
-**Verdicts:**
-- **APPROVE**: No blocking issues (nits okay)
-- **REQUEST_CHANGES**: Bugs, security issues, or significant problems
-- **NEEDS_DISCUSSION**: Fundamental questions requiring human decision
