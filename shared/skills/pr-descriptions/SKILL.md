@@ -18,7 +18,7 @@ How to fill PR descriptions so they are useful to both human and agent reviewers
 
 ## Filling Template Sections
 
-Regardless of section name (概要, Summary, Description, etc.), follow these content rules:
+Regardless of section name (Summary, Description, etc.), follow these content rules:
 
 ### State facts, not impressions
 
