@@ -679,6 +679,376 @@ The biggest risk isn't building it — it's that completion detection and output
 
 ---
 
+## Part 6: CLI vs Tmux — Does Invocation Method Affect Review Quality?
+
+### The Core Question
+
+When Codex reviews code, does it matter whether it was invoked as a blocking subprocess (`codex exec review`) or as a persistent interactive session in a tmux pane? The answer is nuanced — the invocation method itself doesn't change the model, but it changes the **context, capabilities, and interaction pattern** that shape review quality.
+
+### How CLI Reviews Work Today
+
+```
+codex exec review --prompt "Review this diff..." --file /tmp/diff.patch
+```
+
+1. **Cold start.** Every invocation creates a fresh context. Codex has zero memory of prior reviews, prior code changes, or the codebase's history in this session.
+2. **One-shot output.** Codex produces a single review response. If it misunderstands something or makes an error, there's no recourse — the review is final.
+3. **Structured input.** The diff and instructions are passed as clean arguments. No ANSI artifacts, no pane noise. Input is deterministic.
+4. **Read-only sandbox.** `codex exec` runs with `--sandbox read-only` implicitly. Codex can't run `grep` over the codebase to check whether a pattern exists elsewhere. It reviews only what's in front of it.
+5. **Token-limited context.** The prompt + diff + system instructions must fit in a single context window. Large diffs get truncated or summarized by `call_codex.sh`.
+
+### How Tmux Reviews Would Work
+
+```
+tmux send-keys -t codex "Review this diff against main. [diff content]. SENTINEL_xxx" C-m
+```
+
+1. **Warm context.** If Codex has reviewed earlier code in this session, it retains that context. It knows what the developer's patterns look like, what was changed before, and what the overall direction of the work is.
+2. **Multi-turn possible.** The coordinator can mediate clarification: Codex asks "Is this intentional?" → coordinator relays to Claude → Claude responds → coordinator sends back to Codex. Review becomes a dialogue, not a verdict.
+3. **Noisy input.** Pane capture includes potential ANSI codes, line-wrap artifacts, and TUI formatting. Diff content must be cleaned before Codex can parse it reliably.
+4. **Full tool access.** Interactive Codex can run `grep`, `cat`, `find` — it can investigate the codebase during review. A review of "is this function used elsewhere?" can be answered by actually searching, not guessing.
+5. **Larger effective context.** Multi-turn exchange means Codex can request specific files, ask for function definitions, or request the full test suite. Context is built incrementally rather than front-loaded.
+
+### Quality Dimensions Compared
+
+| Dimension | CLI (`codex exec`) | Tmux (interactive) | Winner |
+|-----------|--------------------|--------------------|--------|
+| **Input fidelity** | Clean structured JSON/text | Pane capture with potential noise | CLI |
+| **Codebase awareness** | Only what's in the prompt | Can investigate via tools | Tmux |
+| **Cross-review context** | None (cold start) | Remembers prior reviews | Tmux |
+| **Consistency** | Same input → same review | Context-dependent, variable | CLI |
+| **Depth of analysis** | Limited to provided diff | Can explore related code | Tmux |
+| **False positive rate** | Higher (can't verify assumptions) | Lower (can check assumptions) | Tmux |
+| **Latency to first finding** | Fast (direct inference) | Slower (may run tools first) | CLI |
+| **Nuance in edge cases** | Low (no dialogue) | High (can ask clarifications) | Tmux |
+| **Reproducibility** | High (deterministic input) | Low (depends on session state) | CLI |
+| **Cost per review** | Lower (single inference) | Higher (multi-turn + tool use) | CLI |
+
+### The Persistent Context Effect
+
+The most significant quality difference is **persistent context**. In a typical session:
+
+- **Review 1:** Codex sees a new utility function. In CLI mode, it evaluates it in isolation. In tmux mode, same behavior — no difference yet.
+- **Review 2:** Codex sees the same pattern again. CLI mode treats it as novel. Tmux mode recognizes the pattern from Review 1 and can note consistency or flag divergence.
+- **Review 3:** A refactor touches code reviewed in Review 1. CLI mode has no memory of what it said before. Tmux mode can verify its earlier suggestions were addressed.
+
+This matters for **multi-PR sessions** where reviews build on each other. For single-PR sessions, the context advantage is minimal.
+
+### The Tool Access Effect
+
+CLI mode Codex is effectively blind — it can only analyze the exact text provided. Interactive Codex can investigate:
+
+- "This function calls `parseConfig()` — let me check what that does" → `grep -rn parseConfig`
+- "The test file should cover this edge case — let me verify" → `cat tests/parser_test.go`
+- "Is this import used elsewhere in the project?" → `grep -rn 'import.*moduleName'`
+
+This makes tmux reviews **more thorough** for architectural and integration concerns, where understanding context beyond the diff matters. For purely syntactic or local logic issues, the advantage is negligible.
+
+### The Noise Problem
+
+Tmux reviews face an input quality challenge that CLI reviews don't:
+
+1. **ANSI escape codes** in captured pane output can corrupt diff content
+2. **Line wrapping** in narrow panes can break code indentation, making it look wrong when it isn't
+3. **TUI elements** (status bars, progress indicators) can appear in captured output
+4. **Timing issues** — capturing too early gets incomplete output, capturing too late may miss scrolled content
+
+Mitigation strategies exist (sentinel-based extraction, file-based output handoff, ANSI stripping), but they add complexity and failure modes that CLI reviews simply don't have. A corrupted diff leads to a corrupted review.
+
+### When CLI Reviews Are Better
+
+1. **Automated/CI pipelines** where consistency and reproducibility matter more than depth
+2. **Small, focused diffs** (< 200 lines) where the full context is in the diff itself
+3. **Security-critical reviews** where the read-only sandbox is a feature, not a limitation
+4. **Cost-sensitive environments** where single-inference reviews are significantly cheaper
+
+### When Tmux Reviews Are Better
+
+1. **Large refactors** where understanding the broader codebase is essential
+2. **Multi-PR sessions** where review context accumulates meaningfully
+3. **Architectural reviews** where the reviewer needs to investigate beyond the diff
+4. **Iterative development** where multi-turn dialogue catches issues a one-shot review misses
+5. **Complex codebases** where a cold-start reviewer lacks necessary project knowledge
+
+### Verdict on Review Quality
+
+**For the current use case (single-reviewer, governance-gated pipeline):** CLI reviews are *adequate* and *more reliable*. The structured input and deterministic behavior are valuable properties for an enforcement gate. The reviews miss some depth, but the system compensates with multiple reviewers (code-critic + minimizer + codex).
+
+**For a more capable system:** Tmux reviews would be *qualitatively better* — deeper, more contextual, more nuanced. The trade-off is reliability and cost. If the coordinator can solve the input fidelity problem (via file-based handoff rather than pane capture), the quality advantage becomes compelling.
+
+**Net assessment:** Review quality is not the primary driver for or against tmux. The CLI model produces good-enough reviews for governance purposes. Tmux would produce better reviews, but the improvement is incremental, not transformative. The real arguments for tmux are parallelism and persistent context — review quality is a secondary benefit.
+
+---
+
+## Part 7: CLI-Only Capabilities — What Tmux Cannot Replicate
+
+### Capabilities Exclusive to the CLI Subprocess Model
+
+Several properties of the current system are **structurally impossible** to replicate in a tmux-based architecture. These aren't limitations that can be engineered around — they're fundamental to the invocation model.
+
+#### 1. Deterministic Blocking
+
+**CLI:** `call_codex.sh` invokes `codex exec` and blocks. When the script returns, the review is done. There is zero ambiguity about completion.
+
+**Tmux:** Completion detection is heuristic. Sentinel polling, idle detection, and process monitoring are all probabilistic. There is always a nonzero chance of:
+- False completion (sentinel appears in quoted text)
+- Missed completion (sentinel scrolls off pane buffer)
+- Zombie state (agent hangs but doesn't crash)
+
+**Impact:** The governance system's tamper-resistance depends on deterministic state transitions. Heuristic completion detection introduces a class of failures that doesn't exist in the CLI model.
+
+#### 2. Structured JSON Output
+
+**CLI:** `codex exec` returns structured output. `call_codex.sh` pipes through `jq` to extract the final message:
+```bash
+codex exec review ... 2>/dev/null | jq -r '.choices[0].message.content'
+```
+
+**Tmux:** Output is extracted from a terminal emulator buffer. Even with ANSI stripping and sentinel framing, the output is **plain text with no guaranteed structure**. Parsing verdicts requires regex matching against free-form text, which is inherently fragile.
+
+**Impact:** The evidence chain currently relies on exact string matching (`CODEX_REVIEW_RAN`, `CODEX APPROVED`). In tmux, these strings must be extracted from pane capture, where formatting artifacts, line wrapping, or model output variation could cause false negatives.
+
+#### 3. Process-Level Isolation
+
+**CLI:** `codex exec` runs in an isolated subprocess with its own environment. It cannot access Claude's runtime state, memory, or tools. The read-only sandbox is enforced at the OS level.
+
+**Tmux:** Both agents run as persistent processes on the same machine. While Codex can be launched with `--sandbox read-only`, the isolation is weaker:
+- Shared filesystem (same `/tmp/`, same working directory)
+- Shared environment variables (unless explicitly scrubbed)
+- Both processes visible to each other via `ps`
+- Coordinator must mediate all access, but agents could theoretically bypass it
+
+**Impact:** For governance purposes, the CLI's process isolation is a stronger security boundary. In tmux, the coordinator is a trust boundary that must be maintained by convention rather than enforcement.
+
+#### 4. Hook-Based Evidence Chain
+
+**CLI:** Claude Code's hook system fires on every tool call. Hooks are **passive observers** — they cannot be bypassed by the agent because they run outside the agent's process. The evidence chain is:
+```
+Agent uses tool → Hook fires automatically → Hook creates/checks markers
+```
+
+**Tmux:** There are no hooks. The coordinator is an **active participant** that must explicitly perform governance checks. The evidence chain becomes:
+```
+Agent produces output → Coordinator polls and detects → Coordinator updates state
+```
+
+**Impact:** The hook model is inherently more tamper-resistant because it's event-driven and mandatory. The coordinator model requires polling (can miss events), explicit checks (can have bugs), and is itself a single point of failure.
+
+#### 5. Cost-Efficient Invocation
+
+**CLI:** Codex is only instantiated when needed. `codex exec` spins up, does its work, and exits. Token cost is exactly one inference pass per invocation. No idle costs.
+
+**Tmux:** Codex runs persistently. Even when idle, it consumes:
+- System resources (RAM, process slots)
+- The interactive session itself (Codex's context window accumulates)
+- Potential keep-alive costs (if the provider charges for session duration)
+
+For sessions where Codex is invoked once or twice, the persistent session overhead is pure waste.
+
+**Impact:** Cost scales differently. CLI cost is O(invocations). Tmux cost is O(session_duration) with a minimum floor regardless of usage.
+
+#### 6. Environment Portability
+
+**CLI:** Works anywhere Claude Code runs — CI pipelines, Docker containers, SSH sessions, headless servers. No display, no terminal emulator, no multiplexer required.
+
+**Tmux:** Requires tmux to be installed and running. Doesn't work in:
+- Most CI/CD environments (no tmux)
+- Minimal Docker containers (no tmux)
+- Windows without WSL
+- Environments where tmux is disallowed by policy
+
+**Impact:** The CLI model is universally portable. Tmux introduces an environmental dependency that limits where the system can run.
+
+#### 7. Atomic Tool-Call Semantics
+
+**CLI:** Each `codex exec` call is a single tool invocation from Claude's perspective. It appears as one Bash tool call in Claude's context, with one input and one output. This means:
+- Claude's context window isn't polluted by intermediate Codex output
+- The hook system sees one clean event to gate and trace
+- Retry logic is simple (re-invoke the tool)
+
+**Tmux:** Communication is streamed. The coordinator sends multiple messages to Codex and captures multiple responses. From Claude's perspective, the review is opaque — Claude doesn't see Codex working. Claude's context stays clean, but the coordinator must manage all intermediate state externally.
+
+**Impact:** Atomic semantics simplify everything — governance, debugging, logging, retry logic. Streamed communication is more capable but more complex.
+
+### Capabilities Tmux Gains That CLI Cannot Provide
+
+For completeness, here's what tmux provides that CLI structurally cannot:
+
+| Capability | Why CLI Can't Do This |
+|------------|----------------------|
+| **Parallel agent execution** | `codex exec` blocks the calling process |
+| **Persistent agent memory** | Each `codex exec` starts from scratch |
+| **Multi-turn agent dialogue** | `codex exec` is fire-and-forget |
+| **Real-time observability** | Subprocess output is captured only after exit |
+| **Incremental context building** | No way to add context to a running `codex exec` |
+| **Agent-to-agent negotiation** | Requires multiple round trips, each a new subprocess |
+| **Shared workspace awareness** | Codex can't watch Claude work in real time |
+
+### Summary: The CLI Advantage is Reliability
+
+The CLI model's exclusive capabilities cluster around one theme: **reliability and determinism**. Every CLI-only property — blocking execution, structured output, process isolation, hook-based evidence, atomic semantics — serves the same goal: making the system predictable and tamper-resistant.
+
+The tmux model's exclusive capabilities cluster around a different theme: **flexibility and capability**. Parallelism, persistence, dialogue, observability — these make the system more powerful but less predictable.
+
+This is the fundamental trade-off. It's not about which is "better" — it's about which properties matter more for the use case. For a governance-gated review pipeline, reliability matters more. For a collaborative multi-agent workspace, capability matters more.
+
+---
+
+## Part 8: Feasibility Assessment — New Repo vs In-Place Modification
+
+### The Question
+
+Should the tmux-based coordinator be built as a modification to this repository (`ai-config`), or as a new separate repository? This section assesses both approaches based on a thorough analysis of the current codebase's structure, coupling, and complexity.
+
+### Current Codebase Coupling Analysis
+
+#### Files Directly Referencing Codex CLI Invocation
+
+17 files reference `call_codex.sh`, `codex-verdict.sh`, or `codex exec`:
+
+| Category | Files | Coupling Type |
+|----------|-------|---------------|
+| **Executable scripts** | `call_codex.sh` (164 lines), `codex-verdict.sh` (11 lines), `call_claude.sh` (147 lines) | Hard — replaced entirely |
+| **Gate hooks** | `codex-gate.sh` (47 lines), `codex-trace.sh` (61 lines) | Hard — regex matches `call_codex.sh` literally |
+| **Enforcement rules** | `execution-core.md`, `autonomous-flow.md` | Hard — prescribe specific script invocations |
+| **Settings** | `settings.json` (2 permission lines) | Hard — grants Bash permission for specific paths |
+| **Skill definitions** | `codex-cli/SKILL.md`, `task-workflow/SKILL.md`, `bugfix-workflow/SKILL.md` | Soft — documentation of workflow, not executable logic |
+| **Agent guidelines** | `CLAUDE.md` (3 references) | Soft — prescriptive but not enforced by code |
+| **Codex config** | `AGENTS.md`, `config.toml` | Independent — Codex's own configuration |
+
+#### Critical Dependency Chain
+
+```
+execution-core.md (rules)
+        │
+        ├──▶ codex-gate.sh (PreToolUse hook)
+        │     └── regex: call_codex\.sh +--review
+        │
+        ├──▶ codex-trace.sh (PostToolUse hook)
+        │     └── regex: call_codex\.sh
+        │     └── sentinel: CODEX_REVIEW_RAN
+        │
+        ├──▶ pr-gate.sh (PreToolUse hook)
+        │     └── checks /tmp/claude-codex-{sid} marker
+        │
+        └──▶ marker-invalidate.sh (PostToolUse hook)
+              └── deletes all 8 markers including codex-specific ones
+```
+
+Every hook uses **regex pattern matching** on exact script names. In a tmux model, these scripts aren't invoked via Bash tool, so the hooks can't fire and the regex can't match. This isn't something you can adapt incrementally — the detection mechanism is fundamentally incompatible.
+
+#### What Survives Unchanged
+
+| Component | Lines | Reusable? | Notes |
+|-----------|-------|-----------|-------|
+| Marker naming/semantics | N/A | Yes | Names, meanings, invalidation logic all transfer |
+| Sub-agent infrastructure | ~500 | Yes | code-critic, minimizer, test-runner, check-runner, security-scanner — all run via Task tool, unaffected by Codex invocation method |
+| `agent-trace.sh` | 126 | Yes | Sub-agent verdict capture stays identical |
+| `skill-marker.sh` | 65 | Yes | Skill completion markers unaffected |
+| `marker-invalidate.sh` | 60 | Yes | Edit-time invalidation logic is orthogonal |
+| `session-cleanup.sh` | 25 | Yes | Marker cleanup is independent |
+| `worktree-guard.sh` | 53 | Yes | Git protection is independent |
+| `skill-eval.sh` | 123 | Yes | Skill suggestion is independent |
+| Agent personas/style | ~200 | Yes | "Paladin"/"Wizard" identities, communication rules |
+| Decision matrices | ~200 | Yes | Triage, severity, iteration caps — all orthogonal |
+| Technology rules | ~300 | Yes | Go, Python, React, TypeScript rules unchanged |
+
+**Summary:** ~75% of the codebase (by line count) is reusable without modification. The remaining ~25% is tightly coupled to the subprocess model.
+
+### Option A: In-Place Modification
+
+#### Scope of Changes
+
+| Change | Effort | Risk |
+|--------|--------|------|
+| Rewrite `codex-gate.sh` (47 lines → coordinator logic) | Medium | HIGH — enforcement logic |
+| Rewrite `codex-trace.sh` (61 lines → coordinator logic) | Medium | HIGH — evidence chain |
+| Delete `call_codex.sh`, `codex-verdict.sh` | Trivial | None |
+| Write coordinator script (~400-500 lines) | Large | HIGH — new complex system |
+| Update `settings.json` (remove 2 permissions) | Trivial | Low |
+| Rewrite `execution-core.md` (4+ sections) | Medium | Medium — documentation |
+| Update `CLAUDE.md` (3 references) | Small | Medium — documentation |
+| Rewrite `codex-cli/SKILL.md` (105 lines) | Medium | Medium — documentation |
+| Update `task-workflow/SKILL.md`, `bugfix-workflow/SKILL.md` | Small | Low — documentation |
+| Build test infrastructure from scratch | Large | HIGH — no existing tests |
+
+#### Risks
+
+1. **No test suite exists.** The repository has zero automated tests. Modifying governance code without tests means changes can't be validated except by manual testing in live sessions.
+2. **Active development conflict.** The codebase sees 2-3 commits per day with ongoing enforcement hardening (commits #19, #20). In-place modification risks merge conflicts with this active work.
+3. **Dual-mode transition period.** During migration, both subprocess and tmux paths would need to coexist. The hooks expect `call_codex.sh` invocations; the coordinator expects tmux panes. Running both creates confusing state.
+4. **No rollback.** Once hooks are rewritten, reverting requires restoring the exact regex patterns, permissions, and scripts. Git revert works in theory but is messy in practice when 17+ files change.
+5. **Enforcement gaps.** During the transition, there may be windows where neither hooks nor coordinator properly enforce governance. For a security-critical review pipeline, gaps are unacceptable.
+
+#### Benefits
+
+1. Single repository — no fork maintenance
+2. Existing developers stay on one branch
+3. Git history shows the evolution from subprocess → tmux
+
+### Option B: New Repository
+
+#### Scope of Changes
+
+| Action | Effort | Risk |
+|--------|--------|------|
+| Create new repo, copy shared infrastructure | Small | None — isolated |
+| Write coordinator (~400-500 lines) | Large | MEDIUM — isolated, testable |
+| Port governance rules to coordinator state machine | Medium | MEDIUM — contained |
+| Adapt workflow documentation | Small | Low — documentation |
+| Build test infrastructure (mock agents, harness) | Medium | Low — greenfield |
+
+#### Risks
+
+1. **Fork maintenance.** If the original repo continues evolving (new rules, new skills), the new repo must be kept in sync.
+2. **User confusion.** Two repos serving similar purposes creates a "which one do I use?" problem.
+3. **Integration cost.** If the tmux system proves itself, merging it back into the main repo is non-trivial.
+
+#### Benefits
+
+1. **Complete isolation.** Can't break the existing system. Current governance continues working while the tmux system is developed.
+2. **Proper testing.** Can build a test harness from day one without retrofitting it into an existing codebase.
+3. **Clean rollback.** If it fails, delete the repo. The original system is untouched.
+4. **Parallel development.** Original repo continues hardening while tmux system is built.
+5. **Honest comparison.** Both systems can be run side-by-side to compare behavior.
+
+### Quantitative Comparison
+
+| Criterion | In-Place | New Repo |
+|-----------|----------|----------|
+| **Files modified** | 17+ | 0 (in original) |
+| **New code** | ~500 lines + 300 test | ~500 lines + 300 test |
+| **Existing code deleted** | ~280 lines | 0 |
+| **Documentation rewrites** | ~500 lines across 6-8 files | Fresh docs only |
+| **Risk to production system** | HIGH | NONE |
+| **Test infrastructure** | Must retrofit | Built from scratch |
+| **Rollback difficulty** | Medium-Hard | Trivial |
+| **Time to first working prototype** | Longer (must maintain compatibility) | Shorter (no constraints) |
+
+### Recommendation
+
+**New repository is significantly more feasible** for three primary reasons:
+
+1. **The hook coupling is architectural, not incidental.** The `codex-gate.sh` and `codex-trace.sh` hooks use regex matching on exact script names at the Bash tool call level. This isn't a matter of updating a few strings — the detection mechanism is structurally incompatible with tmux-based orchestration. In a new repo, you design the evidence system from scratch instead of retrofitting it.
+
+2. **No test suite means no safety net.** Modifying governance code in a live system with zero automated tests is high-risk. A new repo lets you build validation infrastructure first, then implement against it.
+
+3. **The shared infrastructure is copy-friendly.** The ~75% of reusable code (agent definitions, rules, skills, markers, style) is documentation and configuration — easy to copy and maintain in sync. The ~25% that must change is the exact code that would be rewritten anyway.
+
+**Suggested approach:** Create `ai-config-tmux`, copy the shared infrastructure, build the coordinator with tests, validate with mock agents, then evaluate whether to merge back or run in parallel. The original repo continues working throughout.
+
+### If In-Place Is Chosen Anyway
+
+If the decision is made to modify this repository:
+
+1. **Create a long-lived feature branch** — never modify `main` directly during transition
+2. **Write tests first** — build a shell test harness before touching any hooks
+3. **Feature-flag the coordinator** — environment variable toggles between subprocess and tmux mode
+4. **Migrate one hook at a time** — start with `codex-trace.sh` (evidence collection), keep `codex-gate.sh` (enforcement) until last
+5. **Maintain backward compatibility** — keep `call_codex.sh` working alongside the coordinator until the tmux path is proven
+
+---
+
 ## References
 
 | Resource | URL |
