@@ -2,6 +2,8 @@
 
 Implementation plan for replacing the subprocess-based Claude/Codex orchestration with tmux-based persistent sessions. Built for iTerm2 on macOS.
 
+This plan is the **direct tmux transport** track (no coordinator). It intentionally differs from `research/tmux-integration.md`, which evaluates a **full coordinator** architecture. Choose one track; do not mix steps from both.
+
 ---
 
 ## Context
@@ -55,7 +57,13 @@ iTerm2 supports `tmux -CC` (control mode), which maps tmux panes to native iTerm
 
 ## Branching Strategy
 
-All work happens on a `tmux` branch of `ai-config`. Daily use stays on `main`. Switch with `git checkout tmux` / `git checkout main` — the `~/.claude` symlink resolves to whichever branch is checked out. Merge when ready: `git merge tmux`.
+All work happens on a dedicated `tmux` worktree created from `main`. Daily use stays in the existing `main` worktree. This follows repo policy (`worktree-guard.sh`) and avoids `git checkout` / `git switch` in the shared worktree.
+
+```bash
+cd ~/ai-config
+git fetch origin
+git worktree add ../ai-config-tmux -b tmux main
+```
 
 ### What changes on the `tmux` branch
 
@@ -256,10 +264,18 @@ configure_keybindings() {
 party_start() {
   SESSION="party-$(date +%s)"
   STATE_DIR="/tmp/$SESSION"
+  ACTIVE_SESSION_FILE="/tmp/party-active-session"
+
+  if [[ -f "$ACTIVE_SESSION_FILE" ]]; then
+    echo "Error: active party session already registered at $(cat "$ACTIVE_SESSION_FILE")" >&2
+    return 1
+  fi
+
   mkdir -p "$STATE_DIR"
 
   # Write session metadata so scripts can discover the active session
   echo "$SESSION" > "$STATE_DIR/session-name"
+  echo "$STATE_DIR" > "$ACTIVE_SESSION_FILE"
 
   # Detect iTerm2 and use control mode
   local use_cc=false
@@ -303,6 +319,7 @@ party_stop() {
   discover_session || { echo "No active party session to stop."; return 0; }
   tmux kill-session -t "$SESSION_NAME" 2>/dev/null
   rm -rf "$STATE_DIR"
+  rm -f "/tmp/party-active-session"
   echo "Party session stopped."
 }
 ```
@@ -318,22 +335,35 @@ case "${1:-}" in
 esac
 ```
 
-**How agents discover the session:** Both `tmux-codex.sh` and `tmux-claude.sh` find the active party session by looking for `/tmp/party-*/session-name`. They read the session name from that file to construct tmux target pane addresses.
+**How agents discover the session:** Both `tmux-codex.sh` and `tmux-claude.sh` read `/tmp/party-active-session` to get the active state directory, then load `session-name` from there.
 
-**Constraint: one session at a time.** `discover_session()` uses `head -1` to pick the first match. If multiple `/tmp/party-*` directories exist, it picks arbitrarily. This is by design — running multiple party sessions simultaneously is not supported. `party.sh --stop` cleans up the state directory on teardown to prevent stale sessions.
+**Constraint: one session at a time.** `party.sh` writes a single active-session pointer file (`/tmp/party-active-session`). Discovery is deterministic (no glob-scanning), and `discover_session()` validates both state files and tmux session liveness before returning.
 
 ```bash
 # Shared helper — lives in session/party-lib.sh
 # Sourced by party.sh, tmux-codex.sh, and tmux-claude.sh:
 #   source "$(dirname "$0")/../../session/party-lib.sh"  (adjust relative path per script location)
 discover_session() {
+  local active_file="/tmp/party-active-session"
   local state_dir
-  state_dir=$(find /tmp -maxdepth 1 -name 'party-*' -type d 2>/dev/null | head -1)
-  if [[ -z "$state_dir" ]]; then
+
+  if [[ ! -f "$active_file" ]]; then
     echo "Error: No active party session found" >&2
     return 1
   fi
+
+  state_dir=$(cat "$active_file")
+  if [[ ! -d "$state_dir" || ! -f "$state_dir/session-name" ]]; then
+    echo "Error: Stale party session pointer: $state_dir" >&2
+    return 1
+  fi
+
   SESSION_NAME=$(cat "$state_dir/session-name")
+  if ! tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
+    echo "Error: tmux session '$SESSION_NAME' is not running" >&2
+    return 1
+  fi
+
   STATE_DIR="$state_dir"
 }
 ```
@@ -363,6 +393,7 @@ This single script replaces both `call_codex.sh` and `codex-verdict.sh`. Claude 
 |------|----------|-------------|
 | `--review` | `call_codex.sh --review` | Sends a short message to Codex pane via `tmux send-keys` with base branch, title, and findings file path. Codex's `tmux-handler` skill defines the review protocol. Returns immediately (non-blocking) |
 | `--prompt` | `call_codex.sh --prompt` | Sends prompt text and response file path to Codex pane via `tmux send-keys`. Returns immediately (non-blocking) |
+| `--review-complete` | `call_codex.sh --review` completion sentinel | Emits `CODEX_REVIEW_RAN` **only after** Claude receives Codex's completion notification and confirms the findings file exists |
 | `--approve` | `codex-verdict.sh approve` | Outputs `CODEX APPROVED` sentinel. `codex-trace.sh` hook detects this and creates evidence markers (codex-ran + codex-approved) |
 | `--re-review` | `codex-verdict.sh request_changes` | Outputs `CODEX REQUEST_CHANGES` sentinel. Hook creates codex-ran marker only |
 | `--needs-discussion` | `codex-verdict.sh needs_discussion` | Outputs `CODEX NEEDS_DISCUSSION` sentinel. Hook logs to trace |
@@ -375,15 +406,13 @@ This single script replaces both `call_codex.sh` and `codex-verdict.sh`. Claude 
 # Replaces call_codex.sh + codex-verdict.sh
 set -euo pipefail
 
-MODE="${1:?Usage: tmux-codex.sh --review|--prompt|--approve|--re-review|--needs-discussion}"
+MODE="${1:?Usage: tmux-codex.sh --review|--prompt|--review-complete|--approve|--re-review|--needs-discussion}"
 
 # Discover active party session
-STATE_DIR=$(find /tmp -maxdepth 1 -name 'party-*' -type d 2>/dev/null | head -1)
-if [[ -z "$STATE_DIR" ]]; then
-  echo "Error: No active party session found" >&2
-  exit 1
-fi
-SESSION_NAME=$(cat "$STATE_DIR/session-name")
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../../../../session/party-lib.sh"
+discover_session
+
 CODEX_PANE="$SESSION_NAME:work.1"
 TIMESTAMP="$(date +%s%N)"
 
@@ -402,7 +431,6 @@ case "$MODE" in
     echo "CODEX_REVIEW_REQUESTED"
     echo "Findings will be written to: $FINDINGS_FILE"
     echo "Claude is NOT blocked. Codex will notify Claude via tmux when review is complete."
-    echo "CODEX_REVIEW_RAN"
     ;;
 
   --prompt)
@@ -416,6 +444,15 @@ case "$MODE" in
     echo "CODEX_TASK_REQUESTED"
     echo "Response will be written to: $RESPONSE_FILE"
     echo "Codex will notify Claude via tmux when task is complete."
+    ;;
+
+  --review-complete)
+    FINDINGS_FILE="${2:?Missing findings file path}"
+    if [[ ! -f "$FINDINGS_FILE" ]]; then
+      echo "Error: Findings file not found: $FINDINGS_FILE" >&2
+      exit 1
+    fi
+    echo "CODEX_REVIEW_RAN"
     ;;
 
   --approve)
@@ -434,7 +471,7 @@ case "$MODE" in
 
   *)
     echo "Error: Unknown mode '$MODE'" >&2
-    echo "Usage: tmux-codex.sh --review|--prompt|--approve|--re-review|--needs-discussion" >&2
+    echo "Usage: tmux-codex.sh --review|--prompt|--review-complete|--approve|--re-review|--needs-discussion" >&2
     exit 1
     ;;
 esac
@@ -452,9 +489,11 @@ esac
 5. Codex completes the review, writes findings to file, then notifies Claude
    via tmux-claude.sh → Claude sees "[CODEX] Review complete. Findings at: ..."
 6. Claude reads the findings file with its Read tool
-7. Claude triages each finding (blocking / non-blocking / out-of-scope)
-8. Claude maintains issue ledger (same as current system — in Claude's context)
-9. Claude decides:
+7. Claude records review evidence:
+   `tmux-codex.sh --review-complete <findings_file>`
+8. Claude triages each finding (blocking / non-blocking / out-of-scope)
+9. Claude maintains issue ledger (same as current system — in Claude's context)
+10. Claude decides:
    a. All non-blocking → calls tmux-codex.sh --approve
    b. Blocking issues → fixes them, re-runs critics, calls tmux-codex.sh --re-review
    c. Unresolvable → calls tmux-codex.sh --needs-discussion
@@ -481,6 +520,7 @@ esac
 **Deliverables:**
 - [ ] `claude/skills/codex-cli/scripts/tmux-codex.sh` — all modes (thin transport, no protocol knowledge)
 - [ ] `--review` and `--prompt` send messages via `tmux send-keys` and return immediately (non-blocking)
+- [ ] `--review-complete` emits `CODEX_REVIEW_RAN` only after findings file existence is verified
 - [ ] `--approve`, `--re-review`, `--needs-discussion` output sentinel strings for hook detection (same sentinels as current system)
 - [ ] No `wait_for_idle()` needed — both agents run non-interactive (`--dangerously-skip-permissions` / `--full-auto`), and buffered input is processed when the agent returns to the prompt
 
@@ -505,12 +545,10 @@ set -euo pipefail
 MESSAGE="${1:?Usage: tmux-claude.sh \"message for Claude\"}"
 
 # Discover active party session
-STATE_DIR=$(find /tmp -maxdepth 1 -name 'party-*' -type d 2>/dev/null | head -1)
-if [[ -z "$STATE_DIR" ]]; then
-  echo "Error: No active party session found" >&2
-  exit 1
-fi
-SESSION_NAME=$(cat "$STATE_DIR/session-name")
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../../../../session/party-lib.sh"
+discover_session
+
 CLAUDE_PANE="$SESSION_NAME:work.0"
 
 # Just send the [CODEX] prefixed message to Claude's pane.
@@ -653,7 +691,7 @@ Defines when and how Codex contacts Claude via tmux. This replaces the old `clau
 
 Before sending messages, discover the active party session:
 ```bash
-STATE_DIR=$(find /tmp -maxdepth 1 -name 'party-*' -type d 2>/dev/null | head -1)
+STATE_DIR=$(cat /tmp/party-active-session)
 ```
 Use `$STATE_DIR` to construct file paths for questions and responses.
 
@@ -721,9 +759,11 @@ You see a message in your pane prefixed with `[CODEX]`. These are from Codex's t
 Message: `[CODEX] Review complete. Findings at: <path>`
 
 1. Read the FULL findings file with your Read tool
-2. Triage each finding: blocking / non-blocking / out-of-scope
-3. Update your issue ledger (reject re-raised closed findings, detect oscillation)
-4. Decide verdict:
+2. Mark review evidence as complete:
+   `tmux-codex.sh --review-complete <path>`
+3. Triage each finding: blocking / non-blocking / out-of-scope
+4. Update your issue ledger (reject re-raised closed findings, detect oscillation)
+5. Decide verdict:
    - All non-blocking → `tmux-codex.sh --approve`
    - Blocking findings → fix them, choose re-review tier, then `tmux-codex.sh --re-review`
    - Unresolvable → `tmux-codex.sh --needs-discussion "reason"`
@@ -780,6 +820,13 @@ This sends a message to Codex's pane. You are NOT blocked — continue with non-
 ```
 Returns immediately. Codex will notify you when done.
 
+### Record review completion evidence
+After Codex notifies you that findings are ready:
+```bash
+~/.claude/skills/codex-cli/scripts/tmux-codex.sh --review-complete "<findings_file>"
+```
+This preserves the existing evidence-chain invariant: `CODEX_REVIEW_RAN` means a completed review, not merely a queued request.
+
 ### Signal verdict (after triaging findings)
 ```bash
 # All findings non-blocking — approve
@@ -796,6 +843,7 @@ Verdict modes output sentinel strings that hooks detect to create evidence marke
 ## Important
 
 - `--review` and `--prompt` are NON-BLOCKING. Continue working while Codex processes.
+- `--review-complete` emits `CODEX_REVIEW_RAN` only after findings exist.
 - Verdict modes (`--approve`, `--re-review`, `--needs-discussion`) are instant — they output sentinels for hook detection.
 - You decide the verdict. Codex produces findings, you triage them.
 - Before calling `--review`, ensure sub-agent critics have passed (codex-gate.sh enforces this).
@@ -839,14 +887,14 @@ Same logic as today, but detects `tmux-codex.sh` output sentinels instead of `ca
 # Detect tmux-codex.sh invocations
 echo "$command" | grep -qE '(^|[;&|] *)([^ ]*/)?tmux-codex\.sh' || exit 0
 
-# Same sentinel detection as today:
-# CODEX_REVIEW_RAN → create codex-ran marker
+# Sentinel detection:
+# CODEX_REVIEW_RAN (from --review-complete only) → create codex-ran marker
 # CODEX APPROVED → create codex-approved marker
 # CODEX REQUEST_CHANGES → create codex-ran marker only
 # CODEX NEEDS_DISCUSSION → log only
 ```
 
-The sentinel strings in `tmux-codex.sh` are identical to the current `call_codex.sh` / `codex-verdict.sh` output, so `codex-trace.sh` only needs the regex update. Evidence markers are created by the same hook, triggered by the same sentinels. The dual-layer defense (codex-ran + codex-approved) is preserved.
+`tmux-codex.sh --review` is non-blocking and **does not** emit `CODEX_REVIEW_RAN`. Claude emits `CODEX_REVIEW_RAN` via `tmux-codex.sh --review-complete <findings_file>` after it receives Codex's completion message and verifies the findings file exists. This preserves the dual-layer defense (codex-ran + codex-approved) without granting evidence on mere request dispatch.
 
 ### 5.3 All other hooks — unchanged
 
@@ -897,17 +945,21 @@ New step 8:
 ```
 8. **Triage codex findings** — When the findings file appears:
    a. Read the FULL findings file (not just the summary)
-   b. Triage each finding: blocking / non-blocking / out-of-scope
-   c. Update issue ledger (reject re-raised closed findings, detect oscillation)
-   d. If no blocking findings:
+   b. Record Codex completion evidence:
+      ```bash
+      ~/.claude/skills/codex-cli/scripts/tmux-codex.sh --review-complete "<findings_file>"
+      ```
+   c. Triage each finding: blocking / non-blocking / out-of-scope
+   d. Update issue ledger (reject re-raised closed findings, detect oscillation)
+   e. If no blocking findings:
       ```bash
       ~/.claude/skills/codex-cli/scripts/tmux-codex.sh --approve
       ```
-   e. If blocking findings need fixes: fix them, choose re-review tier:
+   f. If blocking findings need fixes: fix them, choose re-review tier:
       - Targeted swap (typo): run test-runner only → if pass, `tmux-codex.sh --approve`
       - Logic change: re-run critics → if approve, `tmux-codex.sh --re-review`
       - New export/signature: full cascade → `tmux-codex.sh --re-review`
-   f. If unresolvable (max 3 iterations):
+   g. If unresolvable (max 3 iterations):
       ```bash
       ~/.claude/skills/codex-cli/scripts/tmux-codex.sh --needs-discussion "reason"
       ```
@@ -973,7 +1025,8 @@ Shell-based test harness. Mock agents simulate Claude and Codex behavior.
 while IFS= read -r line; do
   case "$line" in
     *"[CODEX] Review complete. Findings at:"*)
-      findings_file=$(echo "$line" | grep -oP 'Findings at: \K\S+')
+      findings_file="${line##*Findings at: }"
+      findings_file="${findings_file%% *}"
       echo "Mock Claude reading findings from $findings_file"
       # Simulate triage — if no blocking findings, approve
       if jq -e '.stats.blocking_count == 0' "$findings_file" >/dev/null 2>&1; then
@@ -983,7 +1036,8 @@ while IFS= read -r line; do
       fi
       ;;
     *"[CODEX] Question:"*)
-      response_file=$(echo "$line" | grep -oP 'Write response to: \K\S+')
+      response_file="${line##*Write response to: }"
+      response_file="${response_file%% *}"
       echo "The database uses a pooled connection with max 10 connections." > "$response_file"
       echo "Mock Claude wrote response to $response_file"
       ;;
@@ -1006,7 +1060,8 @@ while IFS= read -r line; do
     *"Review the changes"*"Write findings to:"*)
       ((review_count++))
       # Extract findings file path directly from the message (no prompt file)
-      findings_file=$(echo "$line" | grep -oP 'Write findings to: \K\S+')
+      findings_file="${line##*Write findings to: }"
+      findings_file="${findings_file%% *}"
       if (( review_count >= REVIEWS_BEFORE_APPROVE )); then
         echo '{"findings":[],"summary":"All issues addressed.","stats":{"blocking_count":0,"non_blocking_count":0,"files_reviewed":5}}' > "$findings_file"
       else
@@ -1030,7 +1085,9 @@ done
 **Claude→Codex tests (`test-tmux-codex.sh`):**
 - [ ] `--review` sends message with base branch, title, and findings path to Codex pane
 - [ ] `--review` returns immediately (non-blocking)
+- [ ] `--review` does **not** emit `CODEX_REVIEW_RAN`
 - [ ] `--prompt` sends prompt text and response path to Codex pane
+- [ ] `--review-complete <findings_file>` emits `CODEX_REVIEW_RAN` only if file exists
 - [ ] `--approve` outputs correct sentinel string (`CODEX APPROVED`)
 - [ ] `--re-review` outputs correct sentinel string (`CODEX REQUEST_CHANGES`)
 - [ ] `--needs-discussion` outputs correct sentinel string (`CODEX NEEDS_DISCUSSION`)
@@ -1045,7 +1102,7 @@ done
 - [ ] `codex-gate.sh` blocks `tmux-codex.sh --review` without critic markers
 - [ ] `codex-gate.sh` allows `tmux-codex.sh --review` with critic markers
 - [ ] `codex-gate.sh` blocks `tmux-codex.sh --approve` without codex-ran marker
-- [ ] `codex-trace.sh` creates codex-ran marker on CODEX_REVIEW_RAN sentinel
+- [ ] `codex-trace.sh` creates codex-ran marker on `tmux-codex.sh --review-complete` (`CODEX_REVIEW_RAN`)
 - [ ] `codex-trace.sh` creates codex-approved marker on CODEX APPROVED sentinel
 
 **Integration test (`test-integration.sh`):**
@@ -1082,7 +1139,7 @@ Set up keybindings so launching and managing party sessions is a single keystrok
       "Name": "Party",
       "Guid": "party-session-profile",
       "Custom Command": "Yes",
-      "Command": "~/ai-config/session/party.sh",
+      "Command": "~/ai-config-tmux/session/party.sh",
       "Working Directory": "",
       "Custom Directory": "Recycle",
       "Tags": ["ai-config", "party"]
@@ -1096,29 +1153,31 @@ Set up keybindings so launching and managing party sessions is a single keystrok
 | Keybind | Action | Effect |
 |---------|--------|--------|
 | `Cmd+Shift+P` | New Tab with Profile → Party | Launch a new party session |
-| `Cmd+Shift+K` | Send Text: `party.sh --stop\n` | Kill the current party session |
+| `Cmd+Shift+K` | Send Text: `~/ai-config-tmux/session/party.sh --stop\n` | Kill the current party session |
 
 ### 8.2 Migration path
 
-Build in phase order (0→8). Phase 0 must pass before any implementation. After Phase 7 tests pass, do integration testing with real agents on the `tmux` branch. Decision: merge to `main`, keep on branch, or abandon.
+Build in phase order (0→8). Phase 0 must pass before any implementation. After Phase 7 tests pass, do integration testing with real agents in the `tmux` worktree. Decision: merge to `main`, keep in worktree, or abandon.
 
 **Switching systems:**
 ```bash
-# Use tmux system
-cd ~/ai-config && git checkout tmux
+# Use tmux system (direct transport branch)
+cd ~/ai-config-tmux && ./session/party.sh
 
-# Use subprocess system (rollback)
-cd ~/ai-config && git checkout main
+# Use subprocess system
+cd ~/ai-config
 ```
 
-No symlink changes needed — `~/.claude` already points to `~/ai-config/claude`. Switching branches changes the content the symlink resolves to.
+No symlink changes needed — `~/.claude` already points to `~/ai-config/claude` in daily workflow. During tmux testing, launch tools from the tmux worktree paths explicitly.
 
 **Merging when ready:**
 ```bash
-cd ~/ai-config && git checkout main && git merge tmux
+cd ~/ai-config
+git merge tmux
+git worktree remove ../ai-config-tmux
 ```
 
-After merge, `main` has the tmux system and the old `call_codex.sh`/`codex-verdict.sh`/`call_claude.sh` scripts are deleted. The subprocess system is still available via `git checkout main~1` if needed.
+After merge, `main` has the tmux system and the old `call_codex.sh`/`codex-verdict.sh`/`call_claude.sh` scripts are deleted. If rollback is needed post-merge, revert the merge commit rather than switching branches in the shared worktree.
 
 ---
 
@@ -1136,13 +1195,13 @@ After merge, `main` has the tmux system and the old `call_codex.sh`/`codex-verdi
 | Claude rubber-stamps --approve without reading findings | Medium | Same risk as today; mitigated by `codex-gate.sh` (gate 2: codex-ran required) and `tmux-handler` skill instructions |
 | Codex forgets to notify Claude after writing findings | Medium | `tmux-handler` skill explicitly instructs notification step; Codex's AGENTS.md reinforces convention |
 | Codex takes too long, no notification arrives | Low | User can see both panes in iTerm2 and nudge either agent; could add a timeout convention in skill docs |
-| Multiple party sessions cause script confusion | Low | `discover_session()` uses `head -1` — only one session supported at a time. Document as constraint |
+| Multiple party sessions cause script confusion | Low | Single active-session pointer (`/tmp/party-active-session`) + tmux liveness checks enforce deterministic discovery |
 
 ---
 
 ## Success Criteria
 
-1. **Full review cycle works:** Claude implements → critics → `tmux-codex.sh --review` → Codex writes findings → Claude reads → triages → `tmux-codex.sh --approve` → markers created → PR
+1. **Full review cycle works:** Claude implements → critics → `tmux-codex.sh --review` → Codex writes findings → Claude reads → `tmux-codex.sh --review-complete` → triages → `tmux-codex.sh --approve` → markers created → PR
 2. **Multi-review cycle works:** Multiple rounds with Claude triaging each, maintaining issue ledger, eventual approve — all with persistent Codex context
 3. **Claude keeps full context:** No context loss between review iterations (Claude remembers previous findings, its issue ledger, why it made changes)
 4. **Codex keeps full context:** Codex remembers previous reviews within the session (can focus on "was this fixed?" rather than re-reviewing from scratch)
@@ -1153,7 +1212,7 @@ After merge, `main` has the tmux system and the old `call_codex.sh`/`codex-verdi
 9. **Markers are compatible:** Same `/tmp/claude-*` paths, same semantics, `pr-gate.sh` works unchanged
 10. **iTerm2 UX:** `tmux -CC` gives native panes with scrollback and search
 11. **Tests pass:** All test suites green
-12. **Rollback works:** `git checkout main` reverts to subprocess model instantly
+12. **Rollback works:** main worktree stays untouched until merge; post-merge rollback is a merge revert
 
 ---
 

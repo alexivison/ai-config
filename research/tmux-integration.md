@@ -2,6 +2,8 @@
 
 Architectural comparison: the existing subprocess/hook/marker orchestration versus replacing it entirely with tmux-based agent coordination. Both approaches are evaluated as complete, self-contained systems — this is not a hybrid proposal.
 
+This document evaluates the **full coordinator** track. A separate document, `research/tmux-plan.md`, captures an alternative **direct tmux transport** track that keeps hook governance intact. Treat these as mutually exclusive implementation paths.
+
 ---
 
 ## Part 1: The Current System (As-Is)
@@ -1036,6 +1038,8 @@ Every hook uses **regex pattern matching** on exact script names. In a tmux mode
 3. **The shared infrastructure is copy-friendly.** The ~75% of reusable code (agent definitions, rules, skills, markers, style) is documentation and configuration — easy to copy and maintain in sync. The ~25% that must change is the exact code that would be rewritten anyway.
 
 **Suggested approach:** Create `ai-config-tmux`, copy the shared infrastructure, build the coordinator with tests, validate with mock agents, then evaluate whether to merge back or run in parallel. The original repo continues working throughout.
+
+If the team chooses the direct-transport path instead of a coordinator, follow `research/tmux-plan.md` rather than mixing coordinator and non-coordinator steps.
 
 ### If In-Place Is Chosen Anyway
 
