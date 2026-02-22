@@ -91,81 +91,80 @@ This is slower (polling interval) but completely safe. Could be used selectively
 
 ---
 
-## New Repo: `ai-config-tmux`
+## Branching Strategy
 
-This is built as a **new repository** alongside the existing `ai-config`. Reasoning:
+All tmux work happens on a `tmux` branch of the existing `ai-config` repo. No new repository needed.
 
-1. Current system works and is used daily — can't break it during development
-2. The 2 critical hooks (`codex-gate.sh`, `codex-trace.sh`) are structurally incompatible — they regex-match `call_codex.sh` at the Bash tool call level, which doesn't exist in tmux
-3. Zero test infrastructure exists — new repo builds validation from day one
-4. Can evaluate side-by-side before committing to migration
+**Why not a new repo:**
+- ~70% of `ai-config-tmux` would be verbatim copies of files that already exist in `ai-config`
+- Every hook, rule, or shared skill change on `main` would need manual sync to the second repo — guaranteed drift
+- Eventually you merge or abandon; if you merge, you do the same edits in `ai-config` anyway
+- A branch gives identical isolation with zero duplication
 
-### Repo structure
+**How it works:**
 
 ```
-ai-config-tmux/
-├── session/
-│   └── party.sh                       # Main entry point — session launcher + teardown
-│
-├── claude/                            # Copied + adapted from ai-config
-│   ├── CLAUDE.md                      # Updated: tmux context, direct communication instructions
-│   ├── settings.json                  # Updated: new script permissions, hook config
-│   ├── hooks/
-│   │   ├── session-cleanup.sh         # Unchanged
-│   │   ├── skill-eval.sh             # Unchanged
-│   │   ├── worktree-guard.sh         # Unchanged
-│   │   ├── agent-trace.sh            # Unchanged (sub-agents still in-process)
-│   │   ├── marker-invalidate.sh      # Unchanged
-│   │   ├── skill-marker.sh           # Unchanged
-│   │   ├── pr-gate.sh               # Unchanged (still checks same markers)
-│   │   ├── codex-gate.sh            # Updated: regex matches tmux-codex.sh instead of call_codex.sh
-│   │   └── codex-trace.sh           # Updated: regex matches tmux-codex.sh instead of call_codex.sh
-│   ├── rules/
-│   │   ├── execution-core.md         # Updated: tmux references
-│   │   ├── autonomous-flow.md        # Updated: tmux references
-│   │   └── (backend/, frontend/)     # Unchanged
-│   ├── skills/
-│   │   ├── codex-cli/
-│   │   │   ├── SKILL.md              # Rewritten: direct tmux patterns
-│   │   │   └── scripts/
-│   │   │       └── tmux-codex.sh     # NEW: sends review/task/verdict to Codex pane via tmux
-│   │   ├── tmux-handler/
-│   │   │   └── SKILL.md              # NEW: how Claude handles incoming [CODEX] messages
-│   │   ├── task-workflow/SKILL.md    # Updated: step 7 uses tmux-codex.sh
-│   │   ├── bugfix-workflow/SKILL.md  # Updated: codex step uses tmux-codex.sh
-│   │   ├── pre-pr-verification/      # Unchanged
-│   │   └── (other skills/)           # Unchanged
-│   ├── agents/                        # Unchanged
-│   └── scripts/                       # Unchanged
-│
-├── codex/                             # Copied + adapted from ai-config
-│   ├── AGENTS.md                      # Updated: tmux context, direct communication instructions
-│   ├── config.toml                    # Unchanged (sandbox mode set at launch)
-│   ├── rules/                         # Unchanged
-│   └── skills/
-│       ├── claude-cli/
-│       │   ├── SKILL.md              # Rewritten: direct tmux patterns
-│       │   └── scripts/
-│       │       └── tmux-claude.sh    # NEW: sends question/response to Claude pane via tmux
-│       └── tmux-review/
-│           └── SKILL.md              # NEW: how Codex handles review requests via tmux
-│
-├── shared/                            # Copied from ai-config
-│   └── skills/                        # Unchanged
-│
-├── tests/
-│   ├── test-party.sh                  # Session launch/teardown tests
-│   ├── test-tmux-codex.sh            # Claude→Codex communication tests
-│   ├── test-tmux-claude.sh           # Codex→Claude communication tests
-│   ├── test-hooks.sh                 # Hook integration tests
-│   ├── test-integration.sh           # Full review cycle with mock agents
-│   ├── mock-claude.sh               # Mock Claude agent for testing
-│   ├── mock-codex.sh                # Mock Codex agent for testing
-│   └── run-tests.sh                 # Test runner
-│
-├── install.sh                         # Adapted from ai-config
-└── README.md
+ai-config/
+├── main          ← daily driver, current subprocess system
+└── tmux          ← new files + edited files for tmux integration
 ```
+
+- **Develop** on the `tmux` branch — new files are added, existing files are edited in place
+- **Daily use** stays on `main` — `~/.claude` symlink points to `ai-config/claude` on `main`
+- **Evaluate** by checking out `tmux` — same symlink, different branch content
+- **Rollback** is `git checkout main` — instant revert, no symlink changes needed
+- **Merge** when ready — `git merge tmux` into `main`, old scripts are replaced
+
+### What changes on the `tmux` branch
+
+**New files added:**
+
+```
+session/
+└── party.sh                                     # Session launcher + teardown
+
+claude/skills/codex-cli/scripts/tmux-codex.sh    # Claude→Codex transport (replaces call_codex.sh + codex-verdict.sh)
+claude/skills/tmux-handler/SKILL.md              # How Claude handles incoming [CODEX] messages
+
+codex/skills/claude-cli/scripts/tmux-claude.sh   # Codex→Claude transport (replaces call_claude.sh)
+codex/skills/tmux-review/SKILL.md                # How Codex handles review requests
+
+tests/
+├── test-party.sh                                # Session launch/teardown tests
+├── test-tmux-codex.sh                           # Claude→Codex communication tests
+├── test-tmux-claude.sh                          # Codex→Claude communication tests
+├── test-hooks.sh                                # Hook integration tests
+├── test-integration.sh                          # Full review cycle with mock agents
+├── mock-claude.sh                               # Mock Claude agent for testing
+├── mock-codex.sh                                # Mock Codex agent for testing
+└── run-tests.sh                                 # Test runner
+```
+
+**Existing files edited:**
+
+```
+claude/CLAUDE.md                                 # Add tmux context, [CODEX] message convention, verdict authority
+claude/settings.json                             # Swap permission lines: call_codex.sh/codex-verdict.sh → tmux-codex.sh
+claude/hooks/codex-gate.sh                       # Regex: call_codex.sh → tmux-codex.sh
+claude/hooks/codex-trace.sh                      # Regex: call_codex.sh → tmux-codex.sh
+claude/rules/execution-core.md                   # call_codex.sh → tmux-codex.sh
+claude/rules/autonomous-flow.md                  # call_codex.sh → tmux-codex.sh
+claude/skills/codex-cli/SKILL.md                 # Rewritten: tmux-codex.sh modes + verdict semantics
+claude/skills/task-workflow/SKILL.md             # Steps 7+8 rewritten for tmux
+claude/skills/bugfix-workflow/SKILL.md           # Codex steps rewritten for tmux
+codex/AGENTS.md                                  # Add tmux context section
+codex/skills/claude-cli/SKILL.md                 # Rewritten: tmux-claude.sh + STATE_DIR discovery
+```
+
+**Existing files deleted (replaced by new scripts above):**
+
+```
+claude/skills/codex-cli/scripts/call_codex.sh    # Replaced by tmux-codex.sh
+claude/skills/codex-cli/scripts/codex-verdict.sh # Merged into tmux-codex.sh --approve/--re-review/--needs-discussion
+codex/skills/claude-cli/scripts/call_claude.sh   # Replaced by tmux-claude.sh
+```
+
+**Everything else is unchanged** — hooks (7 of 9), agents, scripts, technology rules, shared skills, codex rules, codex planning skill, config.toml all remain as-is on the branch.
 
 ---
 
@@ -1002,22 +1001,9 @@ done
 
 ---
 
-## Phase 8: Installation & Migration
+## Phase 8: iTerm2 Setup & Migration
 
-### 8.1 Installer
-
-Adapted from `ai-config/install.sh`. Symlinks the new `claude/` and `codex/` directories:
-
-```bash
-# Option A: replace ai-config entirely
-./install.sh                    # Creates ~/.claude → ai-config-tmux/claude, ~/.codex → ai-config-tmux/codex
-
-# Option B: install alongside (both systems available)
-./install.sh --alongside        # Creates ~/.claude-tmux → ai-config-tmux/claude
-                                # User switches by re-symlinking ~/.claude
-```
-
-### 8.2 iTerm2 Keybindings
+### 8.1 iTerm2 Keybindings
 
 Set up keybindings so launching and managing party sessions is a single keystroke.
 
@@ -1032,7 +1018,7 @@ Set up keybindings so launching and managing party sessions is a single keystrok
       "Name": "Party",
       "Guid": "party-session-profile",
       "Custom Command": "Yes",
-      "Command": "~/ai-config-tmux/session/party.sh",
+      "Command": "~/ai-config/session/party.sh",
       "Working Directory": "",
       "Custom Directory": "Recycle",
       "Tags": ["ai-config", "party"]
@@ -1048,18 +1034,34 @@ Set up keybindings so launching and managing party sessions is a single keystrok
 | `Cmd+Shift+P` | New Tab with Profile → Party | Launch a new party session |
 | `Cmd+Shift+K` | Send Text: `party.sh --stop\n` | Kill the current party session |
 
-### 8.3 Migration path
+### 8.2 Migration path
 
 ```
 Week 0:   Prerequisites (Phase 0) — validate sandbox writes + send-keys before building anything
 Week 1:   Session launcher (Phase 1) + tmux-codex.sh (Phase 2) + tmux-claude.sh (Phase 3)
 Week 2:   Agent skills (Phase 4) + hook updates (Phase 5) + documentation (Phase 6)
-Week 3:   Testing (Phase 7) + installation (Phase 8)
+Week 3:   Testing (Phase 7) + iTerm2 setup (Phase 8)
 Week 4:   Integration testing with real agents, side-by-side evaluation
-          → Decision: adopt tmux, stay with CLI, or hybrid
+          → Decision: merge tmux branch to main, keep on branch, or abandon
 ```
 
-**Rollback:** `ln -sf ~/ai-config/claude ~/.claude` — instant revert to subprocess model.
+**Switching systems:**
+```bash
+# Use tmux system
+cd ~/ai-config && git checkout tmux
+
+# Use subprocess system (rollback)
+cd ~/ai-config && git checkout main
+```
+
+No symlink changes needed — `~/.claude` already points to `~/ai-config/claude`. Switching branches changes the content the symlink resolves to.
+
+**Merging when ready:**
+```bash
+cd ~/ai-config && git checkout main && git merge tmux
+```
+
+After merge, `main` has the tmux system and the old `call_codex.sh`/`codex-verdict.sh`/`call_claude.sh` scripts are deleted. The subprocess system is still available via `git checkout main~1` if needed.
 
 ---
 
@@ -1094,119 +1096,62 @@ Week 4:   Integration testing with real agents, side-by-side evaluation
 9. **Markers are compatible:** Same `/tmp/claude-*` paths, same semantics, `pr-gate.sh` works unchanged
 10. **iTerm2 UX:** `tmux -CC` gives native panes with scrollback and search
 11. **Tests pass:** All test suites green
-12. **Rollback works:** Single symlink change reverts to subprocess model
+12. **Rollback works:** `git checkout main` reverts to subprocess model instantly
 
 ---
 
-## Appendix A: File Copy Manifest
+## Appendix A: Change Manifest
 
-### Copy unchanged (no modifications)
+Complete list of changes on the `tmux` branch relative to `main`.
 
-```bash
-# Hooks that work identically
-cp ai-config/claude/hooks/session-cleanup.sh    ai-config-tmux/claude/hooks/
-cp ai-config/claude/hooks/skill-eval.sh         ai-config-tmux/claude/hooks/
-cp ai-config/claude/hooks/worktree-guard.sh     ai-config-tmux/claude/hooks/
-cp ai-config/claude/hooks/agent-trace.sh        ai-config-tmux/claude/hooks/
-cp ai-config/claude/hooks/marker-invalidate.sh  ai-config-tmux/claude/hooks/
-cp ai-config/claude/hooks/skill-marker.sh       ai-config-tmux/claude/hooks/
-cp ai-config/claude/hooks/pr-gate.sh            ai-config-tmux/claude/hooks/
-
-# Agent definitions (sub-agents unchanged)
-cp -r ai-config/claude/agents/                  ai-config-tmux/claude/agents/
-
-# Technology rules (unchanged)
-cp -r ai-config/claude/rules/backend/           ai-config-tmux/claude/rules/backend/
-cp -r ai-config/claude/rules/frontend/          ai-config-tmux/claude/rules/frontend/
-
-# Skills that don't reference codex invocation
-cp -r ai-config/claude/skills/pre-pr-verification/  ai-config-tmux/claude/skills/
-cp -r ai-config/claude/skills/write-tests/           ai-config-tmux/claude/skills/
-cp -r ai-config/claude/skills/code-review/           ai-config-tmux/claude/skills/
-
-# Scripts (status line, etc.)
-cp -r ai-config/claude/scripts/                 ai-config-tmux/claude/scripts/
-
-# Shared skills (unchanged)
-cp -r ai-config/shared/                         ai-config-tmux/shared/
-
-# Codex rules (unchanged)
-cp -r ai-config/codex/rules/                    ai-config-tmux/codex/rules/
-
-# Codex planning skill (unchanged)
-cp -r ai-config/codex/skills/planning/          ai-config-tmux/codex/skills/planning/
-```
-
-### Copy and modify
+### New files
 
 ```
-ai-config/claude/CLAUDE.md → ai-config-tmux/claude/CLAUDE.md
-  Edits: Replace "call_codex.sh" → "tmux-codex.sh"
-         Replace "codex-verdict.sh" → "tmux-codex.sh --approve/--re-review/--needs-discussion"
-         Add tmux context section
-         Add [CODEX] message convention
-         Add verdict authority note
+session/party.sh                                     # Session launcher + teardown (Phase 1)
 
-ai-config/claude/settings.json → ai-config-tmux/claude/settings.json
-  Edits: Replace permission lines (call_codex.sh/codex-verdict.sh → tmux-codex.sh)
+claude/skills/codex-cli/scripts/tmux-codex.sh        # Claude→Codex transport (Phase 2)
+claude/skills/tmux-handler/SKILL.md                  # How Claude handles incoming [CODEX] messages (Phase 4)
 
-ai-config/claude/hooks/codex-gate.sh → ai-config-tmux/claude/hooks/codex-gate.sh
-  Edits: Regex: call_codex.sh → tmux-codex.sh
-         Regex: codex-verdict.sh → tmux-codex.sh
+codex/skills/claude-cli/scripts/tmux-claude.sh       # Codex→Claude transport (Phase 3)
+codex/skills/tmux-review/SKILL.md                    # How Codex handles review requests (Phase 4)
 
-ai-config/claude/hooks/codex-trace.sh → ai-config-tmux/claude/hooks/codex-trace.sh
-  Edits: Regex: call_codex.sh → tmux-codex.sh
-         Regex: codex-verdict.sh → tmux-codex.sh
-
-ai-config/claude/rules/execution-core.md → ai-config-tmux/claude/rules/execution-core.md
-  Edits: call_codex.sh → tmux-codex.sh, codex-verdict.sh → tmux-codex.sh --approve
-
-ai-config/claude/rules/autonomous-flow.md → ai-config-tmux/claude/rules/autonomous-flow.md
-  Edits: call_codex.sh → tmux-codex.sh, codex-verdict.sh → tmux-codex.sh --approve
-
-ai-config/claude/skills/task-workflow/SKILL.md → ai-config-tmux/claude/skills/task-workflow/SKILL.md
-  Edits: Step 7 + 8 rewritten (see Phase 6.1)
-
-ai-config/claude/skills/bugfix-workflow/SKILL.md → ai-config-tmux/claude/skills/bugfix-workflow/SKILL.md
-  Edits: Codex steps rewritten (see Phase 6.1)
-
-ai-config/codex/AGENTS.md → ai-config-tmux/codex/AGENTS.md
-  Edits: Add tmux context section (see Phase 6.2)
-
-ai-config/codex/config.toml → ai-config-tmux/codex/config.toml
-  Edits: None needed (sandbox mode set at launch)
+tests/test-party.sh                                  # Session tests (Phase 7)
+tests/test-tmux-codex.sh                             # Claude→Codex tests (Phase 7)
+tests/test-tmux-claude.sh                            # Codex→Claude tests (Phase 7)
+tests/test-hooks.sh                                  # Hook tests (Phase 7)
+tests/test-integration.sh                            # Integration tests (Phase 7)
+tests/mock-claude.sh                                 # Mock Claude (Phase 7)
+tests/mock-codex.sh                                  # Mock Codex (Phase 7)
+tests/run-tests.sh                                   # Test runner (Phase 7)
 ```
 
-### Do NOT copy (replaced entirely)
+### Edited files
 
 ```
-ai-config/claude/skills/codex-cli/scripts/call_codex.sh    → REPLACED BY: tmux-codex.sh
-ai-config/claude/skills/codex-cli/scripts/codex-verdict.sh → MERGED INTO: tmux-codex.sh --approve/--re-review/--needs-discussion
-ai-config/codex/skills/claude-cli/scripts/call_claude.sh   → REPLACED BY: tmux-claude.sh
+claude/CLAUDE.md                                     # Add tmux context, [CODEX] convention, verdict authority
+claude/settings.json                                 # Swap permission lines: call_codex.sh/codex-verdict.sh → tmux-codex.sh
+claude/hooks/codex-gate.sh                           # Regex: call_codex.sh → tmux-codex.sh, codex-verdict.sh → tmux-codex.sh
+claude/hooks/codex-trace.sh                          # Regex: call_codex.sh → tmux-codex.sh, codex-verdict.sh → tmux-codex.sh
+claude/rules/execution-core.md                       # call_codex.sh → tmux-codex.sh, codex-verdict.sh → tmux-codex.sh --approve
+claude/rules/autonomous-flow.md                      # call_codex.sh → tmux-codex.sh, codex-verdict.sh → tmux-codex.sh --approve
+claude/skills/codex-cli/SKILL.md                     # Rewritten: tmux-codex.sh modes + verdict semantics (Phase 4)
+claude/skills/task-workflow/SKILL.md                 # Steps 7+8 rewritten for tmux (Phase 6)
+claude/skills/bugfix-workflow/SKILL.md               # Codex steps rewritten for tmux (Phase 6)
+codex/AGENTS.md                                      # Add tmux context section (Phase 6)
+codex/skills/claude-cli/SKILL.md                     # Rewritten: tmux-claude.sh + STATE_DIR discovery (Phase 4)
 ```
 
-### New files (don't exist in ai-config)
+### Deleted files (replaced by new scripts above)
 
 ```
-ai-config-tmux/session/party.sh                                # Session launcher (Phase 1)
-ai-config-tmux/claude/skills/codex-cli/scripts/tmux-codex.sh   # Claude→Codex transport (Phase 2)
-ai-config-tmux/claude/skills/codex-cli/SKILL.md                # Claude's outbound protocol — when/how to use tmux-codex.sh (Phase 4)
-ai-config-tmux/claude/skills/tmux-handler/SKILL.md             # How Claude handles incoming [CODEX] messages (Phase 4)
-ai-config-tmux/codex/skills/claude-cli/scripts/tmux-claude.sh  # Codex→Claude transport (Phase 3)
-ai-config-tmux/codex/skills/claude-cli/SKILL.md                # Codex's outbound protocol — when/how to use tmux-claude.sh (Phase 4)
-ai-config-tmux/codex/skills/tmux-review/SKILL.md               # How Codex handles review requests (Phase 4)
-
-ai-config-tmux/tests/test-party.sh              # Session tests (Phase 7)
-ai-config-tmux/tests/test-tmux-codex.sh         # Claude→Codex tests (Phase 7)
-ai-config-tmux/tests/test-tmux-claude.sh        # Codex→Claude tests (Phase 7)
-ai-config-tmux/tests/test-hooks.sh              # Hook tests (Phase 7)
-ai-config-tmux/tests/test-integration.sh        # Integration tests (Phase 7)
-ai-config-tmux/tests/mock-claude.sh             # Mock Claude (Phase 7)
-ai-config-tmux/tests/mock-codex.sh              # Mock Codex (Phase 7)
-ai-config-tmux/tests/run-tests.sh               # Test runner (Phase 7)
-
-ai-config-tmux/install.sh                       # Installer (Phase 8)
+claude/skills/codex-cli/scripts/call_codex.sh        # Replaced by tmux-codex.sh
+claude/skills/codex-cli/scripts/codex-verdict.sh     # Merged into tmux-codex.sh --approve/--re-review/--needs-discussion
+codex/skills/claude-cli/scripts/call_claude.sh       # Replaced by tmux-claude.sh
 ```
+
+### Unchanged (no modifications needed)
+
+All other files remain identical to `main`. Because this is a branch, they don't need to be copied — they're just there.
 
 ---
 
