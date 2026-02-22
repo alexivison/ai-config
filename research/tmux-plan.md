@@ -127,7 +127,7 @@ claude/skills/codex-cli/scripts/tmux-codex.sh    # Claude→Codex transport (rep
 claude/skills/tmux-handler/SKILL.md              # How Claude handles incoming [CODEX] messages
 
 codex/skills/claude-cli/scripts/tmux-claude.sh   # Codex→Claude transport (replaces call_claude.sh)
-codex/skills/tmux-review/SKILL.md                # How Codex handles review requests
+codex/skills/tmux-handler/SKILL.md               # How Codex handles incoming messages from Claude
 
 tests/
 ├── test-party.sh                                # Session launch/teardown tests
@@ -323,7 +323,7 @@ This single script replaces both `call_codex.sh` and `codex-verdict.sh`. Claude 
 
 | Mode | Replaces | What it does |
 |------|----------|-------------|
-| `--review` | `call_codex.sh --review` | Sends a short message to Codex pane via `tmux send-keys` with base branch, title, and findings file path. Codex's `tmux-review` skill defines the review protocol. Returns immediately (non-blocking) |
+| `--review` | `call_codex.sh --review` | Sends a short message to Codex pane via `tmux send-keys` with base branch, title, and findings file path. Codex's `tmux-handler` skill defines the review protocol. Returns immediately (non-blocking) |
 | `--prompt` | `call_codex.sh --prompt` | Sends prompt text and response file path to Codex pane via `tmux send-keys`. Returns immediately (non-blocking) |
 | `--approve` | `codex-verdict.sh approve` | Outputs `CODEX APPROVED` sentinel. `codex-trace.sh` hook detects this and creates evidence markers (codex-ran + codex-approved) |
 | `--re-review` | `codex-verdict.sh request_changes` | Outputs `CODEX REQUEST_CHANGES` sentinel. Hook creates codex-ran marker only |
@@ -356,7 +356,7 @@ case "$MODE" in
     TITLE="${3:-Code review}"
     FINDINGS_FILE="$STATE_DIR/messages/to-claude/codex-findings-$TIMESTAMP.json"
 
-    # Just tell Codex what to review. Codex's tmux-review skill defines
+    # Just tell Codex what to review. Codex's tmux-handler skill defines
     # the review protocol: severity classification, output format, notification.
     tmux send-keys -t "$CODEX_PANE" \
       "Review the changes on this branch against $BASE. Title: $TITLE. Write findings to: $FINDINGS_FILE" C-m
@@ -516,20 +516,23 @@ echo "CLAUDE_MESSAGE_SENT"
 
 The scripts (`tmux-codex.sh`, `tmux-claude.sh`) are just thin transport — they send a short message via tmux. The actual behavior (how to review, what format to use, how to notify) lives in skills on each agent's side. This mirrors the current system where `codex exec review` works because Codex has built-in review logic, not because the calling script tells it every detail.
 
-### 4.1 Codex: `tmux-review` Skill
+### 4.1 Codex: `tmux-handler` Skill
 
-Defines how Codex handles review requests received via tmux. This is the tmux equivalent of `codex exec review`'s built-in behavior.
+Defines how Codex handles incoming messages from Claude via tmux. Claude may send review requests, tasks, plan review requests, or other work. This is the Codex-side counterpart of Claude's `tmux-handler` skill.
 
-**`codex/skills/tmux-review/SKILL.md`:**
+**`codex/skills/tmux-handler/SKILL.md`:**
 
 ```markdown
-# tmux-review — Handle review requests from Claude via tmux
+# tmux-handler — Handle incoming messages from Claude via tmux
 
 ## Trigger
 
-You receive a message in your tmux pane asking you to review changes against a base branch.
+You see a message in your tmux pane from Claude (prefixed with `[CLAUDE]` or sent via `tmux-codex.sh`).
 
-## Protocol
+## Message types
+
+### Review request
+Message asks you to review changes against a base branch.
 
 1. **Get the diff**: Run `git diff $(git merge-base HEAD <base>)..HEAD` to see the changes
 2. **Review scope**: Review changed files AND adjacent files (callers, callees, types, tests)
@@ -561,12 +564,35 @@ You receive a message in your tmux pane asking you to review changes against a b
    ~/.codex/skills/claude-cli/scripts/tmux-claude.sh "Review complete. Findings at: <findings_file>"
    ```
 
-## On re-review
+### Re-review request
+Claude fixed blocking issues and requests another pass.
 
-If you've reviewed this branch before in this session, focus on:
-- Verifying previous blocking issues were addressed
-- Flagging only genuinely NEW issues
+- Verify previous blocking issues were addressed
+- Flag only genuinely NEW issues
 - Do NOT re-raise findings that were already addressed
+
+### Task request
+Claude asks you to investigate or work on something.
+
+1. Perform the requested task
+2. Write results to the file path specified (if given)
+3. Notify Claude: `tmux-claude.sh "Task complete. Response at: <path>"`
+
+### Plan review request
+Claude shares a plan and asks for your assessment.
+
+1. Read the plan
+2. Evaluate feasibility, risks, missing steps
+3. Write feedback to the specified file (same findings JSON format, but categories may include `architecture`, `feasibility`, `missing-step`)
+4. Notify Claude: `tmux-claude.sh "Plan review complete. Findings at: <path>"`
+
+### Question from Claude
+Claude asks for information or your opinion.
+
+1. Read the question
+2. Investigate the codebase or reason about the answer
+3. Write response to the specified file
+4. Notify Claude: `tmux-claude.sh "Response ready at: <path>"`
 ```
 
 ### 4.2 Codex: `claude-cli` Skill (rewritten)
@@ -739,7 +765,7 @@ Verdict modes output sentinel strings that hooks detect to create evidence marke
 ```
 
 **Deliverables:**
-- [ ] `codex/skills/tmux-review/SKILL.md` — Codex's review protocol (severity, format, notification, re-review behavior)
+- [ ] `codex/skills/tmux-handler/SKILL.md` — Codex's inbound handler (reviews, tasks, plan reviews, questions from Claude)
 - [ ] `codex/skills/claude-cli/SKILL.md` — Codex's outbound protocol (when/how to contact Claude, message conventions)
 - [ ] `claude/skills/tmux-handler/SKILL.md` — Claude's handler for `[CODEX]` messages (triage, verdict, question answering)
 - [ ] `claude/skills/codex-cli/SKILL.md` — Claude's outbound protocol (when/how to contact Codex, all modes, verdict semantics)
@@ -1070,14 +1096,14 @@ After merge, `main` has the tmux system and the old `call_codex.sh`/`codex-verdi
 | Risk | Severity | Mitigation |
 |------|----------|------------|
 | `tmux send-keys` arrives while agent is mid-execution | High | Transport scripts use `wait_for_idle()` heuristic (see Context section). Fallback: file-based notification + polling |
-| Codex ignores file-write instruction | Medium | `tmux-review` skill explicitly instructs file write; Codex's AGENTS.md reinforces. Fall back to `tmux capture-pane` |
+| Codex ignores file-write instruction | Medium | `tmux-handler` skill explicitly instructs file write; Codex's AGENTS.md reinforces. Fall back to `tmux capture-pane` |
 | Large diff exceeds tmux send-keys limit | Low | Not applicable: Codex runs its own git diff in the shared repo |
 | `[CODEX]` message confused with user input | Low | Distinctive prefix; documented in CLAUDE.md and `tmux-handler` skill |
 | Agent crashes | Medium | User can see both panes; restart agent manually or re-run `party.sh` |
 | Race condition: code edit during Codex review | Medium | `marker-invalidate.sh` still fires on Edit/Write — same as today |
 | Codex sandbox write access to `/tmp/` | ~~High~~ | **Resolved in Phase 0.** Tested before implementation begins. Fallback options documented |
 | Claude rubber-stamps --approve without reading findings | Medium | Same risk as today; mitigated by `codex-gate.sh` (gate 2: codex-ran required) and `tmux-handler` skill instructions |
-| Codex forgets to notify Claude after writing findings | Medium | `tmux-review` skill explicitly instructs notification step; Codex's AGENTS.md reinforces convention |
+| Codex forgets to notify Claude after writing findings | Medium | `tmux-handler` skill explicitly instructs notification step; Codex's AGENTS.md reinforces convention |
 | Codex takes too long, no notification arrives | Low | User can see both panes in iTerm2 and nudge either agent; could add a timeout convention in skill docs |
 | Multiple party sessions cause script confusion | Low | `discover_session()` uses `head -1` — only one session supported at a time. Document as constraint |
 
@@ -1113,7 +1139,7 @@ claude/skills/codex-cli/scripts/tmux-codex.sh        # Claude→Codex transport 
 claude/skills/tmux-handler/SKILL.md                  # How Claude handles incoming [CODEX] messages (Phase 4)
 
 codex/skills/claude-cli/scripts/tmux-claude.sh       # Codex→Claude transport (Phase 3)
-codex/skills/tmux-review/SKILL.md                    # How Codex handles review requests (Phase 4)
+codex/skills/tmux-handler/SKILL.md                    # How Codex handles incoming messages from Claude (Phase 4)
 
 tests/test-party.sh                                  # Session tests (Phase 7)
 tests/test-tmux-codex.sh                             # Claude→Codex tests (Phase 7)
