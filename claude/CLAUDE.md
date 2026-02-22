@@ -53,14 +53,22 @@ tests → implement → checkboxes → self-review → [code-critic + minimizer]
 | Run tests | test-runner |
 | Run typecheck/lint | check-runner |
 | Security scan | security-scanner (via /pre-pr-verification) |
-| Complex bug investigation | codex (direct via call_codex.sh, debugging task) |
+| Complex bug investigation | codex (via tmux-codex.sh --prompt, debugging task) |
 | After implementing | code-critic + minimizer (MANDATORY, parallel) |
-| After code-critic + minimizer | codex (direct via call_codex.sh, MANDATORY) |
-| After creating plan | codex (direct via call_codex.sh, MANDATORY) |
+| After code-critic + minimizer | codex (via tmux-codex.sh --review, MANDATORY) |
+| After creating plan | codex (via tmux-codex.sh --prompt, MANDATORY) |
 
 **MANDATORY agents apply to ALL implementation changes** — including ad-hoc requests outside formal workflows. If you write or modify implementation code, run code-critic + minimizer → codex → /pre-pr-verification before creating a PR.
 
 **Debugging output:** Save investigation findings to `~/.claude/investigations/<issue-slug>.md`.
+
+## tmux Session Context
+
+You are running in a tmux pane alongside Codex. Communicate with Codex directly via `tmux-codex.sh`. Codex reviews are non-blocking — continue with non-edit work while Codex reviews.
+
+Messages prefixed with `[CODEX]` are from Codex's tmux pane. Handle them per your `tmux-handler` skill: read the referenced file, investigate, respond.
+
+You decide all verdicts. Codex produces findings, you triage them.
 
 ## Verification Principle
 

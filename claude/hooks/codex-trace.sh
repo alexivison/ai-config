@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Codex Trace Hook
-# 1. Creates codex-ran evidence marker when call_codex.sh is invoked
-# 2. Creates PR gate marker when codex-verdict.sh emits CODEX APPROVED
+# 1. Creates codex-ran evidence marker when tmux-codex.sh --review-complete emits CODEX_REVIEW_RAN
+# 2. Creates PR gate marker when tmux-codex.sh --approve emits CODEX APPROVED
 #    (only if codex-ran evidence exists — prevents self-declared approval)
 #
 # Triggered: PostToolUse on Bash tool
@@ -29,31 +29,37 @@ if [ -z "$session_id" ] || [ "$session_id" = "unknown" ]; then
   exit 0
 fi
 
-# --- Evidence marker: codex review actually completed ---
-# Requires BOTH: (1) anchored command match (call_codex.sh at command position, --review as first arg)
-#                (2) output contains sentinel emitted only by the script on review success
-# Neither alone suffices: echo forgery fails (1), prompt-with-sentinel fails (1), sentinel-only fails (1).
+# Only trace tmux-codex.sh invocations
+if ! echo "$command" | grep -qE '(^|[;&|] *)([^ ]*/)?tmux-codex\.sh'; then
+  exit 0
+fi
+
 response=$(echo "$hook_input" | jq -r '.tool_response // ""' 2>/dev/null)
-if echo "$command" | grep -qE '(^|[;&|] *)([^ ]*/)call_codex\.sh +--review( |[;&|]|$)' && echo "$response" | grep -qx "CODEX_REVIEW_RAN"; then
+
+# --- Evidence marker: codex review actually completed ---
+# tmux-codex.sh --review-complete emits CODEX_REVIEW_RAN after verifying findings file exists
+if echo "$response" | grep -qx "CODEX_REVIEW_RAN"; then
   touch "/tmp/claude-codex-ran-$session_id"
   exit 0
 fi
 
-# --- Verdict marker: codex-verdict.sh approve ---
-# Only match actual codex-verdict.sh invocations (not cat/grep/read/echo)
-# Require path-prefixed execution at command position (start of line or after shell operator)
-if ! echo "$command" | grep -qE '(^|[;&|] *)([^ ]*/)codex-verdict\.sh '; then
+# --- Re-review: delete codex-ran marker to force new review cycle ---
+# Without this, --re-review leaves codex-ran alive, allowing --approve
+# to bypass the gate without a second Codex pass.
+# Prefix match (not -qx) because --re-review appends a reason string.
+if echo "$response" | grep -q "^CODEX REQUEST_CHANGES"; then
+  rm -f "/tmp/claude-codex-ran-$session_id"
+  rm -f "/tmp/claude-codex-$session_id"
   exit 0
 fi
 
-# Exact token match — response from codex-verdict.sh is a single line
-# (response already parsed above for evidence check)
+# --- Verdict marker: tmux-codex.sh --approve ---
 if echo "$response" | grep -qx "CODEX APPROVED"; then
   # Gate: only create approval marker if codex was actually run
   if [ -f "/tmp/claude-codex-ran-$session_id" ]; then
     touch "/tmp/claude-codex-$session_id"
   else
-    echo "BLOCKED: codex-verdict.sh approve called without evidence of call_codex.sh invocation"
+    echo "BLOCKED: tmux-codex.sh --approve called without evidence of codex review completion"
   fi
 fi
 

@@ -4,101 +4,61 @@ description: Invoke Codex CLI for deep reasoning, review, and analysis
 user-invocable: false
 ---
 
-# Codex CLI — Direct Invocation
+# codex-cli — Communicate with Codex via tmux
 
-## Safety
+## When to contact Codex
 
-- Sandbox always defaults to `read-only` (never `workspace-write`).
-- `codex exec review`: inherently read-only (no sandbox flag needed).
-- Timeout: 900s default for review, 300s for exec. Portable wrapper (`gtimeout` > `timeout` > `perl`).
+- **For code review**: After implementing changes and passing sub-agent critics, request Codex review
+- **For tasks**: When you need Codex to investigate or work on something in parallel
+- **For verdict**: After triaging Codex's findings, signal your decision
 
-## Command Patterns
+## How to contact Codex
 
-### Code Review
-
+Use the transport script:
 ```bash
-~/.claude/skills/codex-cli/scripts/call_codex.sh \
-  --review --base main --title "{PR title or change summary}"
+~/.claude/skills/codex-cli/scripts/tmux-codex.sh <mode> [args...]
 ```
 
-- Uses `codex exec review` with built-in GPT-5.3 review logic — no custom prompt needed.
-- `--base main` diffs current branch against `main` (uses merge-base).
-- `--title` gives GPT-5.3 context about the intent of the changes.
-- Output: review findings as plain text (jq extracts final agent message internally).
+## Modes
 
-### Architecture Analysis
-
+### Request review (non-blocking)
+After implementing changes and passing sub-agent critics:
 ```bash
-~/.claude/skills/codex-cli/scripts/call_codex.sh \
-  --prompt "TASK: Architecture analysis. SCOPE: {files/modules}. EVALUATE: 1) Pattern consistency 2) Coupling/cohesion 3) Complexity hotspots. OUTPUT: Findings with file:line refs, then verdict."
+~/.claude/skills/codex-cli/scripts/tmux-codex.sh --review <base_branch> "<PR title>"
 ```
+This sends a message to Codex's pane. You are NOT blocked — continue with non-edit work while Codex reviews. Codex will notify you via `[CODEX] Review complete. Findings at: <path>` when done. Handle that message per your `tmux-handler` skill.
 
-### Plan Review
-
+### Send a task (non-blocking)
 ```bash
-~/.claude/skills/codex-cli/scripts/call_codex.sh \
-  --prompt "TASK: Plan review. PLAN: {summary}. CHECKLIST: 1) Data flow mapped? 2) Standards referenced? 3) Cross-task scope explicit? 4) Bug prevention covered? OUTPUT: Pass/fail per item, then verdict."
+~/.claude/skills/codex-cli/scripts/tmux-codex.sh --prompt "<task description>"
 ```
+Returns immediately. Codex will notify you when done.
 
-### Design Decision
-
+### Record review completion evidence
+After Codex notifies you that findings are ready:
 ```bash
-~/.claude/skills/codex-cli/scripts/call_codex.sh \
-  --prompt "TASK: Design comparison. OPTIONS: A) {option_a} B) {option_b}. CRITERIA: 1) Complexity 2) Maintainability 3) Performance 4) Risk. OUTPUT: Pros/cons matrix, recommendation."
+~/.claude/skills/codex-cli/scripts/tmux-codex.sh --review-complete "<findings_file>"
 ```
+This preserves the existing evidence-chain invariant: `CODEX_REVIEW_RAN` means a completed review, not merely a queued request.
 
-### Debugging
-
+### Signal verdict (after triaging findings)
 ```bash
-~/.claude/skills/codex-cli/scripts/call_codex.sh \
-  --prompt "TASK: Error analysis. ERROR: {error_message}. CONTEXT: {file:line, stack trace}. ANALYZE: 1) Root cause 2) Contributing factors 3) Fix options. OUTPUT: Diagnosis with evidence, ranked fixes."
+# All findings non-blocking — approve
+~/.claude/skills/codex-cli/scripts/tmux-codex.sh --approve
+
+# Blocking findings fixed, request re-review
+~/.claude/skills/codex-cli/scripts/tmux-codex.sh --re-review "what was fixed"
+
+# Unresolvable after max iterations
+~/.claude/skills/codex-cli/scripts/tmux-codex.sh --needs-discussion "reason"
 ```
+Verdict modes output sentinel strings that hooks detect to create evidence markers.
 
-## Prompt Template Rules
+## Important
 
-- **Always use TASK/SCOPE/OUTPUT structure** — gives GPT-5.3 clear framing.
-- **Fill all slots** before invocation — `{placeholders}` must be replaced with actual values.
-- **Never paraphrase** as a bare sentence — always decompose into structured fields.
-- **Keep prompts under 300 chars** — concise prompts reduce drift.
-
-## Execution
-
-1. Gather context — determine base branch, read domain rules from `claude/rules/` or `.claude/rules/`
-2. Build prompt using structured template (review mode needs no prompt)
-3. Invoke synchronously — **NEVER** use `run_in_background: true`. Set Bash tool `timeout` to exceed the script timeout: `timeout: 600000` for exec, `timeout: 960000` for review. This prevents Claude Code from auto-backgrounding the command.
-4. Read and analyze the complete Codex output
-5. Decide verdict based on findings
-
-## Verdict Protocol
-
-After analyzing Codex output, signal the verdict via a **separate** Bash call:
-
-```bash
-~/.claude/skills/codex-cli/scripts/codex-verdict.sh approve
-```
-
-Valid verdicts: `approve`, `request_changes`, `needs_discussion`.
-
-**CRITICAL:** `codex-verdict.sh` and `gh pr create` must be **separate Bash calls**, never chained with `&&`. The PR gate fires at PreToolUse before any command executes — a chained call would be denied before the marker is written.
-
-### When to approve
-
-- No bugs, security issues, or architectural concerns found
-- All prior feedback addressed (on iteration 2+)
-
-### When to request changes
-
-- Bugs, security issues, or architectural misfit found
-- Provide specific file:line references
-
-### When to escalate (needs_discussion)
-
-- Multiple valid approaches, unclear which is correct
-- Findings contradict project conventions
-- After 5 iterations without resolution
-
-## Iteration
-
-- Max 5 iterations, then NEEDS_DISCUSSION.
-- On iteration 2+: verify previous issues addressed, check for new issues.
-- Do NOT re-run after convention/style fixes from critics — only after logic or structural changes.
+- `--review` and `--prompt` are NON-BLOCKING. Continue working while Codex processes.
+- `--review-complete` emits `CODEX_REVIEW_RAN` only after findings exist.
+- Verdict modes (`--approve`, `--re-review`, `--needs-discussion`) are instant — they output sentinels for hook detection.
+- You decide the verdict. Codex produces findings, you triage them.
+- Before calling `--review`, ensure sub-agent critics have passed (codex-gate.sh enforces this).
+- Before calling `--approve`, ensure codex-ran marker exists (codex-gate.sh enforces this).

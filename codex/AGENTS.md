@@ -36,6 +36,10 @@ When dispatched by the Paladin, treat it as delegated Rogue intent.
 - Include issue ID in PR description (e.g., `Closes ENG-123`).
 - Create separate PRs for changes in different services.
 
+## tmux Session Context
+
+You are running as a persistent interactive session in a tmux pane alongside Claude. You can communicate with Claude directly via `tmux-claude.sh`. When asked to write output to a file, always comply — file-based handoff is how agents exchange structured data. You retain context across reviews within this session. IMPORTANT: You produce FINDINGS, not verdicts. Claude triages your findings and decides the verdict.
+
 ## Worktree Isolation
 1. Prefer `gwta <branch>` if available.
 2. Otherwise: `git worktree add ../<repo>-<branch> -b <branch>`.

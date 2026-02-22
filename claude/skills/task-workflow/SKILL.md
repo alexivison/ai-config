@@ -43,8 +43,12 @@ After passing the gate, execute continuously — **no stopping until PR is creat
    - No obvious bugs?
    Fix any failures before proceeding. Do not invoke critics on code you know is incomplete.
 6. **code-critic + minimizer** — Run in parallel with scope context and diff focus (see [Review Governance](#review-governance)). Triage findings by severity. Fix only blocking issues. Proceed to codex when no blocking findings remain. After fixing blocking critic findings, you MUST re-run both critics. The codex review gate requires critic APPROVE markers — if critics only returned REQUEST_CHANGES, those markers don't exist and codex invocation will be blocked.
-7. **codex** — Invoke `~/.claude/skills/codex-cli/scripts/call_codex.sh` for combined code + architecture review with scope context
-8. **Handle codex verdict** — Triage findings (see [Finding Triage](#finding-triage)). Classify fix impact for tiered re-review. Signal verdict via `codex-verdict.sh`.
+7. **codex** — Request codex review via tmux (non-blocking):
+   ```bash
+   ~/.claude/skills/codex-cli/scripts/tmux-codex.sh --review main "{PR title}"
+   ```
+   Continue with non-edit work while Codex reviews. Codex notifies via `[CODEX]` message when done.
+8. **Triage codex findings** — When `[CODEX] Review complete` arrives: read findings, record evidence (`--review-complete`), triage by severity, signal verdict (`--approve`/`--re-review`/`--needs-discussion`).
 9. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)
 10. **Commit & PR** — Create commit and draft PR
 
@@ -120,26 +124,33 @@ Forgetting PLAN.md is the most common violation. Verify both files are updated b
 
 ## Codex Step
 
-After critics have no remaining blocking findings, invoke Codex directly for deep review:
+After critics have no remaining blocking findings, request Codex review via tmux:
 
-**Review invocation:**
+**Review invocation (non-blocking):**
 ```bash
-~/.claude/skills/codex-cli/scripts/call_codex.sh \
-  --review --base main --title "{PR title or change summary}"
+~/.claude/skills/codex-cli/scripts/tmux-codex.sh --review main "{PR title or change summary}"
 ```
+This sends the review request to Codex's tmux pane. You are NOT blocked — continue with non-edit work while Codex reviews. Codex will notify you via `[CODEX] Review complete. Findings at: <path>` when done.
 
 **Non-review invocation (architecture, debugging):**
 ```bash
-~/.claude/skills/codex-cli/scripts/call_codex.sh \
-  --prompt "TASK: Code + Architecture Review. SCOPE: {changed files}. ITERATION: {N} of 3. PREVIOUS: {summary from issue ledger}. SCOPE BOUNDARIES: IN={in scope from TASK}, OUT={out of scope from TASK}. ACCEPTANCE CRITERIA: {from TASK file}. OUTPUT: Findings with severity (blocking/non-blocking), file:line refs, acceptance criteria coverage assessment, then verdict."
+~/.claude/skills/codex-cli/scripts/tmux-codex.sh --prompt "TASK: {description}. SCOPE: {changed files}."
 ```
 
-After analyzing Codex output, signal verdict via a **separate** Bash call:
-```bash
-~/.claude/skills/codex-cli/scripts/codex-verdict.sh approve
-```
+**When Codex notifies you (findings ready):**
+1. Read the FULL findings file with your Read tool
+2. Record review evidence:
+   ```bash
+   ~/.claude/skills/codex-cli/scripts/tmux-codex.sh --review-complete "<findings_file>"
+   ```
+3. Triage each finding: blocking / non-blocking / out-of-scope
+4. Update issue ledger (reject re-raised closed findings, detect oscillation)
+5. Signal verdict:
+   - All non-blocking: `tmux-codex.sh --approve`
+   - Blocking findings fixed, re-review needed: `tmux-codex.sh --re-review "what was fixed"`
+   - Unresolvable: `tmux-codex.sh --needs-discussion "reason"`
 
-The `codex-trace.sh` hook creates the "CODEX APPROVED" marker automatically when `codex-verdict.sh approve` runs.
+The `codex-trace.sh` hook creates evidence markers automatically from sentinel output.
 
 **Iteration protocol:**
 - Max 3 iterations for blocking findings, then NEEDS_DISCUSSION

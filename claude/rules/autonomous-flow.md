@@ -25,10 +25,11 @@ See [execution-core.md](execution-core.md) for the complete matrix.
 | Re-running full cascade after one-line codex fix | Use tiered re-review (test-runner only for targeted swaps) |
 | Critic oscillating (reverse own prior feedback) | Main agent decides, proceed |
 | Skipping self-review before critics | Run self-review checklist — critics depend on it |
-| Calling codex-verdict.sh approve without call_codex.sh | Evidence gate blocks — run codex first |
+| Calling tmux-codex.sh --approve without tmux-codex.sh --review-complete | Evidence gate blocks — run codex review first |
 | Editing code after codex approval, then creating PR | Markers auto-invalidated — re-run review cascade |
 | Manually creating /tmp/claude-* marker files | Markers are hook-created evidence only — never touch directly |
 | Fixing critic findings then calling codex without re-running critics | `codex-gate.sh` blocks — re-run critics first |
+| Calling tmux-codex.sh --review then immediately --approve without waiting for findings | Evidence gate blocks — wait for [CODEX] notification, then --review-complete first |
 
 ## Enforcement
 
@@ -36,7 +37,7 @@ See [execution-core.md](execution-core.md) for the complete matrix.
 
 ## Checkpoint Markers
 
-Created by `agent-trace.sh` (sub-agents) and `codex-trace.sh` (codex verdict via Bash hook). The `/tmp/claude-codex-{session_id}` marker is created by `codex-trace.sh` when `codex-verdict.sh approve` is run.
+Created by `agent-trace.sh` (sub-agents) and `codex-trace.sh` (codex verdict via Bash hook). The `/tmp/claude-codex-ran-{session_id}` marker is created by `codex-trace.sh` when `tmux-codex.sh --review-complete` emits `CODEX_REVIEW_RAN`. The `/tmp/claude-codex-{session_id}` marker is created when `tmux-codex.sh --approve` emits `CODEX APPROVED` (only if codex-ran exists).
 
 ## Post-PR Changes
 
