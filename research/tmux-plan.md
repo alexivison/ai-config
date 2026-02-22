@@ -12,9 +12,7 @@ The current system invokes Codex as a blocking subprocess (`codex exec`). Each i
 
 ### Architecture: Direct tmux, no coordinator
 
-**Previous approach (discarded):** A coordinator daemon sitting between Claude and Codex, managing a state machine, signal files, and pane I/O. This loses context — the coordinator doesn't know *why* Claude is requesting a review or what the findings mean.
-
-**New approach:** Claude and Codex each use `tmux send-keys` and `tmux capture-pane` directly via their Bash tools. No middleman. Each agent retains full context of what it's doing and why. The only shared infrastructure is:
+Claude and Codex each use `tmux send-keys` and `tmux capture-pane` directly via their Bash tools. No middleman. Each agent retains full context of what it's doing and why. The only shared infrastructure is:
 
 1. **`party.sh`** — launches the tmux session with panes for both agents
 2. **A shared state directory** (`/tmp/party-*`) — for file-based message handoff between agents
@@ -43,51 +41,15 @@ This is simpler, preserves context on both sides, and leverages what both agents
 
 iTerm2 supports `tmux -CC` (control mode), which maps tmux panes to native iTerm2 splits/tabs. The user gets native scrollback, selection, and search in each pane. Both agents use `tmux capture-pane` and `tmux send-keys` programmatically, but the user sees native iTerm2 windows.
 
-### `tmux send-keys` and CLI agent TUI interaction
+### `tmux send-keys` for inter-agent notification
 
-**The problem:** Both Claude Code and Codex have rich TUIs — spinners, progress indicators, tool approval prompts, streaming output. `tmux send-keys` types characters into the terminal buffer and sends `C-m` (enter). If the target agent is mid-execution (running a tool, generating output, showing a spinner), the injected text interacts with the TUI state unpredictably. The characters may appear in the output, get swallowed by a progress indicator, or be misinterpreted as a tool approval keystroke.
+**Decision: `send-keys`** for all inter-agent notifications. Structured data (findings, responses) is exchanged via files in `$STATE_DIR/`. Notifications ("go read the file") are delivered via `tmux send-keys`.
 
-**When it works cleanly:** Both Claude Code and Codex accept user input between turns — after finishing a response and before the user sends the next message. At that point the terminal is showing an input prompt, and `send-keys` text is queued as the next user message. This is the happy path.
+**Why `send-keys` works here:** Both agents launch in non-interactive modes — Claude with `--dangerously-skip-permissions`, Codex with `--full-auto`. There are no tool approval prompts to accidentally confirm, which eliminates the worst-case TUI interaction scenario.
 
-**When it's problematic:** If agent A sends a message while agent B is mid-execution:
-- The characters land in the terminal's input buffer
-- When agent B finishes and returns to the input prompt, the buffered text may be partially consumed, garbled, or split across multiple inputs
-- Worst case: a stray `C-m` during execution could confirm a tool approval the user didn't intend
+**What happens if a notification arrives mid-execution:** The text lands in the terminal's input buffer. When the agent finishes its current turn and returns to the input prompt, the buffered text gets submitted as the next user message. This is the desired behavior — the agent processes the notification when it's ready.
 
-**Mitigation strategy — gate on idle state:**
-
-The transport scripts (`tmux-codex.sh`, `tmux-claude.sh`) should wait for the target pane to be idle before sending. A simple approach:
-
-```bash
-wait_for_idle() {
-  local pane="$1" max_wait="${2:-60}" waited=0
-  while (( waited < max_wait )); do
-    # Capture the last line of the pane — check for input prompt indicators
-    local last_line
-    last_line=$(tmux capture-pane -t "$pane" -p | tail -1)
-    # Both Claude Code and Codex show a prompt character when ready for input
-    # Claude: ">" or "claude>" — Codex: ">" or "codex>"
-    if [[ "$last_line" =~ ^\> ]] || [[ "$last_line" =~ \>\s*$ ]]; then
-      return 0
-    fi
-    sleep 1
-    ((waited++))
-  done
-  echo "Warning: target pane not idle after ${max_wait}s, sending anyway" >&2
-  return 0  # Send anyway — better than hanging forever
-}
-```
-
-This is a heuristic, not a guarantee. The prompt character detection may need tuning for specific CLI versions. But it covers the common case: don't inject text while the agent is mid-execution.
-
-**Alternative: notification file + polling (fallback):**
-
-If `send-keys` proves unreliable, a fallback is pure file-based notification:
-1. Writer creates a notification file (e.g., `$STATE_DIR/notifications/to-claude-$TIMESTAMP.txt`)
-2. Reader's skill tells it to periodically check the notifications directory
-3. No terminal injection at all — just file I/O
-
-This is slower (polling interval) but completely safe. Could be used selectively for the "Codex notifies Claude" direction where timing is less critical.
+**Phase 0 validates this.** If `send-keys` doesn't work at all (e.g., the TUI swallows buffered input entirely), the architecture needs redesign before building.
 
 ---
 
@@ -181,9 +143,9 @@ tmux send-keys -t test:0 "What is 2+2?" C-m
 # Verify Claude processes it as a user message
 ```
 
-**If it works at idle:** The `wait_for_idle()` approach in the transport scripts is viable.
+**If it works:** Proceed — `send-keys` is the notification mechanism.
 
-**If it fails:** The TUI doesn't accept raw `send-keys` at all, and we need a different input mechanism (e.g., `--pipe` mode, stdin redirection, or Claude Code's `--input-file` flag if it exists).
+**If it fails:** The TUI doesn't accept raw `send-keys` at all, and we need a different input mechanism (e.g., `--pipe` mode, stdin redirection, or Claude Code's `--input-file` flag if it exists). This would require an architecture redesign.
 
 **Deliverables:**
 - [ ] Sandbox write test: confirm Codex can write to `/tmp/party-*/` (or identify fallback)
@@ -520,7 +482,7 @@ esac
 - [ ] `claude/skills/codex-cli/scripts/tmux-codex.sh` — all modes (thin transport, no protocol knowledge)
 - [ ] `--review` and `--prompt` send messages via `tmux send-keys` and return immediately (non-blocking)
 - [ ] `--approve`, `--re-review`, `--needs-discussion` output sentinel strings for hook detection (same sentinels as current system)
-- [ ] **v1: No `wait_for_idle()`.** Both agents' skills already instruct them to only send messages between turns. The `wait_for_idle()` heuristic from the Context section is documented as a possible v2 hardening step if timing issues arise in practice. Don't implement it upfront.
+- [ ] No `wait_for_idle()` needed — both agents run non-interactive (`--dangerously-skip-permissions` / `--full-auto`), and buffered input is processed when the agent returns to the prompt
 
 ---
 
@@ -1164,7 +1126,7 @@ After merge, `main` has the tmux system and the old `call_codex.sh`/`codex-verdi
 
 | Risk | Severity | Mitigation |
 |------|----------|------------|
-| `tmux send-keys` arrives while agent is mid-execution | High | Transport scripts use `wait_for_idle()` heuristic (see Context section). Fallback: file-based notification + polling |
+| `tmux send-keys` arrives while agent is mid-execution | Low | Both agents run non-interactive (no approval prompts). Buffered input processes when agent returns to prompt. Phase 0 validates. |
 | Codex ignores file-write instruction | Medium | `tmux-handler` skill explicitly instructs file write; Codex's AGENTS.md reinforces. Fall back to `tmux capture-pane` |
 | Large diff exceeds tmux send-keys limit | Low | Not applicable: Codex runs its own git diff in the shared repo |
 | `[CODEX]` message confused with user input | Low | Distinctive prefix; documented in CLAUDE.md and `tmux-handler` skill |
