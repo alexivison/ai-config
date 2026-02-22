@@ -512,6 +512,7 @@ esac
 | Current | Tmux equivalent |
 |---------|----------------|
 | `call_codex.sh --review --base main --title "..."` | `tmux-codex.sh --review main "..."` |
+| Completed review evidence (`CODEX_REVIEW_RAN`) | `tmux-codex.sh --review-complete "<findings_file>"` |
 | `call_codex.sh --prompt "..."` | `tmux-codex.sh --prompt "..."` |
 | `codex-verdict.sh approve` | `tmux-codex.sh --approve` |
 | `codex-verdict.sh request_changes` | `tmux-codex.sh --re-review "reason"` |
@@ -1106,7 +1107,7 @@ done
 - [ ] `codex-trace.sh` creates codex-approved marker on CODEX APPROVED sentinel
 
 **Integration test (`test-integration.sh`):**
-- [ ] Full review cycle with mock agents: Claude implements → critics → tmux-codex --review → Codex writes findings → Claude reads → tmux-codex --approve → markers created
+- [ ] Full review cycle with mock agents: Claude implements → critics → tmux-codex --review → Codex writes findings → Claude reads → tmux-codex --review-complete → tmux-codex --approve → markers created
 - [ ] Multi-review cycle: 3 rounds of findings → fixes → re-review → eventual approve
 - [ ] Planning dialogue: Codex asks Claude → Claude responds → Codex reads response
 - [ ] Bidirectional: Claude reviews via Codex, then Codex asks Claude a question, both in same session
@@ -1286,16 +1287,21 @@ Note: `fswatch` is no longer needed — there's no coordinator daemon watching f
 
 ---
 
-## Appendix C: Assumed Symlinks
+## Appendix C: Symlink and Path Assumptions
 
-The plan assumes `install.sh` has been run, which creates:
+Two valid setups exist:
 
-```
-~/.claude → ~/ai-config/claude
-~/.codex  → ~/ai-config/codex
-```
+1. **Post-merge (main includes tmux scripts):**
+   ```
+   ~/.claude → ~/ai-config/claude
+   ~/.codex  → ~/ai-config/codex
+   ```
+   Skill examples that use `~/.claude/...` and `~/.codex/...` work as written.
 
-Scripts reference these symlinks (e.g., `~/.codex/skills/claude-cli/scripts/tmux-claude.sh`). If symlinks don't exist, scripts won't find their paths.
+2. **Pre-merge testing in tmux worktree (`~/ai-config-tmux`):**
+   - Keep daily symlinks unchanged.
+   - Launch and call scripts via explicit worktree paths (for example `~/ai-config-tmux/session/party.sh`).
+   - If testing skill invocations exactly as written (`~/.claude/...`), temporarily repoint symlinks to the tmux worktree and restore after testing.
 
 ## Appendix D: iTerm2 Dynamic Profile Location
 
