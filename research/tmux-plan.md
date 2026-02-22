@@ -43,6 +43,52 @@ This is simpler, preserves context on both sides, and leverages what both agents
 
 iTerm2 supports `tmux -CC` (control mode), which maps tmux panes to native iTerm2 splits/tabs. The user gets native scrollback, selection, and search in each pane. Both agents use `tmux capture-pane` and `tmux send-keys` programmatically, but the user sees native iTerm2 windows.
 
+### `tmux send-keys` and CLI agent TUI interaction
+
+**The problem:** Both Claude Code and Codex have rich TUIs — spinners, progress indicators, tool approval prompts, streaming output. `tmux send-keys` types characters into the terminal buffer and sends `C-m` (enter). If the target agent is mid-execution (running a tool, generating output, showing a spinner), the injected text interacts with the TUI state unpredictably. The characters may appear in the output, get swallowed by a progress indicator, or be misinterpreted as a tool approval keystroke.
+
+**When it works cleanly:** Both Claude Code and Codex accept user input between turns — after finishing a response and before the user sends the next message. At that point the terminal is showing an input prompt, and `send-keys` text is queued as the next user message. This is the happy path.
+
+**When it's problematic:** If agent A sends a message while agent B is mid-execution:
+- The characters land in the terminal's input buffer
+- When agent B finishes and returns to the input prompt, the buffered text may be partially consumed, garbled, or split across multiple inputs
+- Worst case: a stray `C-m` during execution could confirm a tool approval the user didn't intend
+
+**Mitigation strategy — gate on idle state:**
+
+The transport scripts (`tmux-codex.sh`, `tmux-claude.sh`) should wait for the target pane to be idle before sending. A simple approach:
+
+```bash
+wait_for_idle() {
+  local pane="$1" max_wait="${2:-60}" waited=0
+  while (( waited < max_wait )); do
+    # Capture the last line of the pane — check for input prompt indicators
+    local last_line
+    last_line=$(tmux capture-pane -t "$pane" -p | tail -1)
+    # Both Claude Code and Codex show a prompt character when ready for input
+    # Claude: ">" or "claude>" — Codex: ">" or "codex>"
+    if [[ "$last_line" =~ ^\> ]] || [[ "$last_line" =~ \>\s*$ ]]; then
+      return 0
+    fi
+    sleep 1
+    ((waited++))
+  done
+  echo "Warning: target pane not idle after ${max_wait}s, sending anyway" >&2
+  return 0  # Send anyway — better than hanging forever
+}
+```
+
+This is a heuristic, not a guarantee. The prompt character detection may need tuning for specific CLI versions. But it covers the common case: don't inject text while the agent is mid-execution.
+
+**Alternative: notification file + polling (fallback):**
+
+If `send-keys` proves unreliable, a fallback is pure file-based notification:
+1. Writer creates a notification file (e.g., `$STATE_DIR/notifications/to-claude-$TIMESTAMP.txt`)
+2. Reader's skill tells it to periodically check the notifications directory
+3. No terminal injection at all — just file I/O
+
+This is slower (polling interval) but completely safe. Could be used selectively for the "Codex notifies Claude" direction where timing is less critical.
+
 ---
 
 ## New Repo: `ai-config-tmux`
@@ -123,6 +169,49 @@ ai-config-tmux/
 
 ---
 
+## Phase 0: Prerequisites — Validate Before Building
+
+These must be confirmed before any implementation begins. If either fails, the architecture needs redesign.
+
+### 0.1 Codex sandbox write access to `/tmp/`
+
+The entire file-based handoff depends on Codex writing findings to `/tmp/party-*/`. Codex is launched with `--sandbox read-only`, which may block writes outside the workspace.
+
+**Test:**
+```bash
+# In a codex --full-auto --sandbox read-only session:
+echo '{"test": true}' > /tmp/party-test/codex-findings-test.json
+```
+
+**If it works:** Proceed with the plan as designed.
+
+**If it fails — fallback options (in order of preference):**
+1. **`--sandbox write-only-outside-workspace`** — Codex can write to `/tmp/` but not to the repo. Check if this flag exists.
+2. **Write to workspace instead** — Use `$REPO/.party/findings-$TIMESTAMP.json` instead of `/tmp/`. Gitignore `.party/`. Downside: clutters workspace.
+3. **Capture pane output** — Codex writes findings as structured output to stdout. Claude uses `tmux capture-pane` to extract it. Fragile — parsing terminal output. Last resort.
+
+### 0.2 `tmux send-keys` into idle CLI agent
+
+Verify that `tmux send-keys` to a Claude Code / Codex pane works when the agent is waiting for input.
+
+**Test:**
+```bash
+# Start Claude Code in a tmux pane, let it settle to input prompt
+tmux send-keys -t test:0 "What is 2+2?" C-m
+# Verify Claude processes it as a user message
+```
+
+**If it works at idle:** The `wait_for_idle()` approach in the transport scripts is viable.
+
+**If it fails:** The TUI doesn't accept raw `send-keys` at all, and we need a different input mechanism (e.g., `--pipe` mode, stdin redirection, or Claude Code's `--input-file` flag if it exists).
+
+**Deliverables:**
+- [ ] Sandbox write test: confirm Codex can write to `/tmp/party-*/` (or identify fallback)
+- [ ] `send-keys` input test: confirm agents accept `tmux send-keys` as user messages when idle
+- [ ] Document results — if fallbacks needed, update Phase 2/3 scripts accordingly
+
+---
+
 ## Phase 1: Session Launcher
 
 ### 1.1 Session Launcher (`party.sh`)
@@ -198,6 +287,8 @@ party_stop() {
 
 **How agents discover the session:** Both `tmux-codex.sh` and `tmux-claude.sh` find the active party session by looking for `/tmp/party-*/session-name`. They read the session name from that file to construct tmux target pane addresses.
 
+**Constraint: one session at a time.** `discover_session()` uses `head -1` to pick the first match. If multiple `/tmp/party-*` directories exist, it picks arbitrarily. This is by design — running multiple party sessions simultaneously is not supported. `party.sh --stop` cleans up the state directory on teardown to prevent stale sessions.
+
 ```bash
 # Shared helper used by both tmux-codex.sh and tmux-claude.sh
 discover_session() {
@@ -233,11 +324,11 @@ This single script replaces both `call_codex.sh` and `codex-verdict.sh`. Claude 
 
 | Mode | Replaces | What it does |
 |------|----------|-------------|
-| `--review` | `call_codex.sh --review` | Generates diff, writes review prompt to file, sends Codex a short message via tmux to read it. Codex notifies Claude when done via `tmux-claude.sh` |
-| `--prompt` | `call_codex.sh --prompt` | Writes prompt to file, sends Codex a short message via tmux to read it. Codex notifies Claude when done via `tmux-claude.sh` |
-| `--approve` | `codex-verdict.sh approve` | Creates evidence markers (codex-ran + codex-approved). Returns immediately |
-| `--re-review` | `codex-verdict.sh request_changes` | Creates codex-ran marker only. Returns immediately |
-| `--needs-discussion` | `codex-verdict.sh needs_discussion` | Logs to trace. Returns immediately |
+| `--review` | `call_codex.sh --review` | Sends a short message to Codex pane via `tmux send-keys` with base branch, title, and findings file path. Codex's `tmux-review` skill defines the review protocol. Returns immediately (non-blocking) |
+| `--prompt` | `call_codex.sh --prompt` | Sends prompt text and response file path to Codex pane via `tmux send-keys`. Returns immediately (non-blocking) |
+| `--approve` | `codex-verdict.sh approve` | Outputs `CODEX APPROVED` sentinel. `codex-trace.sh` hook detects this and creates evidence markers (codex-ran + codex-approved) |
+| `--re-review` | `codex-verdict.sh request_changes` | Outputs `CODEX REQUEST_CHANGES` sentinel. Hook creates codex-ran marker only |
+| `--needs-discussion` | `codex-verdict.sh needs_discussion` | Outputs `CODEX NEEDS_DISCUSSION` sentinel. Hook logs to trace |
 
 **Implementation:**
 
@@ -264,7 +355,7 @@ case "$MODE" in
   --review)
     BASE="${2:-main}"
     TITLE="${3:-Code review}"
-    FINDINGS_FILE="$STATE_DIR/codex-findings-$TIMESTAMP.json"
+    FINDINGS_FILE="$STATE_DIR/messages/to-claude/codex-findings-$TIMESTAMP.json"
 
     # Just tell Codex what to review. Codex's tmux-review skill defines
     # the review protocol: severity classification, output format, notification.
@@ -279,7 +370,7 @@ case "$MODE" in
 
   --prompt)
     PROMPT_TEXT="${2:?Missing prompt text}"
-    RESPONSE_FILE="$STATE_DIR/codex-response-$TIMESTAMP.md"
+    RESPONSE_FILE="$STATE_DIR/messages/to-claude/codex-response-$TIMESTAMP.md"
 
     # Just send the prompt. Codex's skills define how to handle it.
     tmux send-keys -t "$CODEX_PANE" \
@@ -318,7 +409,7 @@ esac
 1. Claude implements code (same as today)
 2. Claude runs sub-agent critics via Task tool (same as today)
 3. Claude calls: tmux-codex.sh --review main "Add user auth"
-   → Script generates diff, writes prompt file, sends tmux message to Codex
+   → Script sends short message to Codex pane via tmux send-keys
    → Script returns IMMEDIATELY — Claude is NOT blocked
 4. Claude continues non-edit work (documentation, test planning, etc.)
 5. Codex completes the review, writes findings to file, then notifies Claude
@@ -351,11 +442,10 @@ esac
 | `codex-verdict.sh needs_discussion` | `tmux-codex.sh --needs-discussion "reason"` |
 
 **Deliverables:**
-- [ ] `claude/skills/codex-cli/scripts/tmux-codex.sh` — all modes
-- [ ] File-based handoff: review prompt written to file, Codex reads it and runs its own git diff
-- [ ] Non-blocking `--review` and `--prompt` (return immediately, Codex notifies Claude when done)
-- [ ] Review prompt instructs Codex to call `tmux-claude.sh` to notify Claude on completion
-- [ ] `--approve`, `--re-review`, `--needs-discussion` for verdict (same sentinels as current system for hook compatibility)
+- [ ] `claude/skills/codex-cli/scripts/tmux-codex.sh` — all modes (thin transport, no protocol knowledge)
+- [ ] `--review` and `--prompt` send messages via `tmux send-keys` and return immediately (non-blocking)
+- [ ] `--approve`, `--re-review`, `--needs-discussion` output sentinel strings for hook detection (same sentinels as current system)
+- [ ] `wait_for_idle()` check before `send-keys` (see Context section on TUI interaction)
 
 ---
 
@@ -496,6 +586,14 @@ Defines when and how Codex contacts Claude via tmux. This replaces the old `clau
   (e.g., "how does the auth middleware chain work?", "what calls this function?")
 - **During tasks**: When you need Claude to investigate something in parallel
 
+## Discovering the session state directory
+
+Before sending messages, discover the active party session:
+```bash
+STATE_DIR=$(find /tmp -maxdepth 1 -name 'party-*' -type d 2>/dev/null | head -1)
+```
+Use `$STATE_DIR` to construct file paths for questions and responses.
+
 ## How to contact Claude
 
 Use the transport script:
@@ -516,9 +614,9 @@ After writing findings to the specified file:
 ### Ask a question
 When you need information from Claude:
 ```bash
-~/.codex/skills/claude-cli/scripts/tmux-claude.sh "Question: <your question>. Write response to: <response_file>"
+RESPONSE_FILE="$STATE_DIR/messages/to-codex/response-$(date +%s%N).md"
+~/.codex/skills/claude-cli/scripts/tmux-claude.sh "Question: <your question>. Write response to: $RESPONSE_FILE"
 ```
-Create the response file path using: `$STATE_DIR/messages/to-codex/response-$(date +%s%N).md`
 
 ### Report task completion
 After completing a delegated task:
@@ -582,10 +680,70 @@ Message: `[CODEX] Task complete. Response at: <path>`
 2. Continue your workflow with the information Codex provided
 ```
 
+### 4.4 Claude: `codex-cli` Skill (rewritten)
+
+Defines when and how Claude contacts Codex via tmux. This replaces the old `codex-cli/SKILL.md` that used `call_codex.sh` and `codex-verdict.sh`.
+
+**`claude/skills/codex-cli/SKILL.md`:**
+
+```markdown
+# codex-cli — Communicate with Codex via tmux
+
+## When to contact Codex
+
+- **For code review**: After implementing changes and passing sub-agent critics, request Codex review
+- **For tasks**: When you need Codex to investigate or work on something in parallel
+- **For verdict**: After triaging Codex's findings, signal your decision
+
+## How to contact Codex
+
+Use the transport script:
+```bash
+~/.claude/skills/codex-cli/scripts/tmux-codex.sh <mode> [args...]
+```
+
+## Modes
+
+### Request review (non-blocking)
+After implementing changes and passing sub-agent critics:
+```bash
+~/.claude/skills/codex-cli/scripts/tmux-codex.sh --review <base_branch> "<PR title>"
+```
+This sends a message to Codex's pane. You are NOT blocked — continue with non-edit work while Codex reviews. Codex will notify you via `[CODEX] Review complete. Findings at: <path>` when done. Handle that message per your `tmux-handler` skill.
+
+### Send a task (non-blocking)
+```bash
+~/.claude/skills/codex-cli/scripts/tmux-codex.sh --prompt "<task description>"
+```
+Returns immediately. Codex will notify you when done.
+
+### Signal verdict (after triaging findings)
+```bash
+# All findings non-blocking — approve
+~/.claude/skills/codex-cli/scripts/tmux-codex.sh --approve
+
+# Blocking findings fixed, request re-review
+~/.claude/skills/codex-cli/scripts/tmux-codex.sh --re-review "what was fixed"
+
+# Unresolvable after max iterations
+~/.claude/skills/codex-cli/scripts/tmux-codex.sh --needs-discussion "reason"
+```
+Verdict modes output sentinel strings that hooks detect to create evidence markers.
+
+## Important
+
+- `--review` and `--prompt` are NON-BLOCKING. Continue working while Codex processes.
+- Verdict modes (`--approve`, `--re-review`, `--needs-discussion`) are instant — they output sentinels for hook detection.
+- You decide the verdict. Codex produces findings, you triage them.
+- Before calling `--review`, ensure sub-agent critics have passed (codex-gate.sh enforces this).
+- Before calling `--approve`, ensure codex-ran marker exists (codex-gate.sh enforces this).
+```
+
 **Deliverables:**
 - [ ] `codex/skills/tmux-review/SKILL.md` — Codex's review protocol (severity, format, notification, re-review behavior)
 - [ ] `codex/skills/claude-cli/SKILL.md` — Codex's outbound protocol (when/how to contact Claude, message conventions)
 - [ ] `claude/skills/tmux-handler/SKILL.md` — Claude's handler for `[CODEX]` messages (triage, verdict, question answering)
+- [ ] `claude/skills/codex-cli/SKILL.md` — Claude's outbound protocol (when/how to contact Codex, all modes, verdict semantics)
 
 ---
 
@@ -748,15 +906,23 @@ Shell-based test harness. Mock agents simulate Claude and Codex behavior.
 **`mock-claude.sh`:**
 ```bash
 # Simulates Claude Code responses
-# Reads from stdin, pattern-matches, writes expected output
+# Reads from stdin (tmux send-keys input), pattern-matches on [CODEX] messages
 while IFS= read -r line; do
   case "$line" in
-    *"[CODEX] Question waiting"*)
-      # Extract file paths and respond
-      question_file=$(echo "$line" | grep -oP 'Read: \K\S+')
+    *"[CODEX] Review complete. Findings at:"*)
+      findings_file=$(echo "$line" | grep -oP 'Findings at: \K\S+')
+      echo "Mock Claude reading findings from $findings_file"
+      # Simulate triage — if no blocking findings, approve
+      if jq -e '.stats.blocking_count == 0' "$findings_file" >/dev/null 2>&1; then
+        echo "CODEX APPROVED"
+      else
+        echo "CODEX REQUEST_CHANGES — Blocking findings need fixes"
+      fi
+      ;;
+    *"[CODEX] Question:"*)
       response_file=$(echo "$line" | grep -oP 'Write response to: \K\S+')
-      echo "Mock Claude answering question from $question_file"
       echo "The database uses a pooled connection with max 10 connections." > "$response_file"
+      echo "Mock Claude wrote response to $response_file"
       ;;
     *)
       echo "Acknowledged: $line"
@@ -768,23 +934,23 @@ done
 **`mock-codex.sh`:**
 ```bash
 # Simulates Codex responses
-# Reads from stdin, writes findings to specified files
+# Reads from stdin (tmux send-keys input), extracts findings path from direct message
 REVIEWS_BEFORE_APPROVE="${MOCK_REVIEWS:-3}"
 review_count=0
 
 while IFS= read -r line; do
   case "$line" in
-    *"review request at"*)
+    *"Review the changes"*"Write findings to:"*)
       ((review_count++))
-      # Read prompt file to find findings file path
-      prompt_file=$(echo "$line" | grep -oP 'at \K\S+')
-      findings_file=$(grep 'Write your complete findings to:' "$prompt_file" | grep -oP ': \K\S+')
+      # Extract findings file path directly from the message (no prompt file)
+      findings_file=$(echo "$line" | grep -oP 'Write findings to: \K\S+')
       if (( review_count >= REVIEWS_BEFORE_APPROVE )); then
         echo '{"findings":[],"summary":"All issues addressed.","stats":{"blocking_count":0,"non_blocking_count":0,"files_reviewed":5}}' > "$findings_file"
       else
         echo '{"findings":[{"id":"F1","file":"src/auth.ts","line":42,"severity":"blocking","category":"correctness","description":"Missing null check","suggestion":"Add null guard"}],"summary":"Found 1 blocking issue.","stats":{"blocking_count":1,"non_blocking_count":0,"files_reviewed":5}}' > "$findings_file"
       fi
-      echo "REVIEW_COMPLETE"
+      # Notify Claude via tmux-claude.sh (simulated)
+      echo "[MOCK] Review complete. Would call: tmux-claude.sh 'Review complete. Findings at: $findings_file'"
       ;;
   esac
 done
@@ -799,17 +965,16 @@ done
 - [ ] State directory has correct subdirectories
 
 **Claude→Codex tests (`test-tmux-codex.sh`):**
-- [ ] `--review` generates diff, writes prompt file, sends to Codex pane
+- [ ] `--review` sends message with base branch, title, and findings path to Codex pane
 - [ ] `--review` returns immediately (non-blocking)
-- [ ] `--prompt` writes prompt file, sends to Codex pane
-- [ ] `--approve` outputs correct sentinel string
-- [ ] `--re-review` outputs correct sentinel string
-- [ ] `--needs-discussion` outputs correct sentinel string
+- [ ] `--prompt` sends prompt text and response path to Codex pane
+- [ ] `--approve` outputs correct sentinel string (`CODEX APPROVED`)
+- [ ] `--re-review` outputs correct sentinel string (`CODEX REQUEST_CHANGES`)
+- [ ] `--needs-discussion` outputs correct sentinel string (`CODEX NEEDS_DISCUSSION`)
 - [ ] Script fails gracefully when no party session exists
 
 **Codex→Claude tests (`test-tmux-claude.sh`):**
-- [ ] Question file written correctly
-- [ ] Message sent to Claude pane
+- [ ] `[CODEX]` prefixed message sent to Claude pane
 - [ ] Script returns immediately (non-blocking)
 - [ ] Script fails gracefully when no party session exists
 
@@ -886,9 +1051,10 @@ Set up keybindings so launching and managing party sessions is a single keystrok
 ### 8.3 Migration path
 
 ```
-Week 1:   Build session launcher (Phase 1) + tmux-codex.sh (Phase 2) + tmux-claude.sh (Phase 3)
-Week 2:   Update hooks (Phase 4) + documentation (Phase 5)
-Week 3:   Testing (Phase 6) + installation (Phase 7)
+Week 0:   Prerequisites (Phase 0) — validate sandbox writes + send-keys before building anything
+Week 1:   Session launcher (Phase 1) + tmux-codex.sh (Phase 2) + tmux-claude.sh (Phase 3)
+Week 2:   Agent skills (Phase 4) + hook updates (Phase 5) + documentation (Phase 6)
+Week 3:   Testing (Phase 7) + installation (Phase 8)
 Week 4:   Integration testing with real agents, side-by-side evaluation
           → Decision: adopt tmux, stay with CLI, or hybrid
 ```
@@ -901,15 +1067,17 @@ Week 4:   Integration testing with real agents, side-by-side evaluation
 
 | Risk | Severity | Mitigation |
 |------|----------|------------|
-| Codex ignores file-write instruction | Medium | Prompt engineering in review template; fall back to `tmux capture-pane` |
+| `tmux send-keys` arrives while agent is mid-execution | High | Transport scripts use `wait_for_idle()` heuristic (see Context section). Fallback: file-based notification + polling |
+| Codex ignores file-write instruction | Medium | `tmux-review` skill explicitly instructs file write; Codex's AGENTS.md reinforces. Fall back to `tmux capture-pane` |
 | Large diff exceeds tmux send-keys limit | Low | Not applicable: Codex runs its own git diff in the shared repo |
-| `[CODEX]` message confused with user input | Low | Distinctive prefix; documented in CLAUDE.md |
+| `[CODEX]` message confused with user input | Low | Distinctive prefix; documented in CLAUDE.md and `tmux-handler` skill |
 | Agent crashes | Medium | User can see both panes; restart agent manually or re-run `party.sh` |
 | Race condition: code edit during Codex review | Medium | `marker-invalidate.sh` still fires on Edit/Write — same as today |
-| Codex `--sandbox read-only` can't write to `/tmp/` | High | Test this first; if blocked, use `workspace-write` or capture pane output |
-| Claude rubber-stamps --approve without reading findings | Medium | Same risk as today; mitigated by `codex-gate.sh` (gate 2: codex-ran required) and SKILL.md instructions |
-| Codex forgets to notify Claude after writing findings | Medium | Review prompt explicitly instructs Codex to call `tmux-claude.sh`; Codex's AGENTS.md reinforces this convention |
+| Codex sandbox write access to `/tmp/` | ~~High~~ | **Resolved in Phase 0.** Tested before implementation begins. Fallback options documented |
+| Claude rubber-stamps --approve without reading findings | Medium | Same risk as today; mitigated by `codex-gate.sh` (gate 2: codex-ran required) and `tmux-handler` skill instructions |
+| Codex forgets to notify Claude after writing findings | Medium | `tmux-review` skill explicitly instructs notification step; Codex's AGENTS.md reinforces convention |
 | Codex takes too long, no notification arrives | Low | User can see both panes in iTerm2 and nudge either agent; could add a timeout convention in skill docs |
+| Multiple party sessions cause script confusion | Low | `discover_session()` uses `head -1` — only one session supported at a time. Document as constraint |
 
 ---
 
@@ -997,13 +1165,13 @@ ai-config/claude/rules/autonomous-flow.md → ai-config-tmux/claude/rules/autono
   Edits: call_codex.sh → tmux-codex.sh, codex-verdict.sh → tmux-codex.sh --approve
 
 ai-config/claude/skills/task-workflow/SKILL.md → ai-config-tmux/claude/skills/task-workflow/SKILL.md
-  Edits: Step 7 + 8 rewritten (see Phase 5.1)
+  Edits: Step 7 + 8 rewritten (see Phase 6.1)
 
 ai-config/claude/skills/bugfix-workflow/SKILL.md → ai-config-tmux/claude/skills/bugfix-workflow/SKILL.md
-  Edits: Codex steps rewritten (see Phase 5.1)
+  Edits: Codex steps rewritten (see Phase 6.1)
 
 ai-config/codex/AGENTS.md → ai-config-tmux/codex/AGENTS.md
-  Edits: Add tmux context section (see Phase 5.2)
+  Edits: Add tmux context section (see Phase 6.2)
 
 ai-config/codex/config.toml → ai-config-tmux/codex/config.toml
   Edits: None needed (sandbox mode set at launch)
@@ -1022,10 +1190,10 @@ ai-config/codex/skills/claude-cli/scripts/call_claude.sh   → REPLACED BY: tmux
 ```
 ai-config-tmux/session/party.sh                                # Session launcher (Phase 1)
 ai-config-tmux/claude/skills/codex-cli/scripts/tmux-codex.sh   # Claude→Codex transport (Phase 2)
-ai-config-tmux/claude/skills/codex-cli/SKILL.md                # Rewritten skill doc (Phase 6)
-ai-config-tmux/claude/skills/tmux-handler/SKILL.md             # How Claude handles [CODEX] messages (Phase 4)
+ai-config-tmux/claude/skills/codex-cli/SKILL.md                # Claude's outbound protocol — when/how to use tmux-codex.sh (Phase 4)
+ai-config-tmux/claude/skills/tmux-handler/SKILL.md             # How Claude handles incoming [CODEX] messages (Phase 4)
 ai-config-tmux/codex/skills/claude-cli/scripts/tmux-claude.sh  # Codex→Claude transport (Phase 3)
-ai-config-tmux/codex/skills/claude-cli/SKILL.md                # Rewritten skill doc (Phase 6)
+ai-config-tmux/codex/skills/claude-cli/SKILL.md                # Codex's outbound protocol — when/how to use tmux-claude.sh (Phase 4)
 ai-config-tmux/codex/skills/tmux-review/SKILL.md               # How Codex handles review requests (Phase 4)
 
 ai-config-tmux/tests/test-party.sh              # Session tests (Phase 7)
@@ -1052,4 +1220,4 @@ ai-config-tmux/install.sh                       # Installer (Phase 8)
 | `codex` | Yes | `brew install --cask codex` | Codex CLI |
 | iTerm2 | Recommended | `brew install --cask iterm2` | Terminal with native tmux integration. Raw tmux works without it |
 
-Note: `fswatch` is no longer needed — there's no coordinator daemon watching for signal files. Claude and Codex poll for response files directly.
+Note: `fswatch` is no longer needed — there's no coordinator daemon watching for signal files. Agents notify each other via `tmux send-keys` (push, not poll).
