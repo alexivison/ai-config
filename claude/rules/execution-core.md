@@ -55,14 +55,14 @@ The `marker-invalidate.sh` hook automatically deletes review markers when implem
 
 ### Codex Review Gate
 
-The `codex-gate.sh` hook blocks `call_codex.sh --review` invocations unless both critic APPROVE markers exist (`code-critic` and `minimizer`). This creates a hard gate: you cannot invoke codex review without first earning critic approval.
+The `codex-gate.sh` hook blocks `tmux-codex.sh --review` invocations unless both critic APPROVE markers exist (`code-critic` and `minimizer`). It also blocks `tmux-codex.sh --approve` unless the `codex-ran` marker exists. This creates a hard gate: you cannot invoke codex review without first earning critic approval, and cannot approve without evidence of a completed review.
 
 **Enforcement chain:**
 1. Critics return REQUEST_CHANGES — no APPROVE markers created
-2. Agent fixes code — tries to call `call_codex.sh --review`
+2. Agent fixes code — tries to call `tmux-codex.sh --review`
 3. `codex-gate.sh` BLOCKS: missing markers listed in deny message
 4. Agent re-runs critics — critics APPROVE — markers created
-5. Agent retries `call_codex.sh --review` — gate allows
+5. Agent retries `tmux-codex.sh --review` — gate allows
 6. If codex finds issues and agent edits code — `marker-invalidate.sh` deletes critic markers — gate blocks codex again — full cascade re-runs
 
 If critics returned REQUEST_CHANGES, you MUST re-run them after fixing. The codex gate will block you otherwise — there is no way to skip this.
@@ -154,7 +154,7 @@ Critics review the **diff**, not the entire codebase. Context files may be read 
 | /pre-pr-verification | Failures | Fix and re-run | NO |
 | security-scanner | HIGH/CRITICAL | Ask user | YES |
 | Edit/Write (impl file) | Markers invalidated (hook) | Re-run invalidated steps before PR | NO |
-| codex-verdict.sh approve | No codex-ran marker | Approval blocked — run call_codex.sh first | NO |
+| tmux-codex.sh --approve | No codex-ran marker | Approval blocked — run tmux-codex.sh --review-complete first | NO |
 
 ## Valid Pause Conditions
 
@@ -188,4 +188,4 @@ Evidence before claims. Never state success without fresh proof.
 
 ## PR Gate
 
-Before `gh pr create`: /pre-pr-verification invoked THIS session, all checks passed, codex APPROVE (via `codex-verdict.sh`), verification summary in PR description. See `autonomous-flow.md` for marker details.
+Before `gh pr create`: /pre-pr-verification invoked THIS session, all checks passed, codex APPROVE (via `tmux-codex.sh --approve`), verification summary in PR description. See `autonomous-flow.md` for marker details.

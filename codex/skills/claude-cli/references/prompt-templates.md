@@ -1,6 +1,6 @@
 # Prompt Templates
 
-Use these templates when delegating to Claude via `call_claude.sh`.
+Use these templates when delegating to Claude via `tmux-claude.sh`.
 
 ## 1) Plan Review
 

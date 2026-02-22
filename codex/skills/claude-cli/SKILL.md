@@ -1,70 +1,57 @@
 ---
 name: claude-cli
-description: Invoke Claude CLI from Codex for one-shot analysis, review, synthesis, or structured outputs. Use when the user explicitly asks to consult Claude (for example "ask Claude to review this") or when a second-model opinion from Opus/Sonnet is needed without leaving Codex.
+description: Communicate with Claude via tmux for codebase investigation, review notifications, and multi-turn dialogue.
 ---
 
-# Claude CLI
+# claude-cli — Communicate with Claude via tmux
 
-## Overview
+## When to contact Claude
 
-Run Claude non-interactively from Codex and return the result in the current session.
+- **During review**: After writing findings to the file, notify Claude that review is complete
+- **During planning**: When you need codebase context that would require extensive exploration
+  (e.g., "how does the auth middleware chain work?", "what calls this function?")
+- **During tasks**: When you need Claude to investigate something in parallel
 
-## Safety Defaults
+## How to contact Claude
 
-1. Use `claude -p` for one-shot execution.
-2. Always pass `--disable-slash-commands` to avoid recursive workflow/skill invocation.
-3. Default to `--tools ""` (no tools) unless file reads are required.
-4. When file reads are required, prefer `--tools Read` and constrain scope with explicit paths.
-5. Use explicit output contracts (plain text verdict or JSON schema).
-
-## Workflow
-
-1. Identify target input:
-   - Inline text already in context
-   - File(s) in the workspace
-2. Build a precise prompt with required output format.
-3. Execute `scripts/call_claude.sh` with the smallest required tool surface.
-4. Return Claude output to the user.
-
-## Command Patterns
-
-### General one-shot analysis (safe default)
-
+Use the transport script:
 ```bash
-codex/skills/claude-cli/scripts/call_claude.sh \
-  --model "opus[1m]" \
-  --effort high \
-  --prompt "Analyze this proposal and list the top 5 risks with mitigations: ..."
+~/.codex/skills/claude-cli/scripts/tmux-claude.sh "<message>"
 ```
 
-### Plan/document review from files
+This sends a `[CODEX]` prefixed message to Claude's tmux pane. The script returns immediately — you are NOT blocked.
 
+## Message conventions
+
+### Notify review complete
+After writing findings to the specified file:
 ```bash
-codex/skills/claude-cli/scripts/call_claude.sh \
-  --model "opus[1m]" \
-  --effort high \
-  --tools Read \
-  --permission-mode bypassPermissions \
-  --prompt "Review doc/projects/example/PLAN.md for architecture gaps, dependency ordering issues, and missing verification. Return APPROVE|REQUEST_CHANGES|NEEDS_DISCUSSION with file:line findings."
+~/.codex/skills/claude-cli/scripts/tmux-claude.sh "Review complete. Findings at: <findings_file>"
 ```
 
-### Structured JSON result
-
+### Ask a question
+When you need information from Claude:
 ```bash
-codex/skills/claude-cli/scripts/call_claude.sh \
-  --model "opus[1m]" \
-  --effort high \
-  --output-format json \
-  --json-schema '{"type":"object","properties":{"verdict":{"type":"string"},"findings":{"type":"array","items":{"type":"string"}}},"required":["verdict","findings"]}' \
-  --prompt "Review the plan and return schema-compliant JSON."
+RESPONSE_FILE="$STATE_DIR/response-$(date +%s%N).md"
+~/.codex/skills/claude-cli/scripts/tmux-claude.sh "Question: <your question>. Write response to: $RESPONSE_FILE"
 ```
 
-## Prompt Templates
+### Report task completion
+After completing a delegated task:
+```bash
+~/.codex/skills/claude-cli/scripts/tmux-claude.sh "Task complete. Response at: <response_file>"
+```
 
-Use `references/prompt-templates.md` for reusable templates.
+## Handling Claude's responses
 
-## Failure Handling
+When you see a message in your pane from Claude (e.g., "Response ready at: <path>"):
+1. Read the response file
+2. Incorporate the answer into your current work
+3. Continue — you have full context of what you were doing before asking
 
-1. If `claude` CLI is missing, stop and report the install command.
-2. If command fails, return stderr and the exact command shape that failed.
-3. If output contract is violated, rerun once with tighter instructions.
+## Important
+
+- Each exchange creates unique timestamped files — multi-turn dialogue works naturally
+- You retain your full context across exchanges (persistent tmux session)
+- Keep questions specific and actionable — Claude will investigate the codebase for you
+- Do NOT ask Claude to make code changes. You make changes, Claude reviews.
