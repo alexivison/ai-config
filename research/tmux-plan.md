@@ -83,6 +83,8 @@ ai-config-tmux/
 │   │   │   ├── SKILL.md              # Rewritten: direct tmux patterns
 │   │   │   └── scripts/
 │   │   │       └── tmux-codex.sh     # NEW: sends review/task/verdict to Codex pane via tmux
+│   │   ├── tmux-handler/
+│   │   │   └── SKILL.md              # NEW: how Claude handles incoming [CODEX] messages
 │   │   ├── task-workflow/SKILL.md    # Updated: step 7 uses tmux-codex.sh
 │   │   ├── bugfix-workflow/SKILL.md  # Updated: codex step uses tmux-codex.sh
 │   │   ├── pre-pr-verification/      # Unchanged
@@ -95,10 +97,12 @@ ai-config-tmux/
 │   ├── config.toml                    # Unchanged (sandbox mode set at launch)
 │   ├── rules/                         # Unchanged
 │   └── skills/
-│       └── claude-cli/
-│           ├── SKILL.md              # Rewritten: direct tmux patterns
-│           └── scripts/
-│               └── tmux-claude.sh    # NEW: sends question/response to Claude pane via tmux
+│       ├── claude-cli/
+│       │   ├── SKILL.md              # Rewritten: direct tmux patterns
+│       │   └── scripts/
+│       │       └── tmux-claude.sh    # NEW: sends question/response to Claude pane via tmux
+│       └── tmux-review/
+│           └── SKILL.md              # NEW: how Codex handles review requests via tmux
 │
 ├── shared/                            # Copied from ai-config
 │   └── skills/                        # Unchanged
@@ -260,65 +264,15 @@ case "$MODE" in
   --review)
     BASE="${2:-main}"
     TITLE="${3:-Code review}"
-
-    # No need to generate a diff — Codex is in the same repo and can run git diff itself.
     FINDINGS_FILE="$STATE_DIR/codex-findings-$TIMESTAMP.json"
-    PROMPT_FILE="$STATE_DIR/messages/to-codex/review-$TIMESTAMP.md"
 
-    cat > "$PROMPT_FILE" << PROMPT
-# Code Review Request
-
-**Title:** $TITLE
-**Base branch:** $BASE
-
-## Instructions
-
-1. Review the changes on the current branch against \`$BASE\` (run \`git diff\` yourself to see the diff)
-2. Review the changes for: correctness bugs, crash paths, security issues, wrong output, architectural concerns
-3. For each finding, classify severity:
-   - **blocking**: correctness bug, crash path, wrong output, security HIGH/CRITICAL
-   - **non-blocking**: style nit, "could be simpler", defensive edge case, consistency preference
-4. Write your complete findings to: $FINDINGS_FILE
-
-Use this exact JSON format for the findings file:
-\`\`\`json
-{
-  "findings": [
-    {
-      "id": "F1",
-      "file": "path/to/file.ts",
-      "line": 42,
-      "severity": "blocking",
-      "category": "correctness|security|architecture|style|performance",
-      "description": "Clear description of the issue",
-      "suggestion": "How to fix it"
-    }
-  ],
-  "summary": "One paragraph summary of the review",
-  "stats": {
-    "blocking_count": 0,
-    "non_blocking_count": 0,
-    "files_reviewed": 0
-  }
-}
-\`\`\`
-
-**IMPORTANT:** Do NOT include a "verdict" field. You produce findings — the verdict is decided by Claude.
-
-5. After writing the findings file, notify Claude by running:
-   \`\`\`bash
-   ~/.codex/skills/claude-cli/scripts/tmux-claude.sh "Review complete. Findings at: $FINDINGS_FILE"
-   \`\`\`
-PROMPT
-
-    # Send a SHORT command to Codex pane — just tell it to read the prompt file
+    # Just tell Codex what to review. Codex's tmux-review skill defines
+    # the review protocol: severity classification, output format, notification.
     tmux send-keys -t "$CODEX_PANE" \
-      "Read the review request at $PROMPT_FILE and follow the instructions exactly." C-m
+      "Review the changes on this branch against $BASE. Title: $TITLE. Write findings to: $FINDINGS_FILE" C-m
 
     echo "CODEX_REVIEW_REQUESTED"
-    echo "Review prompt: $PROMPT_FILE"
     echo "Findings will be written to: $FINDINGS_FILE"
-    echo ""
     echo "Claude is NOT blocked. Codex will notify Claude via tmux when review is complete."
     echo "CODEX_REVIEW_RAN"
     ;;
@@ -326,25 +280,10 @@ PROMPT
   --prompt)
     PROMPT_TEXT="${2:?Missing prompt text}"
     RESPONSE_FILE="$STATE_DIR/codex-response-$TIMESTAMP.md"
-    PROMPT_FILE="$STATE_DIR/messages/to-codex/prompt-$TIMESTAMP.md"
 
-    cat > "$PROMPT_FILE" << PROMPT
-# Task from Claude
-
-$PROMPT_TEXT
-
-## Instructions
-
-Write your complete response to: $RESPONSE_FILE
-
-After writing the response, notify Claude by running:
-\`\`\`bash
-~/.codex/skills/claude-cli/scripts/tmux-claude.sh "Task complete. Response at: $RESPONSE_FILE"
-\`\`\`
-PROMPT
-
+    # Just send the prompt. Codex's skills define how to handle it.
     tmux send-keys -t "$CODEX_PANE" \
-      "Read the task at $PROMPT_FILE and follow the instructions." C-m
+      "$PROMPT_TEXT — Write response to: $RESPONSE_FILE" C-m
 
     echo "CODEX_TASK_REQUESTED"
     echo "Response will be written to: $RESPONSE_FILE"
@@ -507,9 +446,113 @@ This is similar to how Claude handles user messages — it just comes from a dif
 
 ---
 
-## Phase 4: Hook Updates
+## Phase 4: Agent Skills for tmux
 
-### 4.1 Updated `codex-gate.sh`
+The scripts (`tmux-codex.sh`, `tmux-claude.sh`) are just thin transport — they send a short message via tmux. The actual behavior (how to review, what format to use, how to notify) lives in skills on each agent's side. This mirrors the current system where `codex exec review` works because Codex has built-in review logic, not because the calling script tells it every detail.
+
+### 4.1 Codex: `tmux-review` Skill
+
+Defines how Codex handles review requests received via tmux. This is the tmux equivalent of `codex exec review`'s built-in behavior.
+
+**`codex/skills/tmux-review/SKILL.md`:**
+
+```markdown
+# tmux-review — Handle review requests from Claude via tmux
+
+## Trigger
+
+You receive a message in your tmux pane asking you to review changes against a base branch.
+
+## Protocol
+
+1. **Get the diff**: Run `git diff $(git merge-base HEAD <base>)..HEAD` to see the changes
+2. **Review scope**: Review changed files AND adjacent files (callers, callees, types, tests)
+   for: correctness bugs, crash paths, security issues, wrong output, architectural concerns
+3. **Classify each finding**:
+   - **blocking**: correctness bug, crash path, wrong output, security HIGH/CRITICAL
+   - **non-blocking**: style nit, "could be simpler", defensive edge case, consistency preference
+4. **Write findings** to the file path specified in the message, using this JSON format:
+   ```json
+   {
+     "findings": [
+       {
+         "id": "F1",
+         "file": "path/to/file.ts",
+         "line": 42,
+         "severity": "blocking",
+         "category": "correctness|security|architecture|style|performance",
+         "description": "Clear description of the issue",
+         "suggestion": "How to fix it"
+       }
+     ],
+     "summary": "One paragraph summary of the review",
+     "stats": { "blocking_count": 0, "non_blocking_count": 0, "files_reviewed": 0 }
+   }
+   ```
+5. **Do NOT include a "verdict" field.** You produce findings — the verdict is Claude's decision.
+6. **Notify Claude** when done:
+   ```bash
+   ~/.codex/skills/claude-cli/scripts/tmux-claude.sh "Review complete. Findings at: <findings_file>"
+   ```
+
+## On re-review
+
+If you've reviewed this branch before in this session, focus on:
+- Verifying previous blocking issues were addressed
+- Flagging only genuinely NEW issues
+- Do NOT re-raise findings that were already addressed
+```
+
+### 4.2 Claude: `tmux-handler` Skill
+
+Defines how Claude handles incoming messages from Codex's tmux pane.
+
+**`claude/skills/tmux-handler/SKILL.md`:**
+
+```markdown
+# tmux-handler — Handle incoming messages from Codex via tmux
+
+## Trigger
+
+You see a message in your pane prefixed with `[CODEX]`. These are from Codex's tmux pane.
+
+## Message types
+
+### Review complete
+Message: `[CODEX] Review complete. Findings at: <path>`
+
+1. Read the FULL findings file with your Read tool
+2. Triage each finding: blocking / non-blocking / out-of-scope
+3. Update your issue ledger (reject re-raised closed findings, detect oscillation)
+4. Decide verdict:
+   - All non-blocking → `tmux-codex.sh --approve`
+   - Blocking findings → fix them, choose re-review tier, then `tmux-codex.sh --re-review`
+   - Unresolvable → `tmux-codex.sh --needs-discussion "reason"`
+
+### Question from Codex
+Message: `[CODEX] Question waiting. Read: <question_file> — Write response to: <response_file>`
+
+1. Read the question file
+2. Investigate the codebase to answer the question
+3. Write your response to the specified response file
+4. Notify Codex: `tmux-codex.sh --prompt "Response ready at: <response_file>"`
+
+### Task complete
+Message: `[CODEX] Task complete. Response at: <path>`
+
+1. Read the response file
+2. Continue your workflow with the information Codex provided
+```
+
+**Deliverables:**
+- [ ] `codex/skills/tmux-review/SKILL.md` — Codex's review protocol (severity, format, notification, re-review behavior)
+- [ ] `claude/skills/tmux-handler/SKILL.md` — Claude's handler for `[CODEX]` messages (triage, verdict, question answering)
+
+---
+
+## Phase 5: Hook Updates
+
+### 5.1 Updated `codex-gate.sh`
 
 Same logic as today, but regex matches `tmux-codex.sh` instead of `call_codex.sh`:
 
@@ -528,7 +571,7 @@ if echo "$COMMAND" | grep -qE 'tmux-codex\.sh +--approve'; then
 fi
 ```
 
-### 4.2 Updated `codex-trace.sh`
+### 5.2 Updated `codex-trace.sh`
 
 Same logic as today, but detects `tmux-codex.sh` output sentinels instead of `call_codex.sh`:
 
@@ -545,7 +588,7 @@ echo "$command" | grep -qE '(^|[;&|] *)([^ ]*/)?tmux-codex\.sh' || exit 0
 
 The sentinel strings in `tmux-codex.sh` are identical to the current `call_codex.sh` / `codex-verdict.sh` output, so `codex-trace.sh` only needs the regex update. Evidence markers are created by the same hook, triggered by the same sentinels. The dual-layer defense (codex-ran + codex-approved) is preserved.
 
-### 4.3 All other hooks — unchanged
+### 5.3 All other hooks — unchanged
 
 These hooks work identically because they don't reference Codex invocation scripts:
 
@@ -564,9 +607,9 @@ These hooks work identically because they don't reference Codex invocation scrip
 
 ---
 
-## Phase 5: Documentation Updates
+## Phase 6: Documentation Updates
 
-### 5.1 Updated Workflow Skills
+### 6.1 Updated Workflow Skills
 
 **`task-workflow/SKILL.md` — Steps 7 and 8 change:**
 
@@ -614,7 +657,7 @@ New step 8:
 
 **`codex-cli/SKILL.md`** — Full rewrite: describe the tmux-based invocation pattern, file-based handoff, push notification (Codex notifies Claude), and all modes. Document that `--review` and `--prompt` are non-blocking.
 
-### 5.2 Updated Rules
+### 6.2 Updated Rules
 
 **`execution-core.md`:**
 - Codex Review Gate section: same logic, `tmux-codex.sh` instead of `call_codex.sh`
@@ -633,7 +676,7 @@ New step 8:
 **`codex/AGENTS.md`:**
 - Add tmux context: "You are running as a persistent interactive session in a tmux pane alongside Claude. You can communicate with Claude directly via `tmux-claude.sh`. When asked to write output to a file, always comply — file-based handoff is how agents exchange structured data. You retain context across reviews within this session. IMPORTANT: You produce FINDINGS, not verdicts."
 
-### 5.3 Updated Settings
+### 6.3 Updated Settings
 
 **`settings.json`:**
 
@@ -657,9 +700,9 @@ Hook config: no structural changes needed — `codex-gate.sh` and `codex-trace.s
 
 ---
 
-## Phase 6: Testing
+## Phase 7: Testing
 
-### 6.1 Test Infrastructure
+### 7.1 Test Infrastructure
 
 Shell-based test harness. Mock agents simulate Claude and Codex behavior.
 
@@ -708,7 +751,7 @@ while IFS= read -r line; do
 done
 ```
 
-### 6.2 Test Cases
+### 7.2 Test Cases
 
 **Session tests (`test-party.sh`):**
 - [ ] `party.sh` creates tmux session with 2 panes
@@ -755,9 +798,9 @@ done
 
 ---
 
-## Phase 7: Installation & Migration
+## Phase 8: Installation & Migration
 
-### 7.1 Installer
+### 8.1 Installer
 
 Adapted from `ai-config/install.sh`. Symlinks the new `claude/` and `codex/` directories:
 
@@ -770,7 +813,7 @@ Adapted from `ai-config/install.sh`. Symlinks the new `claude/` and `codex/` dir
                                 # User switches by re-symlinking ~/.claude
 ```
 
-### 7.2 iTerm2 Keybindings
+### 8.2 iTerm2 Keybindings
 
 Set up keybindings so launching and managing party sessions is a single keystroke.
 
@@ -801,7 +844,7 @@ Set up keybindings so launching and managing party sessions is a single keystrok
 | `Cmd+Shift+P` | New Tab with Profile → Party | Launch a new party session |
 | `Cmd+Shift+K` | Send Text: `party.sh --stop\n` | Kill the current party session |
 
-### 7.3 Migration path
+### 8.3 Migration path
 
 ```
 Week 1:   Build session launcher (Phase 1) + tmux-codex.sh (Phase 2) + tmux-claude.sh (Phase 3)
@@ -939,21 +982,23 @@ ai-config/codex/skills/claude-cli/scripts/call_claude.sh   → REPLACED BY: tmux
 
 ```
 ai-config-tmux/session/party.sh                                # Session launcher (Phase 1)
-ai-config-tmux/claude/skills/codex-cli/scripts/tmux-codex.sh   # Claude→Codex (Phase 2)
-ai-config-tmux/claude/skills/codex-cli/SKILL.md                # Rewritten skill doc (Phase 5)
-ai-config-tmux/codex/skills/claude-cli/scripts/tmux-claude.sh  # Codex→Claude (Phase 3)
-ai-config-tmux/codex/skills/claude-cli/SKILL.md                # Rewritten skill doc (Phase 5)
+ai-config-tmux/claude/skills/codex-cli/scripts/tmux-codex.sh   # Claude→Codex transport (Phase 2)
+ai-config-tmux/claude/skills/codex-cli/SKILL.md                # Rewritten skill doc (Phase 6)
+ai-config-tmux/claude/skills/tmux-handler/SKILL.md             # How Claude handles [CODEX] messages (Phase 4)
+ai-config-tmux/codex/skills/claude-cli/scripts/tmux-claude.sh  # Codex→Claude transport (Phase 3)
+ai-config-tmux/codex/skills/claude-cli/SKILL.md                # Rewritten skill doc (Phase 6)
+ai-config-tmux/codex/skills/tmux-review/SKILL.md               # How Codex handles review requests (Phase 4)
 
-ai-config-tmux/tests/test-party.sh              # Session tests (Phase 6)
-ai-config-tmux/tests/test-tmux-codex.sh         # Claude→Codex tests (Phase 6)
-ai-config-tmux/tests/test-tmux-claude.sh        # Codex→Claude tests (Phase 6)
-ai-config-tmux/tests/test-hooks.sh              # Hook tests (Phase 6)
-ai-config-tmux/tests/test-integration.sh        # Integration tests (Phase 6)
-ai-config-tmux/tests/mock-claude.sh             # Mock Claude (Phase 6)
-ai-config-tmux/tests/mock-codex.sh              # Mock Codex (Phase 6)
-ai-config-tmux/tests/run-tests.sh               # Test runner (Phase 6)
+ai-config-tmux/tests/test-party.sh              # Session tests (Phase 7)
+ai-config-tmux/tests/test-tmux-codex.sh         # Claude→Codex tests (Phase 7)
+ai-config-tmux/tests/test-tmux-claude.sh        # Codex→Claude tests (Phase 7)
+ai-config-tmux/tests/test-hooks.sh              # Hook tests (Phase 7)
+ai-config-tmux/tests/test-integration.sh        # Integration tests (Phase 7)
+ai-config-tmux/tests/mock-claude.sh             # Mock Claude (Phase 7)
+ai-config-tmux/tests/mock-codex.sh              # Mock Codex (Phase 7)
+ai-config-tmux/tests/run-tests.sh               # Test runner (Phase 7)
 
-ai-config-tmux/install.sh                       # Installer (Phase 7)
+ai-config-tmux/install.sh                       # Installer (Phase 8)
 ```
 
 ---
