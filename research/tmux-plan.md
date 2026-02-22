@@ -93,27 +93,7 @@ This is slower (polling interval) but completely safe. Could be used selectively
 
 ## Branching Strategy
 
-All tmux work happens on a `tmux` branch of the existing `ai-config` repo. No new repository needed.
-
-**Why not a new repo:**
-- ~70% of `ai-config-tmux` would be verbatim copies of files that already exist in `ai-config`
-- Every hook, rule, or shared skill change on `main` would need manual sync to the second repo — guaranteed drift
-- Eventually you merge or abandon; if you merge, you do the same edits in `ai-config` anyway
-- A branch gives identical isolation with zero duplication
-
-**How it works:**
-
-```
-ai-config/
-├── main          ← daily driver, current subprocess system
-└── tmux          ← new files + edited files for tmux integration
-```
-
-- **Develop** on the `tmux` branch — new files are added, existing files are edited in place
-- **Daily use** stays on `main` — `~/.claude` symlink points to `ai-config/claude` on `main`
-- **Evaluate** by checking out `tmux` — same symlink, different branch content
-- **Rollback** is `git checkout main` — instant revert, no symlink changes needed
-- **Merge** when ready — `git merge tmux` into `main`, old scripts are replaced
+All work happens on a `tmux` branch of `ai-config`. Daily use stays on `main`. Switch with `git checkout tmux` / `git checkout main` — the `~/.claude` symlink resolves to whichever branch is checked out. Merge when ready: `git merge tmux`.
 
 ### What changes on the `tmux` branch
 
@@ -121,7 +101,8 @@ ai-config/
 
 ```
 session/
-└── party.sh                                     # Session launcher + teardown
+├── party.sh                                     # Session launcher + teardown
+└── party-lib.sh                                 # Shared helpers (discover_session)
 
 claude/skills/codex-cli/scripts/tmux-codex.sh    # Claude→Codex transport (replaces call_codex.sh + codex-verdict.sh)
 claude/skills/tmux-handler/SKILL.md              # How Claude handles incoming [CODEX] messages
@@ -229,7 +210,7 @@ party.sh --raw          # Force raw tmux (for SSH, non-iTerm terminals)
 
 ```
 ┌─────────────────────────────┬──────────────────────────────┐
-│ Pane 0: Claude              │ Pane 1: Codex                │
+│ Pane 0: The Paladin (Claude)│ Pane 1: The Wizard (Codex)   │
 │ claude --dangerously-skip-  │ codex --full-auto             │
 │ permissions                 │ --sandbox read-only           │
 │                             │                               │
@@ -249,61 +230,48 @@ These are set via `tmux set-option` and `tmux bind-key` at startup — no persis
 
 ```bash
 configure_keybindings() {
-  # ── Pane navigation (the most common action) ──────────────────────
-  # Cmd-Left/Right to switch panes (like Cmd-[ / Cmd-] in iTerm2 for tab switching)
-  # Note: "Cmd" doesn't exist in raw terminal — these map to Alt/Option instead.
-  # iTerm2 users: remap Option-Left/Right in iTerm2 prefs to send these sequences,
-  # or just use the raw bindings below.
-  tmux bind-key -n M-Left  select-pane -L    # Option-Left  → go to left pane (Claude)
-  tmux bind-key -n M-Right select-pane -R    # Option-Right → go to right pane (Codex)
+  local session="${1:?Usage: configure_keybindings SESSION_NAME}"
 
-  # Also bind arrow keys with prefix for muscle-memory overlap
+  # ── Pane navigation (the most common action) ──────────────────────
+  # Note: bind-key is always global (tmux doesn't support session-scoped bindings).
+  # These are harmless in -CC mode (iTerm2 handles its own keybindings).
+  tmux bind-key -n M-Left  select-pane -L    # Option-Left  → left pane (Paladin/Claude)
+  tmux bind-key -n M-Right select-pane -R    # Option-Right → right pane (Wizard/Codex)
   tmux bind-key Left  select-pane -L
   tmux bind-key Right select-pane -R
 
   # ── Window/tab management ─────────────────────────────────────────
-  # Prefix + t → new window (like Cmd-T in iTerm2)
-  tmux bind-key t new-window
-  # Prefix + w → close current pane (like Cmd-W in iTerm2)
-  tmux bind-key w kill-pane
+  tmux bind-key t new-window               # Prefix + t → new window
+  tmux bind-key w kill-pane                # Prefix + w → close pane
+  tmux bind-key -n M-1 select-window -t 0  # Option-1 → window 1
+  tmux bind-key -n M-2 select-window -t 1  # Option-2 → window 2
+  tmux bind-key f resize-pane -Z           # Prefix + f → zoom toggle
 
-  # Option-1 / Option-2 to jump to window by index (like Cmd-1/2 in iTerm2)
-  tmux bind-key -n M-1 select-window -t 0
-  tmux bind-key -n M-2 select-window -t 1
-
-  # ── Zoom ──────────────────────────────────────────────────────────
-  # Prefix + f → toggle fullscreen on current pane (like Cmd-Shift-Enter in iTerm2)
-  # (tmux default is Prefix + z, keeping both)
-  tmux bind-key f resize-pane -Z
-
-  # ── Pane theming ─────────────────────────────────────────────────
-  # Fantasy-themed pane borders:
-  #   The Wizard  → purple/violet (arcane magic)
-  #   The Paladin → gold/yellow (holy light)
-  tmux set-option -g pane-border-status top
-  # Pane title text is colored per-agent using tmux conditional formats:
-  #   #{?condition,true-branch,false-branch}
-  tmux set-option -g pane-border-format \
+  # ── Pane theming (raw tmux mode only) ──────────────────────────────
+  # In tmux -CC (iTerm2 control mode), iTerm2 renders its own chrome.
+  # Pane borders, status bar, and border colors are NOT visible — iTerm2
+  # uses native tabs/splits instead. The theming below only applies in
+  # raw tmux mode (--raw flag, SSH, non-iTerm terminals).
+  #
+  # Color scheme:
+  #   The Wizard (Codex)  → purple/violet colour141 (arcane magic)
+  #   The Paladin (Claude) → gold/yellow colour220 (holy light)
+  tmux set-option -t "$session" pane-border-status top
+  tmux set-option -t "$session" pane-border-format \
     ' #{?#{==:#{pane_title},The Wizard},#[fg=colour141 bold],#[fg=colour220 bold]}#{pane_title}#[default] '
+  tmux set-option -t "$session" pane-border-style "fg=colour240"
+  tmux set-option -t "$session" pane-active-border-style "fg=colour220"
 
-  # Inactive border: dim, muted (the other agent fades into the background)
-  tmux set-option -g pane-border-style "fg=colour240"
-
-  # Active border color changes based on which pane is focused.
-  # tmux doesn't natively support per-pane border colors, so we use a
-  # focus hook to swap the active style when switching panes.
-  tmux set-option -g pane-active-border-style "fg=colour141"  # default: Wizard purple
-
-  # On pane focus, set active border color to match the focused agent's theme
-  tmux set-hook -g pane-focus-in "if-shell \
+  # Swap active border color on pane focus
+  tmux set-hook -t "$session" pane-focus-in "if-shell \
     'test \"#{pane_title}\" = \"The Paladin\"' \
     'set pane-active-border-style fg=colour220' \
     'set pane-active-border-style fg=colour141'"
 
-  # Status bar: dark background, subtle fantasy accent
-  tmux set-option -g status-style "bg=colour235,fg=colour248"
-  tmux set-option -g status-left "#[fg=colour141,bold] party #[default] "
-  tmux set-option -g status-right ""
+  # Status bar
+  tmux set-option -t "$session" status-style "bg=colour235,fg=colour248"
+  tmux set-option -t "$session" status-left "#[fg=colour141,bold] party #[default] "
+  tmux set-option -t "$session" status-right ""
 }
 ```
 
@@ -326,29 +294,29 @@ configure_keybindings() {
 party_start() {
   SESSION="party-$(date +%s)"
   STATE_DIR="/tmp/$SESSION"
-  mkdir -p "$STATE_DIR/messages/to-codex" "$STATE_DIR/messages/to-claude"
+  mkdir -p "$STATE_DIR"
 
   # Write session metadata so scripts can discover the active session
   echo "$SESSION" > "$STATE_DIR/session-name"
 
   # Detect iTerm2 and use control mode
-  TMUX_CMD="tmux"
+  local use_cc=false
   if [[ "${TERM_PROGRAM:-}" == "iTerm.app" && "${PARTY_RAW:-}" != "1" ]]; then
-    TMUX_CMD="tmux -CC"
+    use_cc=true
   fi
 
-  # Apply iTerm2-like keybindings for this session
-  configure_keybindings
-
-  # Create session
-  $TMUX_CMD new-session -d -s "$SESSION" -n work -x 200 -y 50
+  # Create session (always detached first — we attach explicitly below)
+  tmux new-session -d -s "$SESSION" -n work -x 200 -y 50
 
   # Split into panes
   tmux split-window -h -t "$SESSION:work"  # Pane 1: Codex (right)
 
-  # Label panes by their fantasy lore roles
-  tmux select-pane -t "$SESSION:work.0" -T "The Wizard"
-  tmux select-pane -t "$SESSION:work.1" -T "The Paladin"
+  # Label panes by their fantasy lore roles (Claude = Paladin, Codex = Wizard)
+  tmux select-pane -t "$SESSION:work.0" -T "The Paladin"
+  tmux select-pane -t "$SESSION:work.1" -T "The Wizard"
+
+  # Apply keybindings and theming AFTER session exists, scoped to this session
+  configure_keybindings "$SESSION"
 
   # Launch agents
   tmux send-keys -t "$SESSION:work.0" \
@@ -356,8 +324,10 @@ party_start() {
   tmux send-keys -t "$SESSION:work.1" \
     "codex --full-auto --sandbox read-only" C-m
 
-  # Attach (iTerm2 control mode auto-attaches)
-  if [[ "$TMUX_CMD" == "tmux" ]]; then
+  # Attach
+  if [[ "$use_cc" == true ]]; then
+    tmux -CC attach -t "$SESSION"
+  else
     tmux attach -t "$SESSION"
   fi
 }
@@ -367,9 +337,23 @@ party_start() {
 
 ```bash
 party_stop() {
-  tmux kill-session -t "$SESSION" 2>/dev/null
+  # Discover the running session (party_stop is called from a separate shell invocation)
+  discover_session || { echo "No active party session to stop."; return 0; }
+  tmux kill-session -t "$SESSION_NAME" 2>/dev/null
   rm -rf "$STATE_DIR"
+  echo "Party session stopped."
 }
+```
+
+**Argument dispatch:**
+
+```bash
+case "${1:-}" in
+  --stop)  party_stop ;;
+  --raw)   PARTY_RAW=1 party_start ;;
+  "")      party_start ;;
+  *)       echo "Usage: party.sh [--raw|--stop]" >&2; exit 1 ;;
+esac
 ```
 
 **How agents discover the session:** Both `tmux-codex.sh` and `tmux-claude.sh` find the active party session by looking for `/tmp/party-*/session-name`. They read the session name from that file to construct tmux target pane addresses.
@@ -377,7 +361,9 @@ party_stop() {
 **Constraint: one session at a time.** `discover_session()` uses `head -1` to pick the first match. If multiple `/tmp/party-*` directories exist, it picks arbitrarily. This is by design — running multiple party sessions simultaneously is not supported. `party.sh --stop` cleans up the state directory on teardown to prevent stale sessions.
 
 ```bash
-# Shared helper used by both tmux-codex.sh and tmux-claude.sh
+# Shared helper — lives in session/party-lib.sh
+# Sourced by party.sh, tmux-codex.sh, and tmux-claude.sh:
+#   source "$(dirname "$0")/../../session/party-lib.sh"  (adjust relative path per script location)
 discover_session() {
   local state_dir
   state_dir=$(find /tmp -maxdepth 1 -name 'party-*' -type d 2>/dev/null | head -1)
@@ -397,7 +383,7 @@ discover_session() {
 - [ ] iTerm2 control mode (`tmux -CC`) integration tested (native keybindings pass through)
 - [ ] `--raw` fallback for non-iTerm terminals
 - [ ] Clean teardown on SIGTERM/SIGINT
-- [ ] `$STATE_DIR/messages/to-codex/` and `$STATE_DIR/messages/to-claude/` directories created on startup
+- [ ] `$STATE_DIR/` created on startup (flat structure — timestamped filenames prevent collisions)
 
 ---
 
@@ -444,7 +430,7 @@ case "$MODE" in
   --review)
     BASE="${2:-main}"
     TITLE="${3:-Code review}"
-    FINDINGS_FILE="$STATE_DIR/messages/to-claude/codex-findings-$TIMESTAMP.json"
+    FINDINGS_FILE="$STATE_DIR/codex-findings-$TIMESTAMP.json"
 
     # Just tell Codex what to review. Codex's tmux-handler skill defines
     # the review protocol: severity classification, output format, notification.
@@ -459,7 +445,7 @@ case "$MODE" in
 
   --prompt)
     PROMPT_TEXT="${2:?Missing prompt text}"
-    RESPONSE_FILE="$STATE_DIR/messages/to-claude/codex-response-$TIMESTAMP.md"
+    RESPONSE_FILE="$STATE_DIR/codex-response-$TIMESTAMP.md"
 
     # Just send the prompt. Codex's skills define how to handle it.
     tmux send-keys -t "$CODEX_PANE" \
@@ -534,7 +520,7 @@ esac
 - [ ] `claude/skills/codex-cli/scripts/tmux-codex.sh` — all modes (thin transport, no protocol knowledge)
 - [ ] `--review` and `--prompt` send messages via `tmux send-keys` and return immediately (non-blocking)
 - [ ] `--approve`, `--re-review`, `--needs-discussion` output sentinel strings for hook detection (same sentinels as current system)
-- [ ] `wait_for_idle()` check before `send-keys` (see Context section on TUI interaction)
+- [ ] **v1: No `wait_for_idle()`.** Both agents' skills already instruct them to only send messages between turns. The `wait_for_idle()` heuristic from the Context section is documented as a possible v2 hardening step if timing issues arise in practice. Don't implement it upfront.
 
 ---
 
@@ -729,7 +715,7 @@ After writing findings to the specified file:
 ### Ask a question
 When you need information from Claude:
 ```bash
-RESPONSE_FILE="$STATE_DIR/messages/to-codex/response-$(date +%s%N).md"
+RESPONSE_FILE="$STATE_DIR/response-$(date +%s%N).md"
 ~/.codex/skills/claude-cli/scripts/tmux-claude.sh "Question: <your question>. Write response to: $RESPONSE_FILE"
 ```
 
@@ -1152,14 +1138,7 @@ Set up keybindings so launching and managing party sessions is a single keystrok
 
 ### 8.2 Migration path
 
-```
-Week 0:   Prerequisites (Phase 0) — validate sandbox writes + send-keys before building anything
-Week 1:   Session launcher (Phase 1) + tmux-codex.sh (Phase 2) + tmux-claude.sh (Phase 3)
-Week 2:   Agent skills (Phase 4) + hook updates (Phase 5) + documentation (Phase 6)
-Week 3:   Testing (Phase 7) + iTerm2 setup (Phase 8)
-Week 4:   Integration testing with real agents, side-by-side evaluation
-          → Decision: merge tmux branch to main, keep on branch, or abandon
-```
+Build in phase order (0→8). Phase 0 must pass before any implementation. After Phase 7 tests pass, do integration testing with real agents on the `tmux` branch. Decision: merge to `main`, keep on branch, or abandon.
 
 **Switching systems:**
 ```bash
@@ -1224,6 +1203,7 @@ Complete list of changes on the `tmux` branch relative to `main`.
 
 ```
 session/party.sh                                     # Session launcher + teardown (Phase 1)
+session/party-lib.sh                                 # Shared helpers: discover_session() (Phase 1)
 
 claude/skills/codex-cli/scripts/tmux-codex.sh        # Claude→Codex transport (Phase 2)
 claude/skills/tmux-handler/SKILL.md                  # How Claude handles incoming [CODEX] messages (Phase 4)
@@ -1282,3 +1262,26 @@ All other files remain identical to `main`. Because this is a branch, they don't
 | iTerm2 | Recommended | `brew install --cask iterm2` | Terminal with native tmux integration. Raw tmux works without it |
 
 Note: `fswatch` is no longer needed — there's no coordinator daemon watching for signal files. Agents notify each other via `tmux send-keys` (push, not poll).
+
+---
+
+## Appendix C: Assumed Symlinks
+
+The plan assumes `install.sh` has been run, which creates:
+
+```
+~/.claude → ~/ai-config/claude
+~/.codex  → ~/ai-config/codex
+```
+
+Scripts reference these symlinks (e.g., `~/.codex/skills/claude-cli/scripts/tmux-claude.sh`). If symlinks don't exist, scripts won't find their paths.
+
+## Appendix D: iTerm2 Dynamic Profile Location
+
+The Party profile JSON from Phase 8 should be saved to:
+
+```
+~/Library/Application Support/iTerm2/DynamicProfiles/party.json
+```
+
+iTerm2 auto-discovers profiles from this directory — no restart needed.
