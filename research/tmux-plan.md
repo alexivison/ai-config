@@ -239,7 +239,64 @@ party.sh --raw          # Force raw tmux (for SSH, non-iTerm terminals)
 
 No coordinator pane. No dashboard pane. Just two agents, side by side. The user watches both panes directly in iTerm2 (native scrollback, search, selection).
 
-**Implementation:**
+### 1.2 tmux Keybindings
+
+The default tmux keybindings (`Ctrl-b` prefix) are unfamiliar to iTerm2 users. `party.sh` applies iTerm2-like keybindings at session creation time so pane/window navigation feels natural.
+
+These are set via `tmux set-option` and `tmux bind-key` at startup — no persistent `.tmux.conf` required. The bindings only exist while the party session is alive.
+
+**Note on `tmux -CC` (iTerm2 control mode):** When running in control mode, iTerm2 maps tmux panes/windows to native iTerm2 tabs and splits. In that mode, your normal `Cmd-T`, `Cmd-W`, `Cmd-[`/`Cmd-]` already work because iTerm2 is managing the chrome. The keybindings below are for **raw tmux mode** (`--raw` flag, SSH, non-iTerm terminals) where you're in tmux's own UI.
+
+```bash
+configure_keybindings() {
+  # ── Pane navigation (the most common action) ──────────────────────
+  # Cmd-Left/Right to switch panes (like Cmd-[ / Cmd-] in iTerm2 for tab switching)
+  # Note: "Cmd" doesn't exist in raw terminal — these map to Alt/Option instead.
+  # iTerm2 users: remap Option-Left/Right in iTerm2 prefs to send these sequences,
+  # or just use the raw bindings below.
+  tmux bind-key -n M-Left  select-pane -L    # Option-Left  → go to left pane (Claude)
+  tmux bind-key -n M-Right select-pane -R    # Option-Right → go to right pane (Codex)
+
+  # Also bind arrow keys with prefix for muscle-memory overlap
+  tmux bind-key Left  select-pane -L
+  tmux bind-key Right select-pane -R
+
+  # ── Window/tab management ─────────────────────────────────────────
+  # Prefix + t → new window (like Cmd-T in iTerm2)
+  tmux bind-key t new-window
+  # Prefix + w → close current pane (like Cmd-W in iTerm2)
+  tmux bind-key w kill-pane
+
+  # Option-1 / Option-2 to jump to window by index (like Cmd-1/2 in iTerm2)
+  tmux bind-key -n M-1 select-window -t 0
+  tmux bind-key -n M-2 select-window -t 1
+
+  # ── Zoom ──────────────────────────────────────────────────────────
+  # Prefix + f → toggle fullscreen on current pane (like Cmd-Shift-Enter in iTerm2)
+  # (tmux default is Prefix + z, keeping both)
+  tmux bind-key f resize-pane -Z
+
+  # ── Pane labels ───────────────────────────────────────────────────
+  # Show pane titles in the border so you know which is Claude vs Codex
+  tmux set-option -g pane-border-status top
+  tmux set-option -g pane-border-format " #[bold]#{pane_title}#[default] "
+}
+```
+
+**Keybinding summary (raw tmux mode):**
+
+| Action | Keybinding | iTerm2 equivalent |
+|--------|-----------|-------------------|
+| Switch to left pane (Claude) | `Option-Left` | `Cmd-[` or `Cmd-Left` |
+| Switch to right pane (Codex) | `Option-Right` | `Cmd-]` or `Cmd-Right` |
+| New window | `Ctrl-b t` | `Cmd-T` |
+| Close pane | `Ctrl-b w` | `Cmd-W` |
+| Jump to window 1 | `Option-1` | `Cmd-1` |
+| Jump to window 2 | `Option-2` | `Cmd-2` |
+| Zoom/fullscreen pane | `Ctrl-b f` | `Cmd-Shift-Enter` |
+| Detach (session keeps running) | `Ctrl-b d` | *(no equivalent)* |
+
+### 1.3 Implementation
 
 ```bash
 party_start() {
@@ -256,11 +313,18 @@ party_start() {
     TMUX_CMD="tmux -CC"
   fi
 
+  # Apply iTerm2-like keybindings for this session
+  configure_keybindings
+
   # Create session
   $TMUX_CMD new-session -d -s "$SESSION" -n work -x 200 -y 50
 
   # Split into panes
   tmux split-window -h -t "$SESSION:work"  # Pane 1: Codex (right)
+
+  # Label panes so it's clear which is which
+  tmux select-pane -t "$SESSION:work.0" -T "Claude"
+  tmux select-pane -t "$SESSION:work.1" -T "Codex"
 
   # Launch agents
   tmux send-keys -t "$SESSION:work.0" \
@@ -304,7 +368,9 @@ discover_session() {
 
 **Deliverables:**
 - [ ] `session/party.sh` — session launcher with iTerm2 detection
-- [ ] iTerm2 control mode (`tmux -CC`) integration tested
+- [ ] iTerm2-like keybindings applied at session startup (Option-Left/Right, Prefix+t/w, Option-1/2, Prefix+f)
+- [ ] Pane labels ("Claude" / "Codex") shown in border
+- [ ] iTerm2 control mode (`tmux -CC`) integration tested (native keybindings pass through)
 - [ ] `--raw` fallback for non-iTerm terminals
 - [ ] Clean teardown on SIGTERM/SIGINT
 - [ ] `$STATE_DIR/messages/to-codex/` and `$STATE_DIR/messages/to-claude/` directories created on startup
