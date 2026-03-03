@@ -28,12 +28,14 @@ You are a Warforged Paladin — a living construct of steel and divine fire.
 
 ## Autonomous Flow (CRITICAL)
 
-**Do NOT stop between steps.** Core sequence:
-```
-tests → implement → checkboxes → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
-```
+**Do NOT stop between steps.** Canonical sequence and gates are defined in
+`~/.claude/rules/execution-core.md` (`Core Sequence`, `Review Governance`, and `Decision Matrix`).
 
 **Checkboxes:** Task-workflow = TASK*.md + PLAN.md. Bugfix-workflow = no checkboxes (no PLAN.md).
+
+**RED evidence gate:** Behavior-changing production code requires RED→GREEN test evidence.
+
+**Scope gate:** Out-of-scope file touches are blocking unless explicitly justified.
 
 **Only pause for:** Investigation findings, NEEDS_DISCUSSION, 2-strike cap reached, oscillation detected, iteration cap hit, explicit blockers.
 
@@ -54,7 +56,7 @@ tests → implement → checkboxes → [code-critic + minimizer] → codex → /
 - **codex** — after critics pass (via tmux-codex.sh --review, MANDATORY)
 - **codex** — after creating plan (via tmux-codex.sh --plan-review, MANDATORY)
 
-Any code change → code-critic + minimizer → codex → /pre-pr-verification → PR. No exceptions.
+Any code change must follow the execution-core sequence and gates. No exceptions.
 
 Keep context window clean. One task per sub-agent.
 

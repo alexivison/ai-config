@@ -26,11 +26,8 @@ Investigation agents ALWAYS require user review before proceeding.
 
 ## Execution Flow
 
-```
-/write-tests (regression) → implement fix → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
-```
-
-See [task-workflow/SKILL.md](../task-workflow/SKILL.md) for the full step-by-step. The only differences:
+Use the canonical sequence in [execution-core.md](~/.claude/rules/execution-core.md#core-sequence),
+then apply these bugfix deltas from [task-workflow/SKILL.md](../task-workflow/SKILL.md):
 - Step 1: Regression test (not feature test) — must FAIL first (RED), then PASS after fix (GREEN)
 - Fix must address root cause (not just mask symptoms)
 - No checkbox step
