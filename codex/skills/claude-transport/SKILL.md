@@ -27,9 +27,12 @@ After every outbound `tmux-claude.sh` message, immediately post a short digest i
 
 Digest format:
 - what you sent (one sentence)
-- why you sent it (one sentence)
-- delivery status (`CLAUDE_MESSAGE_SENT` or `CLAUDE_MESSAGE_DROPPED`)
-- relevant file path(s), if any
+- handshake summary (required when a handoff file is referenced): 2-4 bullets summarizing what was written to the file
+
+Handshake summary rules:
+1. If the outbound message references a response/findings file path (for example `.toon`), read that file first.
+2. Include 2-4 concise bullets with the key content (for findings: top issues and severity counts).
+3. If the file is missing or unreadable, state that explicitly in the digest.
 
 Do not skip this. The user must be able to follow Codex-Paladin coordination without reading tmux panes.
 
