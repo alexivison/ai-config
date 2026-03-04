@@ -204,6 +204,29 @@ setup_tmux() {
 }
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# FZF (interactive session picker)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+setup_fzf() {
+    echo ""
+    echo "━━━ fzf ━━━"
+
+    if [[ "$SYMLINKS_ONLY" == true ]]; then
+        return
+    fi
+
+    if command -v fzf &> /dev/null; then
+        echo "✓  fzf already installed"
+    elif command -v brew &> /dev/null; then
+        prompt_install "fzf" \
+            "brew install fzf" \
+            "brew install fzf"
+    else
+        echo "⚠  fzf not found. Install with: brew install fzf"
+        echo "   (Used for interactive party session picker)"
+    fi
+}
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # MAIN
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 if [[ "$SYMLINKS_ONLY" == true ]]; then
@@ -228,6 +251,7 @@ fi
 setup_claude
 setup_codex
 setup_tmux
+setup_fzf
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━"

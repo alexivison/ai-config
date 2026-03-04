@@ -177,8 +177,7 @@ party_start() {
 party_continue() {
   local session="${1:-}"
   if [[ -z "$session" ]]; then
-    echo "Error: --continue requires a party session name (e.g. party-1234567890)." >&2
-    return 1
+    session="$(party_pick)" || return 1
   fi
   if [[ ! "$session" =~ ^party- ]]; then
     echo "Error: invalid session name '$session' (must start with party-)." >&2
@@ -239,6 +238,103 @@ party_continue() {
     echo "Note: Codex session id missing in manifest; launched fresh Codex session."
   fi
   party_attach "$session"
+}
+
+party_delete() {
+  local session="${1:?Usage: party_delete SESSION_NAME}"
+  if [[ ! "$session" =~ ^party- ]]; then
+    echo "Error: invalid session name '$session' (must start with party-)" >&2
+    return 1
+  fi
+  tmux kill-session -t "$session" 2>/dev/null || true
+  rm -rf "/tmp/$session"
+  rm -f "$(party_state_file "$session")"
+  echo "Deleted: $session"
+}
+
+_party_short_path() {
+  local p="${1:-}"
+  if [[ "$p" == "$HOME"* ]]; then
+    printf '~%s' "${p#"$HOME"}"
+  else
+    printf '%s' "$p"
+  fi
+}
+
+_party_short_ts() {
+  # 2026-03-03T00:28:08Z → 03/03
+  local ts="${1:-}"
+  [[ "$ts" == "-" || -z "$ts" ]] && { printf '-'; return; }
+  printf '%s/%s' "${ts:5:2}" "${ts:8:2}"
+}
+
+party_pick_entries() {
+  local live_sessions manifest_dir
+  live_sessions=$(tmux ls -F '#{session_name}' 2>/dev/null | grep '^party-' || true)
+  manifest_dir="$(party_state_root)"
+
+  if [[ -n "$live_sessions" ]]; then
+    while IFS= read -r name; do
+      local cwd
+      cwd="$(party_state_get_field "$name" "cwd" 2>/dev/null || true)"
+      printf '%s\tactive\t%s\n' "$name" "$(_party_short_path "${cwd:--}")"
+    done <<< "$live_sessions"
+  fi
+
+  if [[ -d "$manifest_dir" ]]; then
+    local stale_files=()
+    for f in "$manifest_dir"/party-*.json; do
+      [[ -f "$f" ]] || continue
+      local sid
+      sid="$(basename "$f" .json)"
+      if [[ -n "$live_sessions" ]] && grep -qxF "$sid" <<< "$live_sessions"; then
+        continue
+      fi
+      stale_files+=("$f")
+    done
+
+    if [[ ${#stale_files[@]} -gt 0 ]]; then
+      while IFS= read -r f; do
+        local sid cwd ts
+        sid="$(basename "$f" .json)"
+        cwd="$(jq -r '.cwd // "-"' "$f" 2>/dev/null || echo "-")"
+        ts="$(jq -r '.last_started_at // .created_at // "-"' "$f" 2>/dev/null || echo "-")"
+        printf '%s\t%s\t%s\n' "$sid" "$(_party_short_ts "$ts")" "$(_party_short_path "$cwd")"
+      done < <(printf '%s\0' "${stale_files[@]}" | xargs -0 ls -t)
+    fi
+  fi
+}
+
+party_pick() {
+  if ! command -v fzf &>/dev/null; then
+    echo "Error: fzf is required for interactive picker. Install with: brew install fzf" >&2
+    return 1
+  fi
+
+  local entries
+  entries="$(party_pick_entries)"
+  if [[ -z "$entries" ]]; then
+    echo "No party sessions found." >&2
+    return 1
+  fi
+
+  local script_path manifest_root
+  script_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/party.sh"
+  manifest_root="$(party_state_root)"
+
+  local selected
+  selected="$(printf '%s\n' "$entries" | fzf \
+    --delimiter='\t' \
+    --with-nth=1,2,3 \
+    --header='enter:resume  ctrl-d:delete  esc:cancel' \
+    --no-info \
+    --reverse \
+    --preview="sid={1}; f=\"$manifest_root/\${sid}.json\"; if [[ -f \"\$f\" ]]; then if tmux has-session -t \"\$sid\" 2>/dev/null; then echo \"active\"; else echo \"resumable\"; fi; echo \"\$(jq -r '.cwd // \"-\"' \"\$f\" | sed \"s|$HOME|~|\")\"; echo \"\$(jq -r '.last_started_at // .created_at // \"-\"' \"\$f\")\"; cid=\$(jq -r '.claude_session_id // empty' \"\$f\"); [[ -n \"\$cid\" ]] && echo \"claude: \${cid:0:8}…\"; tid=\$(jq -r '.codex_thread_id // empty' \"\$f\"); [[ -n \"\$tid\" ]] && echo \"codex: \${tid:0:8}…\"; fi" \
+    --preview-window=right:30% \
+    --bind="ctrl-d:execute(echo {} | cut -f1 | xargs -I{} bash \"$script_path\" --delete {})+reload(bash \"$script_path\" --pick-entries)" \
+  )" || return 1
+
+  echo "$selected" | cut -f1
 }
 
 party_stop() {
@@ -354,6 +450,8 @@ while [[ $# -gt 0 ]]; do
     --stop)  party_stop "${2:-}"; exit ;;
     --list)  party_list; exit ;;
     --continue|continue) party_continue "${2:-}"; exit ;;
+    --delete) party_delete "${2:?--delete requires a session ID}"; exit ;;
+    --pick-entries) party_pick_entries; exit ;;
     --help|-h) party_usage; exit ;;
     --resume-claude) _party_resume_claude="${2:?--resume-claude requires a session ID}"; shift 2 ;;
     --resume-codex)  _party_resume_codex="${2:?--resume-codex requires a session ID}"; shift 2 ;;

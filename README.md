@@ -90,12 +90,14 @@ Transport scripts (`tmux-codex.sh`, `tmux-claude.sh`) route messages by `@party_
 | Flag | Description |
 |------|-------------|
 | *(none)* | Start a new party session |
-| `--continue <party-id>` | Recreate a party session and resume Claude/Codex using persisted session IDs |
+| `--continue [party-id]` | Resume a session; opens interactive fzf picker if no ID given |
 | `--list` | List active and resumable party sessions |
 | `--stop [name]` | Stop one or all party sessions |
 | `--install-tpm` | Install tmux Plugin Manager |
 
-Party metadata is persisted under `~/.party-state/<party-id>.json`. Runtime handoff files in `/tmp/<party-id>/` are rebuilt on demand.
+Party metadata is persisted under `~/.party-state/<party-id>.json`. Runtime handoff files in `/tmp/<party-id>/` are rebuilt on demand. Manifests older than 7 days are auto-pruned on start (configurable via `PARTY_PRUNE_DAYS`).
+
+The interactive picker (requires [fzf](https://github.com/junegunn/fzf)) supports **Enter** to resume, **Ctrl-D** to delete, and **Esc** to cancel.
 
 ## Documentation
 
