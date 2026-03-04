@@ -19,6 +19,15 @@ For behavior-changing production code, tests are mandatory and must show RED→G
 
 No RED evidence for a behavior change is a blocking workflow violation.
 
+## Feature Flag Gate
+
+For behavior behind a feature flag, tests must prove both gate paths:
+
+1. Flag ON: new behavior works as intended
+2. Flag OFF: pre-implementation behavior remains unchanged
+
+Missing OFF-path parity evidence is a blocking workflow violation.
+
 ## Minimality Gate
 
 Before critics:
@@ -105,6 +114,7 @@ Code PRs require all markers: pre-pr-verification, code-critic, minimizer, codex
 | Pattern | Action |
 |---------|--------|
 | Behavior change without RED evidence | Block; add RED test first |
+| Feature-flag change without ON/OFF gate tests (including OFF-path parity) | Block; add gate tests first |
 | Out-of-scope file changes without rationale | Stop with NEEDS_DISCUSSION |
 | Add abstraction used once without clear gain | Remove or justify |
 | Stop after partial completion | Continue — don't ask "should I continue?" |

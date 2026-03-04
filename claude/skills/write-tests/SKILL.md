@@ -27,6 +27,7 @@ Write appropriate tests based on code characteristics and Testing Trophy princip
 - **Don't test externals**: Use test doubles—verify calls, not external behavior
 - **Test behavior, not implementation**
 - **Keep tests in the same PR as implementation**
+- **Feature flags need dual-path tests**: Verify flag ON behavior and flag OFF parity with pre-implementation behavior
 
 ## Running Tests
 
@@ -54,6 +55,7 @@ When writing tests for new functionality:
 **When RED phase is required:**
 - Creating a new test file → always
 - Adding tests for new functionality → always
+- Feature-flagged behavior changes → always (include ON and OFF gate-path tests)
 
 **When RED phase is optional:**
 - Adding a single test to an existing test file for coverage → optional but recommended

@@ -29,6 +29,7 @@ Use the canonical sequence in [execution-core.md](~/.claude/rules/execution-core
 ### Step-by-Step
 
 1. **Tests** — For any behavior-changing production code, invoke `/write-tests` first (RED phase via test-runner)
+   - **Feature flags:** Add gate tests for both states. Flag ON must validate new behavior; flag OFF must assert pre-implementation behavior remains unchanged.
 2. **Implement** — Write the code to make tests pass
 3. **GREEN phase** — Run test-runner agent to verify tests pass (RED→GREEN evidence required for behavior changes)
 4. **Checkboxes** — Update both TASK*.md AND PLAN.md: `- [ ]` → `- [x]` (MANDATORY — both files)
