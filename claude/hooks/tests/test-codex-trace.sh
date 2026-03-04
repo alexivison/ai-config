@@ -102,6 +102,20 @@ touch "/tmp/claude-codex-ran-$SESSION" "/tmp/claude-codex-$SESSION"
 run_hook "$(bash_input_str 'tmux-codex.sh --re-review /tmp/f.toon' 'CODEX REQUEST_CHANGES — reason here')"
 assert "String re-review → markers removed" '[ ! -f /tmp/claude-codex-ran-$SESSION ]'
 
+# ═══ --plan-review (advisory only) ════════════════════════════════════════════
+
+echo "=== plan-review: Object response does not create markers ==="
+cleanup
+run_hook "$(bash_input_obj 'tmux-codex.sh --plan-review PLAN.md /tmp/work' 'CODEX_PLAN_REVIEW_REQUESTED')"
+assert "Object plan-review → no codex-ran marker" '[ ! -f /tmp/claude-codex-ran-$SESSION ]'
+assert "Object plan-review → no codex marker" '[ ! -f /tmp/claude-codex-$SESSION ]'
+
+echo "=== plan-review: String response does not create markers ==="
+cleanup
+run_hook "$(bash_input_str 'tmux-codex.sh --plan-review PLAN.md /tmp/work' 'CODEX_PLAN_REVIEW_REQUESTED')"
+assert "String plan-review → no codex-ran marker" '[ ! -f /tmp/claude-codex-ran-$SESSION ]'
+assert "String plan-review → no codex marker" '[ ! -f /tmp/claude-codex-$SESSION ]'
+
 # ═══ Exit code extraction ════════════════════════════════════════════════════
 
 echo "=== Exit code: top-level tool_exit_code ==="

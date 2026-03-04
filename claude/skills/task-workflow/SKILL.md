@@ -13,7 +13,7 @@ Execute tasks from TASK*.md files with the full autonomous workflow.
 **STOP. Before writing ANY code:**
 
 1. **Create worktree first** — `git worktree add ../repo-branch-name -b branch-name`
-2. **Does task require tests?** → invoke `/write-tests` FIRST
+2. **Behavior change?** → invoke `/write-tests` FIRST and capture RED evidence (failing test + failure reason)
 3. **Requirements unclear?** → Ask user
 4. **Will this bloat into a large PR?** → Split into smaller tasks
 5. **Locate PLAN.md** — Find the project's PLAN.md for checkbox updates later
@@ -24,34 +24,36 @@ State which items were checked before proceeding.
 ## Execution Flow
 
 After passing the gate, execute continuously — **no stopping until PR is created**.
-
-```
-/write-tests (if needed) → implement → checkboxes → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
-```
+Use the canonical sequence in [execution-core.md](~/.claude/rules/execution-core.md#core-sequence).
 
 ### Step-by-Step
 
-1. **Tests** — If task needs tests, invoke `/write-tests` first (RED phase via test-runner)
+1. **Tests** — For any behavior-changing production code, invoke `/write-tests` first (RED phase via test-runner)
 2. **Implement** — Write the code to make tests pass
-3. **GREEN phase** — Run test-runner agent to verify tests pass
+3. **GREEN phase** — Run test-runner agent to verify tests pass (RED→GREEN evidence required for behavior changes)
 4. **Checkboxes** — Update both TASK*.md AND PLAN.md: `- [ ]` → `- [x]` (MANDATORY — both files)
-5. **code-critic + minimizer** — Run in parallel with scope context and diff focus (see [Review Governance](#review-governance)).
+5. **Minimality + Scope Gate (blocking)** — Before critics:
+   - Record a one-line "smallest possible fix" rationale.
+   - Compare `git diff --name-only` against TASK "In Scope".
+   - Any out-of-scope file touch requires explicit justification; otherwise stop with `NEEDS_DISCUSSION`.
+   - Remove single-use abstractions, speculative code (YAGNI), and unjustified new dependencies.
+6. **code-critic + minimizer** — Run in parallel with scope context and diff focus (see [Review Governance](#review-governance)).
    - Round 1: collect findings, fix only `[must]` in one batch.
    - **After fixing blocking items → re-run BOTH critics (one pass).** Do NOT proceed to codex without this re-run. Only when both return APPROVE (or only non-blocking findings remain) may you proceed.
    - Stop critic loop at 2 rounds. If blocking findings still remain, escalate `NEEDS_DISCUSSION`.
-   - `[q]`/`[nit]` are non-blocking and should not trigger another critic round.
-6. **codex** — Request codex review via tmux (non-blocking):
+   - `[q]`/`[nit]` are opt-in only (explicit polish request) and should not trigger another critic round.
+7. **codex** — Request codex review via tmux (non-blocking):
    ```bash
    ~/.claude/skills/codex-transport/scripts/tmux-codex.sh --review main "{PR title}" "$(pwd)"
    ```
    `work_dir` is required — pass the worktree/repo path. Continue with non-edit work while Codex reviews. Codex notifies via `[CODEX]` message when done.
-7. **Triage codex findings** — When `[CODEX] Review complete` arrives: read findings, triage by severity.
+8. **Triage codex findings** — When `[CODEX] Review complete` arrives: read findings, triage by severity.
    - **After fixing blocking items → use `--re-review` (NOT `--review-complete`).** Wait for the re-review findings before proceeding. `--review-complete` only records evidence — it does not re-validate.
    - Round 2: if blocking findings remain after re-review, escalate `--needs-discussion`.
    - Non-blocking findings: record with `--review-complete` and proceed.
-8. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)
+9. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)
    - **If you edit ANY implementation file after this step passes → re-run `/pre-pr-verification` before commit.** Even a JSDoc fix invalidates prior evidence.
-9. **Commit & PR** — Create commit and draft PR
+10. **Commit & PR** — Create commit and draft PR
 
 **Note:** Step 4 (Checkboxes) MUST include PLAN.md. Forgetting PLAN.md is a common violation.
 
@@ -62,6 +64,7 @@ After passing the gate, execute continuously — **no stopping until PR is creat
 See [execution-core.md](~/.claude/rules/execution-core.md#review-governance) for full rules. Key points:
 
 - **Every** sub-agent prompt MUST include scope boundaries from the TASK file
+- Out-of-scope file touches are blocking unless explicitly justified
 - Triage findings as **blocking** (fix + re-run), **non-blocking** (note only), or **out-of-scope** (reject)
 - Only blocking findings continue the review loop
 - Max 2 critic iterations and max 2 codex iterations for blocking, then NEEDS_DISCUSSION

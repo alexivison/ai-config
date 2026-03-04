@@ -4,9 +4,31 @@ Shared rules for all workflow skills. Bugfix-workflow omits checkboxes (no PLAN.
 
 ## Core Sequence
 
+This section is the single source of truth for execution order across workflow docs.
+
 ```
 /write-tests → implement → checkboxes → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
 ```
+
+## RED Evidence Gate
+
+For behavior-changing production code, tests are mandatory and must show RED→GREEN:
+
+1. RED: failing test that demonstrates missing/incorrect behavior
+2. GREEN: same test passing after implementation
+
+No RED evidence for a behavior change is a blocking workflow violation.
+
+## Minimality Gate
+
+Before critics:
+
+1. Record the "smallest possible fix" rationale (one line)
+2. Remove speculative code and single-use abstractions without clear value
+3. Avoid new dependencies unless strictly needed and justified
+4. Compare `git diff --name-only` against TASK scope; out-of-scope touches require explicit justification
+
+Out-of-scope touches without justification are blocking and require `NEEDS_DISCUSSION`.
 
 ## Marker System
 
@@ -29,7 +51,7 @@ Classify every finding before acting:
 **Lean loop default:**
 - Critics run in two-pass mode: initial pass, then one re-review pass after fixing blocking items.
 - Codex runs in two-pass mode: initial pass, then one re-review pass after fixing blocking items.
-- `[q]` and `[nit]` are non-blocking. Note them and proceed.
+- `[q]` and `[nit]` are opt-in (only when explicitly requested). By default, suppress them.
 - Critics should return `APPROVE` when only non-blocking findings remain, so codex-gate markers stay aligned with policy.
 
 **Caps:** Blocking: max 2 critic + 2 codex iterations → NEEDS_DISCUSSION. Non-blocking: max 1 round → accept or drop.
@@ -44,6 +66,8 @@ Classify every finding before acting:
 |------|---------|------|--------|
 | /write-tests | Written (RED) | Implement | NO |
 | Implement | Done | Checkboxes | NO |
+| Minimality + Scope Gate | PASS | Critics | NO |
+| Minimality + Scope Gate | Scope violation w/o justification | NEEDS_DISCUSSION | YES |
 | code-critic or minimizer | APPROVE | Wait for other / codex | NO |
 | code-critic or minimizer | REQUEST_CHANGES (blocking) | Fix in one batch + one re-run of both critics | NO |
 | code-critic or minimizer | REQUEST_CHANGES (non-blocking) | Record and treat as effective APPROVE (LLM misclassified) | NO |
@@ -80,6 +104,9 @@ Code PRs require all markers: pre-pr-verification, code-critic, minimizer, codex
 
 | Pattern | Action |
 |---------|--------|
+| Behavior change without RED evidence | Block; add RED test first |
+| Out-of-scope file changes without rationale | Stop with NEEDS_DISCUSSION |
+| Add abstraction used once without clear gain | Remove or justify |
 | Stop after partial completion | Continue — don't ask "should I continue?" |
 | Chase non-blocking nits 2+ rounds | Triage, note, move on |
 | Implement every finding without triage | Classify blocking/non-blocking/out-of-scope first |
