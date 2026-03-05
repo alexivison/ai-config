@@ -55,6 +55,29 @@ assert "party_state_set_field stores claude session id" \
 assert "party_state_set_field stores codex thread id" \
   '[ "$(party_state_get_field "$SESSION" "codex_thread_id")" = "codex-456" ]'
 
+# --- party_state_delete_field ---
+UPDATED_BEFORE="$(jq -r '.updated_at' "$MANIFEST_FILE")"
+sleep 1
+party_state_delete_field "$SESSION" "codex_thread_id"
+assert "delete_field removes existing key" \
+  '[ -z "$(party_state_get_field "$SESSION" "codex_thread_id" 2>/dev/null)" ]'
+assert "delete_field preserves other keys" \
+  '[ "$(party_state_get_field "$SESSION" "claude_session_id")" = "claude-123" ]'
+UPDATED_AFTER="$(jq -r '.updated_at' "$MANIFEST_FILE")"
+assert "delete_field updates updated_at" \
+  '[ "$UPDATED_AFTER" != "$UPDATED_BEFORE" ]'
+
+party_state_delete_field "$SESSION" "nonexistent_key"
+RC_MISSING_KEY=$?
+assert "delete_field on missing key returns 0 (idempotent)" \
+  '[ "$RC_MISSING_KEY" -eq 0 ]'
+
+DELETE_SESSION="party-test-nofile-$$"
+party_state_delete_field "$DELETE_SESSION" "any_key"
+RC_MISSING_FILE=$?
+assert "delete_field on missing file returns 0" \
+  '[ "$RC_MISSING_FILE" -eq 0 ]'
+
 rm -rf "/tmp/$SESSION"
 discover_session >/dev/null 2>&1
 assert "discover_session self-heals missing runtime state dir" \

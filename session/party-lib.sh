@@ -152,6 +152,29 @@ party_state_set_field() {
   mv "$tmp" "$file"
 }
 
+party_state_delete_field() {
+  local session="${1:?Usage: party_state_delete_field SESSION KEY}"
+  local key="${2:?Missing key}"
+
+  command -v jq >/dev/null 2>&1 || return 0
+
+  local file
+  file="$(party_state_file "$session")"
+  [[ -f "$file" ]] || return 0
+
+  local tmp now
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  tmp="$(mktemp "${TMPDIR:-/tmp}/party-state.XXXXXX")"
+
+  jq --arg key "$key" --arg now "$now" \
+    'del(.[$key]) | .updated_at = $now' "$file" > "$tmp" || {
+    rm -f "$tmp"
+    return 1
+  }
+
+  mv "$tmp" "$file"
+}
+
 party_state_get_field() {
   local session="${1:?Usage: party_state_get_field SESSION KEY}"
   local key="${2:?Missing key}"
