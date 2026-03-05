@@ -1,3 +1,7 @@
+---
+paths: ["**/*.json"]
+---
+
 # TOON Compression
 
 When reading large JSON files (>50 lines or arrays of 5+ objects), prefer `cat file.json | toon` via Bash over raw Read. TOON saves ~50% tokens on tabular data (arrays of uniform objects), ~25% on flat objects.
