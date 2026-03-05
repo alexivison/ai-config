@@ -1,6 +1,11 @@
 ---
 name: bugfix-workflow
-description: Debug and fix bugs. INVOKE FIRST when user reports bugs/errors - workflow handles investigation internally.
+description: >-
+  Debug and fix bugs with full autonomous workflow. INVOKE FIRST when the user
+  reports a bug, error, crash, test failure, unexpected behavior, broken feature,
+  or anything that looks wrong. Handles investigation (optionally via Codex for
+  complex bugs), regression test writing, root cause analysis, and fix implementation.
+  Follows execution-core rules without PLAN.md checkboxes.
 user-invocable: true
 ---
 

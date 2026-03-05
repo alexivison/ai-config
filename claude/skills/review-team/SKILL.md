@@ -1,6 +1,10 @@
 ---
 name: review-team
-description: Spawn an adversarial reviewer teammate via Agent Teams to stress-test code changes
+description: >-
+  Spawn an adversarial reviewer teammate via Agent Teams to stress-test code changes.
+  Runs concurrently with Codex review after critics approve. Focuses on failure modes,
+  edge cases, input validation gaps, race conditions, and security surface. Advisory
+  only — produces no gating markers. Requires CLAUDE_TEAM_REVIEW=1 environment variable.
 user-invocable: false
 ---
 
@@ -35,6 +39,25 @@ The teammate's sole purpose is to try to break the code. Focus areas:
 - Race conditions and state corruption
 - "What's the worst that happens if X fails?"
 - Security surface (injection, privilege escalation, data leakage)
+
+## Display Mode
+
+The adversarial reviewer is short-lived and read-only — it does not need its own pane.
+**Always use `in-process` mode** to avoid spawning new tmux windows/panes.
+
+Before creating the team, ensure the session uses in-process mode. Since `teammateMode`
+cannot be set per-spawn, the Paladin must be running in a tmux session where `auto`
+would default to split panes. Override by checking/setting the flag before `TeamCreate`:
+
+```
+# In the Agent tool spawn, no extra step needed — in-process is the default
+# when not in tmux. But since we ARE in tmux, we must be explicit.
+```
+
+**Implementation:** When spawning the teammate via the `Agent` tool, there is no
+per-spawn display mode parameter. The `teammateMode` setting applies session-wide.
+If the current session defaults to split panes (tmux), accept this but note that
+`in-process` is preferred for single short-lived reviewers.
 
 ## Spawn Prompt
 

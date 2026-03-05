@@ -1,6 +1,11 @@
 ---
 name: code-review
-description: Review code for quality, bugs, and guideline compliance. Use for pre-commit/PR verification.
+description: >-
+  Review code for quality, bugs, and guideline compliance. Produces a structured
+  report with severity-labeled findings ([must]/[q]/[nit]) and a verdict. Use when
+  reviewing diffs, checking staged changes, doing pre-commit review, validating PR
+  quality, or when any sub-agent needs to evaluate code changes against project
+  standards. Covers both general and frontend-specific (React, TypeScript, CSS) patterns.
 user-invocable: false
 allowed-tools: Read, Grep, Glob, Bash(git:*)
 ---

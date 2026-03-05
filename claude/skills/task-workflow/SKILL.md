@@ -1,6 +1,11 @@
 ---
 name: task-workflow
-description: Execute a task from TASK*.md with full workflow. Auto-invoked when implementing planned tasks.
+description: >-
+  Execute a task from TASK*.md with full autonomous workflow including tests,
+  implementation, critic review, Codex review, and PR creation. Auto-invoked when
+  implementing planned tasks. Use when the user says to work on a task, implement
+  a feature from a TASK file, start a planned item, or when skill-eval suggests
+  task-workflow. Covers the entire cycle from worktree creation to draft PR.
 user-invocable: true
 ---
 

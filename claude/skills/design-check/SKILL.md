@@ -1,10 +1,11 @@
 ---
 name: design-check
 description: >-
-  Verify implemented UI components against Figma designs.
-  Compare layout, spacing, colors, typography, and component hierarchy.
-  Use when implementing UI from Figma specs, checking design fidelity,
-  or verifying visual implementation.
+  Verify implemented UI components against Figma designs using Chrome DevTools and
+  Figma MCP. Compares layout, spacing, colors, typography, component hierarchy, and
+  design tokens. Use when implementing UI from Figma specs, checking design fidelity,
+  verifying visual implementation, or whenever someone asks if a component matches
+  the design. Requires running Storybook and Chrome DevTools MCP connection.
 user-invocable: true
 allowed-tools: Bash, Glob, Grep, Read, Agent
 ---

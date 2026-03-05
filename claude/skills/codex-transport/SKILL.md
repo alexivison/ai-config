@@ -1,6 +1,11 @@
 ---
 name: codex-transport
-description: Invoke Codex CLI for deep reasoning, review, and analysis
+description: >-
+  Transport layer for communicating with Codex CLI via tmux. Provides modes for
+  code review (--review), plan review (--plan-review), ad-hoc tasks (--prompt),
+  review evidence (--review-complete), and verdict signaling (--approve,
+  --needs-discussion). Use whenever dispatching work to Codex, recording review
+  evidence, or signaling completion after triaging findings.
 user-invocable: false
 ---
 

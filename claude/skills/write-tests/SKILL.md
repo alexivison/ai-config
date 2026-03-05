@@ -1,6 +1,11 @@
 ---
 name: write-tests
-description: Write tests following Testing Trophy methodology. Analyzes code to determine test type (unit/integration/component), applies appropriate granularity. Use when asked to write tests, add test coverage, create test files, increase test coverage, or when starting any testing task.
+description: >-
+  Write tests following Testing Trophy methodology. Analyzes code to determine
+  test type (unit/integration/component) and applies appropriate granularity. Use
+  when asked to write tests, add test coverage, create test files, increase test
+  coverage, do TDD, or when starting any testing task. Also invoked as the RED
+  phase of task-workflow and bugfix-workflow for behavior-changing code.
 user-invocable: false
 ---
 

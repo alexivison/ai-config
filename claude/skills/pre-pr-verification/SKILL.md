@@ -1,6 +1,11 @@
 ---
 name: pre-pr-verification
-description: Run full verification before creating PR. Enforces evidence-based completion. Use before any PR creation or when asked to verify changes.
+description: >-
+  Run full verification (typecheck, lint, tests) before creating a PR. Enforces
+  evidence-based completion with parallel sub-agent execution (test-runner +
+  check-runner). Use before any PR creation, when asked to verify changes, check
+  everything passes, or as the final gate before committing. Captures verification
+  evidence for the PR description.
 user-invocable: false
 allowed-tools: Bash, Task
 ---
