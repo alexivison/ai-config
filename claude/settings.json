@@ -158,5 +158,5 @@
     "command": "~/.claude/scripts/status-line.sh"
   },
   "skipDangerousModePermissionPrompt": true,
-  "effortLevel": "max"
+  "effortLevel": "high"
 }
