@@ -103,6 +103,9 @@ party_launch_agents() {
     claude_cmd="$claude_cmd export CLAUDE_TEAM_REVIEW=1; export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1;"
   fi
   claude_cmd="$claude_cmd exec $q_claude_bin --dangerously-skip-permissions"
+  if [[ "$team_review" = "1" ]]; then
+    claude_cmd="$claude_cmd --teammate-mode in-process"
+  fi
   if [[ -n "$claude_resume_id" ]]; then
     printf -v q_claude_resume_id '%q' "$claude_resume_id"
     claude_cmd="$claude_cmd --resume $q_claude_resume_id"
