@@ -7,7 +7,7 @@
 # Sub-agent: Claude Code overrides with -s read-only at call time
 
 # Default model configuration
-model = "gpt-5.3-codex"
+model = "gpt-5.4"
 model_reasoning_effort = "xhigh"
 model_reasoning_summary = "detailed"
 approval_policy = "on-request"
