@@ -97,7 +97,7 @@ party_launch_agents() {
   printf -v q_codex_bin '%q' "$codex_bin"
 
   local claude_cmd codex_cmd
-  claude_cmd="export PATH=$q_agent_path; unset CLAUDECODE; export CLAUDE_TEAM_REVIEW=1;"
+  claude_cmd="export PATH=$q_agent_path; unset CLAUDECODE;"
   claude_cmd="$claude_cmd exec $q_claude_bin --dangerously-skip-permissions"
   if [[ -n "$claude_resume_id" ]]; then
     printf -v q_claude_resume_id '%q' "$claude_resume_id"
