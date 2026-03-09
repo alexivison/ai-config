@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # party.sh — Launch or resume a tmux session with Claude (Paladin) and Codex (Wizard)
-# Usage: party.sh [--team] [--resume-claude ID] [--resume-codex ID] [TITLE]
+# Usage: party.sh [--resume-claude ID] [--resume-codex ID] [TITLE]
 #        party.sh --continue <party-id> | --stop [name] | --list | --install-tpm
 set -euo pipefail
 
@@ -10,7 +10,7 @@ source "$SCRIPT_DIR/party-lib.sh"
 party_usage() {
   cat <<'EOF'
 Usage:
-  party.sh [--team] [--resume-claude ID] [--resume-codex ID] [TITLE]
+  party.sh [--resume-claude ID] [--resume-codex ID] [TITLE]
   party.sh --continue <party-id>
   party.sh continue <party-id>
   party.sh --stop [name]
@@ -76,14 +76,13 @@ party_set_cleanup_hook() {
 }
 
 party_launch_agents() {
-  local session="${1:?Usage: party_launch_agents SESSION CWD CLAUDE_BIN CODEX_BIN AGENT_PATH [CLAUDE_RESUME_ID] [CODEX_RESUME_ID] [TEAM_REVIEW]}"
+  local session="${1:?Usage: party_launch_agents SESSION CWD CLAUDE_BIN CODEX_BIN AGENT_PATH [CLAUDE_RESUME_ID] [CODEX_RESUME_ID]}"
   local session_cwd="${2:?Missing session_cwd}"
   local claude_bin="${3:?Missing claude_bin}"
   local codex_bin="${4:?Missing codex_bin}"
   local agent_path="${5:?Missing agent_path}"
   local claude_resume_id="${6:-}"
   local codex_resume_id="${7:-}"
-  local team_review="${8:-0}"
   local state_dir
 
   state_dir="$(ensure_party_state_dir "$session")"
@@ -99,13 +98,7 @@ party_launch_agents() {
 
   local claude_cmd codex_cmd
   claude_cmd="export PATH=$q_agent_path; unset CLAUDECODE;"
-  if [[ "$team_review" = "1" ]]; then
-    claude_cmd="$claude_cmd export CLAUDE_TEAM_REVIEW=1; export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1;"
-  fi
   claude_cmd="$claude_cmd exec $q_claude_bin --dangerously-skip-permissions"
-  if [[ "$team_review" = "1" ]]; then
-    claude_cmd="$claude_cmd --teammate-mode in-process"
-  fi
   if [[ -n "$claude_resume_id" ]]; then
     printf -v q_claude_resume_id '%q' "$claude_resume_id"
     claude_cmd="$claude_cmd --resume $q_claude_resume_id"
@@ -153,7 +146,6 @@ party_start() {
   local title="${1:-}"
   local resume_claude="${2:-}"
   local resume_codex="${3:-}"
-  local team_review="${4:-0}"
   local session="party-$(date +%s)"
   local state_dir
   local session_cwd="$PWD"
@@ -173,13 +165,10 @@ party_start() {
   state_dir="$(ensure_party_state_dir "$session")"
   party_state_upsert_manifest "$session" "$title" "$session_cwd" "$window_name" "$claude_bin" "$codex_bin" "$agent_path" || true
   party_state_set_field "$session" "last_started_at" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" || true
-  party_state_set_field "$session" "team_review" "$team_review" || true
-
   party_create_session "$session" "$window_name" "$session_cwd"
-  party_launch_agents "$session" "$session_cwd" "$claude_bin" "$codex_bin" "$agent_path" "$resume_claude" "$resume_codex" "$team_review"
+  party_launch_agents "$session" "$session_cwd" "$claude_bin" "$codex_bin" "$agent_path" "$resume_claude" "$resume_codex"
 
   echo "Party session '$session' started."
-  [[ "$team_review" = "1" ]] && echo "Team review: ENABLED (adversarial reviewer)"
   echo "State dir: $state_dir"
   echo "Manifest: $(party_state_file "$session")"
   party_attach "$session"
@@ -211,7 +200,7 @@ party_continue() {
 
   local session_cwd window_name
   local claude_bin codex_bin agent_path
-  local title claude_resume_id codex_resume_id team_review
+  local title claude_resume_id codex_resume_id
 
   session_cwd="$(party_state_get_field "$session" "cwd" || true)"
   window_name="$(party_state_get_field "$session" "window_name" || true)"
@@ -221,8 +210,6 @@ party_continue() {
   agent_path="$(party_state_get_field "$session" "agent_path" || true)"
   claude_resume_id="$(party_state_get_field "$session" "claude_session_id" || true)"
   codex_resume_id="$(party_state_get_field "$session" "codex_thread_id" || true)"
-  team_review="$(party_state_get_field "$session" "team_review" || true)"
-  [[ -n "$team_review" ]] || team_review=0
 
   [[ -n "$session_cwd" ]] || session_cwd="$PWD"
   if [[ ! -d "$session_cwd" ]]; then
@@ -236,13 +223,12 @@ party_continue() {
 
   ensure_party_state_dir "$session" >/dev/null
   party_create_session "$session" "$window_name" "$session_cwd"
-  party_launch_agents "$session" "$session_cwd" "$claude_bin" "$codex_bin" "$agent_path" "$claude_resume_id" "$codex_resume_id" "$team_review"
+  party_launch_agents "$session" "$session_cwd" "$claude_bin" "$codex_bin" "$agent_path" "$claude_resume_id" "$codex_resume_id"
 
   party_state_upsert_manifest "$session" "$title" "$session_cwd" "$window_name" "$claude_bin" "$codex_bin" "$agent_path" || true
   party_state_set_field "$session" "last_resumed_at" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" || true
 
   echo "Party session '$session' resumed."
-  [[ "$team_review" = "1" ]] && echo "Team review: ENABLED (adversarial reviewer)"
   echo "State dir: $(party_runtime_dir "$session")"
   echo "Manifest: $manifest"
   if [[ -z "$claude_resume_id" ]]; then
@@ -459,7 +445,6 @@ party_list() {
 _party_resume_claude=""
 _party_resume_codex=""
 _party_title=""
-_party_team_review=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -470,7 +455,6 @@ while [[ $# -gt 0 ]]; do
     --delete) party_delete "${2:?--delete requires a session ID}"; exit ;;
     --pick-entries) party_pick_entries; exit ;;
     --help|-h) party_usage; exit ;;
-    --team)  _party_team_review=1; shift ;;
     --resume-claude) _party_resume_claude="${2:?--resume-claude requires a session ID}"; shift 2 ;;
     --resume-codex)  _party_resume_codex="${2:?--resume-codex requires a session ID}"; shift 2 ;;
     --*)     party_usage >&2; exit 1 ;;
@@ -478,4 +462,4 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-party_start "$_party_title" "$_party_resume_claude" "$_party_resume_codex" "$_party_team_review"
+party_start "$_party_title" "$_party_resume_claude" "$_party_resume_codex"

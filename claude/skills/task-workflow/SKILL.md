@@ -52,14 +52,10 @@ Use the canonical sequence in [execution-core.md](~/.claude/rules/execution-core
       ~/.claude/skills/codex-transport/scripts/tmux-codex.sh --review main "{PR title}" "$(pwd)"
       ```
       `work_dir` is required — pass the worktree/repo path. Codex notifies via `[CODEX]` message when done.
-8. **Team review check** — Run immediately after dispatching Codex:
-      ```bash
-      echo "${CLAUDE_TEAM_REVIEW:-0}"
-      ```
-      - If `1`: invoke `review-team` skill now (concurrent with Codex). See skill for spawn mechanics and prompt template. Reviewer findings are advisory (no gating markers). **BARRIER:** no code edits until both Codex AND reviewer return (or 5-minute timeout).
-      - If `0` or unset: continue with non-edit work while Codex reviews.
-      - **Known failure pattern:** In past sessions this step was skipped because it was buried as a sub-step. It is now a top-level step specifically to prevent that. Do not skip it.
-9. **Triage findings** — When `[CODEX] Review complete` arrives: read findings, triage by severity. If team review was active, triage the UNION of Codex + reviewer findings.
+8. **Adversarial review** — Immediately after dispatching Codex, launch the `adversarial-reviewer` sub-agent in the background. Pass the merge-base diff, scope boundaries from TASK, and a short PR goal context.
+      - **BARRIER:** no code edits until both Codex AND adversarial reviewer return.
+      - Reviewer findings are advisory (no gating markers).
+9. **Triage findings** — When `[CODEX] Review complete` arrives: read findings, triage by severity. Triage the UNION of Codex + adversarial reviewer findings.
    - **Blocking findings:** fix code → re-run critics → dispatch new `--review` → `--review-complete` → `--approve`. Editing code auto-invalidates all markers.
    - Round 2: if blocking findings remain after second Codex review, escalate `--needs-discussion`.
    - Non-blocking findings: record with `--review-complete` and proceed.

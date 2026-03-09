@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
-# Tests for review-team marker invalidation
+# Tests for marker-invalidate.sh
 # Covers: marker invalidation behavior with code vs non-code edits
-# Note: Agent Teams dispatch/timeout/ON-OFF parity cannot be tested in shell
-# (requires a running Claude Code instance). These tests cover the testable surface.
 #
-# Usage: bash ~/.claude/hooks/tests/test-review-team.sh
+# Usage: bash ~/.claude/hooks/tests/test-marker-invalidate.sh
 
 set -euo pipefail
 
@@ -12,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INVALIDATE_HOOK="$SCRIPT_DIR/../marker-invalidate.sh"
 PASS=0
 FAIL=0
-SESSION="test-review-team-$$"
+SESSION="test-marker-invalidate-$$"
 
 cleanup() {
   rm -f /tmp/claude-code-critic-"$SESSION"
@@ -65,6 +63,6 @@ assert ".md edit preserves code-critic marker" \
 cleanup
 echo ""
 echo "═══════════════════════════════════════"
-echo "review-team parity: $PASS passed, $FAIL failed"
+echo "marker-invalidate: $PASS passed, $FAIL failed"
 echo "═══════════════════════════════════════"
 [ "$FAIL" -eq 0 ] || exit 1
