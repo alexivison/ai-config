@@ -52,19 +52,7 @@ Use the canonical sequence in [execution-core.md](~/.claude/rules/execution-core
       ~/.claude/skills/codex-transport/scripts/tmux-codex.sh --review main "{PR title}" "$(pwd)"
       ```
       `work_dir` is required — pass the worktree/repo path. Codex notifies via `[CODEX]` message when done.
-8. **Adversarial review** — Immediately after dispatching Codex, launch the `adversarial-reviewer` sub-agent:
-      ```
-      Agent tool:
-        subagent_type: adversarial-reviewer
-        run_in_background: true
-        prompt: |
-          Review the diff for this PR: {PR title}
-          Scope: {in-scope files from TASK}
-          Out of scope: {out-of-scope files from TASK}
-          <diff>
-          {output of git diff "$(git merge-base HEAD main)"}
-          </diff>
-      ```
+8. **Adversarial review** — Immediately after dispatching Codex, launch the `adversarial-reviewer` sub-agent in the background. Pass the merge-base diff, scope boundaries from TASK, and a short PR goal context.
       - **BARRIER:** no code edits until both Codex AND adversarial reviewer return.
       - Reviewer findings are advisory (no gating markers).
 9. **Triage findings** — When `[CODEX] Review complete` arrives: read findings, triage by severity. Triage the UNION of Codex + adversarial reviewer findings.
