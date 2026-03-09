@@ -65,7 +65,7 @@ Use the canonical sequence in [execution-core.md](~/.claude/rules/execution-core
           {output of git diff "$(git merge-base HEAD main)"}
           </diff>
       ```
-      - **BARRIER:** no code edits until both Codex AND adversarial reviewer return (or 5-minute timeout). If 5 minutes pass, proceed with Codex findings only.
+      - **BARRIER:** no code edits until both Codex AND adversarial reviewer return.
       - Reviewer findings are advisory (no gating markers).
 9. **Triage findings** — When `[CODEX] Review complete` arrives: read findings, triage by severity. Triage the UNION of Codex + adversarial reviewer findings.
    - **Blocking findings:** fix code → re-run critics → dispatch new `--review` → `--review-complete` → `--approve`. Editing code auto-invalidates all markers.
