@@ -5,7 +5,7 @@
 #
 # Triggered: PostToolUse on Edit|Write
 # Skips: .md, /tmp/, .log, .jsonl files
-# Fails open on errors (mirrors agent-trace.sh pattern)
+# Fails open on errors
 
 set -e
 
