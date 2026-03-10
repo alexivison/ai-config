@@ -305,7 +305,7 @@ try:
     since = '${SINCE}T00:00:00Z'
     until_date = '${UNTIL}T00:00:00Z'
     agents = {'test-runner': 'Tests', 'check-runner': 'Checks'}
-    pass_verdicts = {'PASS', 'COMPLETED', 'APPROVE', 'CLEAN'}
+    pass_verdicts = {'PASS', 'COMPLETED', 'APPROVED', 'CLEAN'}
     fail_verdicts = {'FAIL', 'REQUEST_CHANGES', 'ISSUES_FOUND'}
     stats = {a: {'pass': 0, 'fail': 0} for a in agents}
     with open('$TRACE_LOG') as f:
