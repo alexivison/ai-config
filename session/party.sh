@@ -127,10 +127,12 @@ party_launch_agents() {
   # Pane 0: Codex (The Wizard)
   tmux respawn-pane -k -t "$session:0.0" -c "$session_cwd" "$codex_cmd"
   tmux set-option -p -t "$session:0.0" @party_role codex
+  tmux set-option -p -t "$session:0.0" remain-on-exit on
 
   # Pane 1: Claude (The Paladin)
   tmux split-window -h -t "$session:0.0" -c "$session_cwd" "$claude_cmd"
   tmux set-option -p -t "$session:0.1" @party_role claude
+  tmux set-option -p -t "$session:0.1" remain-on-exit on
 
   # Pane 2: Shell (operator terminal)
   tmux split-window -h -t "$session:0.1" -c "$session_cwd"
