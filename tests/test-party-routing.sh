@@ -31,7 +31,7 @@ tmux() {
     return 1
   fi
   # Mock display-message to always return window 0 for deterministic tests
-  if [[ "$1" == "display-message" && "${3:-}" == '#{window_index}' ]]; then
+  if [[ "$1" == "display-message" ]] && [[ "$*" == *'#{window_index}'* ]]; then
     echo "0"
     return 0
   fi

@@ -763,6 +763,7 @@ while [[ $# -gt 0 ]]; do
     --master-id) _party_master_id="${2:?--master-id requires a session ID}"; shift 2 ;;
     --add-window) _party_add_window="${2:?--add-window requires a session ID}"; shift 2 ;;
     --parent) _party_add_window="${2:?--parent requires a session ID}"; shift 2 ;;
+    --)      shift; break ;;
     --*)     party_usage >&2; exit 1 ;;
     *)       _party_title="$1"; shift ;;
   esac

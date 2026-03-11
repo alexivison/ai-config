@@ -37,6 +37,31 @@ party_attach() {
   fi
 }
 
+# ---------------------------------------------------------------------------
+# Portable file locking (used by all manifest write operations)
+# ---------------------------------------------------------------------------
+
+# Acquire a lock via atomic mkdir. Returns 0 on success, 1 on timeout (~10s).
+_party_lock() {
+  local lockdir="$1"
+  local max_attempts=100  # 100 × 0.1s = 10s timeout
+  local attempts=0
+
+  while ! mkdir "$lockdir" 2>/dev/null; do
+    if [[ $attempts -ge $max_attempts ]]; then
+      return 1
+    fi
+    sleep 0.1
+    attempts=$((attempts + 1))
+  done
+  return 0
+}
+
+_party_unlock() {
+  local lockdir="$1"
+  rmdir "$lockdir" 2>/dev/null || true
+}
+
 # Persist launch metadata for a party session. JSON persistence is best-effort:
 # if jq is unavailable, runtime behavior still works, but resume metadata is skipped.
 party_state_upsert_manifest() {
@@ -45,7 +70,7 @@ party_state_upsert_manifest() {
   local cwd="${3:?Missing cwd}"
   local window_name="${4:?Missing window_name}"
   local claude_bin="${5:?Missing claude_bin}"
-  local codex_bin="${6:-}"
+  local codex_bin="${6:?Missing codex_bin}"
   local agent_path="${7:?Missing agent_path}"
 
   command -v jq >/dev/null 2>&1 || return 0
@@ -56,7 +81,10 @@ party_state_upsert_manifest() {
   now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
   mkdir -p "$root"
-  tmp="$(mktemp "${TMPDIR:-/tmp}/party-state.XXXXXX")"
+  local lockdir="${file}.lock"
+  local tmp="$(mktemp "${TMPDIR:-/tmp}/party-state.XXXXXX")"
+
+  _party_lock "$lockdir" || { rm -f "$tmp"; return 1; }
 
   if [[ -f "$file" ]]; then
     jq --arg session "$session" \
@@ -79,6 +107,7 @@ party_state_upsert_manifest() {
       | .agent_path = $path
       ' "$file" > "$tmp" || {
       rm -f "$tmp"
+      _party_unlock "$lockdir"
       return 1
     }
   else
@@ -105,11 +134,13 @@ party_state_upsert_manifest() {
       }
       ' > "$tmp" || {
       rm -f "$tmp"
+      _party_unlock "$lockdir"
       return 1
     }
   fi
 
   mv "$tmp" "$file"
+  _party_unlock "$lockdir"
 }
 
 party_state_set_field() {
@@ -125,7 +156,10 @@ party_state_set_field() {
   now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
   mkdir -p "$root"
-  tmp="$(mktemp "${TMPDIR:-/tmp}/party-state.XXXXXX")"
+  local lockdir="${file}.lock"
+  local tmp="$(mktemp "${TMPDIR:-/tmp}/party-state.XXXXXX")"
+
+  _party_lock "$lockdir" || { rm -f "$tmp"; return 1; }
 
   if [[ -f "$file" ]]; then
     jq --arg session "$session" \
@@ -139,6 +173,7 @@ party_state_set_field() {
       | .[$key] = $value
       ' "$file" > "$tmp" || {
       rm -f "$tmp"
+      _party_unlock "$lockdir"
       return 1
     }
   else
@@ -156,11 +191,13 @@ party_state_set_field() {
       | .[$key] = $value
       ' > "$tmp" || {
       rm -f "$tmp"
+      _party_unlock "$lockdir"
       return 1
     }
   fi
 
   mv "$tmp" "$file"
+  _party_unlock "$lockdir"
 }
 
 party_state_get_field() {
@@ -187,31 +224,7 @@ party_is_master() {
   [[ "$st" == "master" ]]
 }
 
-# Portable lock/unlock using atomic mkdir (works on both macOS and Linux).
-# _party_lock: acquire a lock (blocks until acquired or timeout)
-# Returns 0 on success, 1 on timeout.
-_party_lock() {
-  local lockdir="$1"
-  local max_attempts=100  # 100 × 0.1s = 10s timeout
-  local attempts=0
-
-  while ! mkdir "$lockdir" 2>/dev/null; do
-    if [[ $attempts -ge $max_attempts ]]; then
-      return 1
-    fi
-    sleep 0.1
-    attempts=$((attempts + 1))
-  done
-  return 0
-}
-
-# _party_unlock: release a lock
-_party_unlock() {
-  local lockdir="$1"
-  rmdir "$lockdir" 2>/dev/null || true
-}
-
-# Add a worker to a master's workers array. Deduplicates. Uses portable lock for concurrency.
+# Add a worker to a master's workers array. Deduplicates. Locked.
 party_state_add_worker() {
   local master="${1:?Usage: party_state_add_worker MASTER WORKER}"
   local worker="${2:?Missing worker}"
@@ -236,7 +249,7 @@ party_state_add_worker() {
   return $rc
 }
 
-# Remove a worker from a master's workers array. Uses portable lock for concurrency.
+# Remove a worker from a master's workers array. Locked.
 party_state_remove_worker() {
   local master="${1:?Usage: party_state_remove_worker MASTER WORKER}"
   local worker="${2:?Missing worker}"
@@ -386,9 +399,15 @@ party_role_pane_target() {
   local session="${1:?Usage: party_role_pane_target SESSION ROLE}"
   local role="${2:?Missing role}"
 
-  # Auto-discover current window; falls back to 0 when not inside tmux
+  # Auto-discover the window this pane is in. TMUX_PANE gives the exact pane ID
+  # (e.g. %5), so -t ensures we get OUR window, not the client's active window.
+  # This matters when multiple windows have the same roles.
   local window
-  window="$(tmux display-message -p '#{window_index}' 2>/dev/null || echo 0)"
+  if [[ -n "${TMUX_PANE:-}" ]]; then
+    window="$(tmux display-message -t "$TMUX_PANE" -p '#{window_index}' 2>/dev/null || echo 0)"
+  else
+    window="$(tmux display-message -p '#{window_index}' 2>/dev/null || echo 0)"
+  fi
 
   # Search current window first, then all windows in the session
   local -a search_windows=("$window")
@@ -449,7 +468,11 @@ party_role_pane_target_with_fallback() {
 
   # Topology-guarded fallback: only for legacy 2-pane sessions without role metadata
   local window
-  window="$(tmux display-message -p '#{window_index}' 2>/dev/null || echo 0)"
+  if [[ -n "${TMUX_PANE:-}" ]]; then
+    window="$(tmux display-message -t "$TMUX_PANE" -p '#{window_index}' 2>/dev/null || echo 0)"
+  else
+    window="$(tmux display-message -p '#{window_index}' 2>/dev/null || echo 0)"
+  fi
 
   local pane_list
   pane_list=$(tmux list-panes -t "$session:$window" -F '#{pane_index} #{@party_role}' 2>/dev/null) || {
