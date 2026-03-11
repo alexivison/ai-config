@@ -50,6 +50,9 @@ elif echo "$PROMPT_LOWER" | grep -qE '\bpr comment|\breview(er)? (comment|feedba
 elif echo "$PROMPT_LOWER" | grep -qE '\blearn from (this|session)\b|\bremember (this|that)\b|\bsave (this |that |)preference\b|\bextract pattern\b|/autoskill'; then
   SUGGESTION="RECOMMENDED: Invoke /autoskill to learn from this session."
   PRIORITY="should"
+elif echo "$PROMPT_LOWER" | grep -qE '\bfix (these|all|multiple) (tickets?|bugs?|issues?)\b|\bspawn parties\b|\bdispatch (these|tasks?|tickets?)\b|\bwork on all.*(these|them)\b|\bparty (bugfix|task|dispatch)\b|\bin parallel\b.*\b(tickets?|bugs?|issues?|tasks?)\b'; then
+  SUGGESTION="RECOMMENDED: Use /party-dispatch to spawn parallel sessions for multiple items."
+  PRIORITY="should"
 fi
 
 # Output with priority level

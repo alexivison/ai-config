@@ -36,13 +36,14 @@
       "Bash(uniq:*)",
       "Bash(xargs:*)",
       "Bash(xxd:*)",
+      "Bash(~/Code/ai-config/session/party.sh:*)",
       "Bash(~/.claude/skills/codex-transport/scripts/tmux-codex.sh:*)",
       "WebFetch(domain:*)",
       "WebSearch",
       "mcp__chrome-devtools__:*",
       "mcp__figma__*",
       "mcp__notion__*",
-      "mcp__linear__*"
+      "mcp__claude_ai_Linear__:*"
     ],
     "deny": [
       "Read(.env)",
