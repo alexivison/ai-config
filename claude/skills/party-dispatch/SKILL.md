@@ -52,15 +52,22 @@ context as arguments. For example:
 - `/bugfix-workflow` with the Linear ticket context pasted
 - `/task-workflow` with the file path
 
-### Step 4 — Spawn party sessions for remaining items
+### Step 4 — Spawn worker windows for remaining items
 
-For each remaining item, construct a prompt and spawn a detached party session:
+First, discover the current tmux session name:
 
 ```bash
-~/Code/ai-config/session/party.sh --detached --prompt "<prompt>" "<title>"
+tmux display-message -p '#{session_name}'
 ```
 
-The `<title>` is a short label for the tmux session (e.g., the ticket ID).
+For each remaining item, construct a prompt and spawn a worker window in the
+current session:
+
+```bash
+~/Code/ai-config/session/party.sh --parent <session-name> --prompt "<prompt>" "<title>"
+```
+
+The `<title>` becomes the tmux window name (e.g., the ticket ID).
 
 #### Prompt construction
 
@@ -89,17 +96,16 @@ Run /task-workflow on the task file at: <absolute-path>
 Read the file first to understand the scope, then execute the workflow.
 ```
 
-Spawn parties **sequentially** (one Bash call at a time, not parallel).
-Concurrent tmux session creation causes pane layout corruption due to
-global tmux hooks. Wait for each spawn to complete before starting the next.
+Spawn workers **sequentially** (one Bash call at a time, not parallel).
+Wait for each spawn to complete before starting the next.
 
 ### Step 5 — Report
 
 After spawning, report to the user:
 
-- Which item you are handling in this session
-- Which items were dispatched to party sessions (with session names)
-- How to check on them: `party.sh --list` or `party.sh --switch`
+- Which item you are handling in this window
+- Which items were dispatched to worker windows (with window names)
+- How to switch between them: `Alt-1`, `Alt-2`, etc. (tmux window keys)
 
 Then proceed with your own item's workflow — do not wait.
 

@@ -288,9 +288,13 @@ party_role_pane_target() {
   local session="${1:?Usage: party_role_pane_target SESSION ROLE}"
   local role="${2:?Missing role}"
 
+  # Auto-discover current window; falls back to 0 when not inside tmux
+  local window
+  window="$(tmux display-message -p '#{window_index}' 2>/dev/null || echo 0)"
+
   local pane_list
-  pane_list=$(tmux list-panes -t "$session:0" -F '#{pane_index} #{@party_role}' 2>/dev/null) || {
-    echo "Error: Cannot list panes for session '$session'" >&2
+  pane_list=$(tmux list-panes -t "$session:$window" -F '#{pane_index} #{@party_role}' 2>/dev/null) || {
+    echo "Error: Cannot list panes for session '$session' window '$window'" >&2
     return 1
   }
 
@@ -302,16 +306,16 @@ party_role_pane_target() {
   done <<< "$pane_list"
 
   if [[ ${#found[@]} -eq 0 ]]; then
-    echo "ROLE_NOT_FOUND: No pane with @party_role='$role' in session '$session'" >&2
+    echo "ROLE_NOT_FOUND: No pane with @party_role='$role' in session '$session:$window'" >&2
     return 1
   fi
 
   if [[ ${#found[@]} -gt 1 ]]; then
-    echo "ROLE_AMBIGUOUS: Multiple panes with @party_role='$role' in session '$session'" >&2
+    echo "ROLE_AMBIGUOUS: Multiple panes with @party_role='$role' in session '$session:$window'" >&2
     return 1
   fi
 
-  printf '%s:0.%s\n' "$session" "${found[0]}"
+  printf '%s:%s.%s\n' "$session" "$window" "${found[0]}"
 }
 
 # Resolve pane target with legacy fallback for pre-change sessions.
@@ -338,9 +342,12 @@ party_role_pane_target_with_fallback() {
   fi
 
   # Topology-guarded fallback: only for legacy 2-pane sessions without role metadata
+  local window
+  window="$(tmux display-message -p '#{window_index}' 2>/dev/null || echo 0)"
+
   local pane_list
-  pane_list=$(tmux list-panes -t "$session:0" -F '#{pane_index} #{@party_role}' 2>/dev/null) || {
-    echo "ROUTING_UNRESOLVED: Cannot list panes for session '$session'" >&2
+  pane_list=$(tmux list-panes -t "$session:$window" -F '#{pane_index} #{@party_role}' 2>/dev/null) || {
+    echo "ROUTING_UNRESOLVED: Cannot list panes for session '$session:$window'" >&2
     return 1
   }
 
@@ -354,11 +361,11 @@ party_role_pane_target_with_fallback() {
 
   if [[ "$pane_count" -eq 2 && "$has_roles" -eq 0 ]]; then
     case "$role" in
-      claude) printf '%s:0.0\n' "$session"; return 0 ;;
-      codex)  printf '%s:0.1\n' "$session"; return 0 ;;
+      claude) printf '%s:%s.0\n' "$session" "$window"; return 0 ;;
+      codex)  printf '%s:%s.1\n' "$session" "$window"; return 0 ;;
     esac
   fi
 
-  echo "ROUTING_UNRESOLVED: Cannot resolve role '$role' in session '$session'" >&2
+  echo "ROUTING_UNRESOLVED: Cannot resolve role '$role' in session '$session:$window'" >&2
   return 1
 }
