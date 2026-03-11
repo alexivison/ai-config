@@ -14,6 +14,7 @@ Usage:
   party.sh --master [--detached] [--prompt "text"] [TITLE]
   party.sh --master-id <master-id> [--detached] [--prompt "text"] [TITLE]
 
+  party.sh --promote [party-id]
   party.sh --switch
   party.sh --continue <party-id>
   party.sh continue <party-id>
@@ -209,6 +210,67 @@ party_launch_master() {
   configure_party_theme "$session:0"
   party_set_cleanup_hook "$session"
   tmux select-pane -t "$session:0.1"
+}
+
+party_promote() {
+  local session="${1:-}"
+
+  if [[ -z "$session" ]]; then
+    # Auto-discover current session
+    if [[ -n "${TMUX:-}" ]]; then
+      session="$(tmux display-message -p '#{session_name}' 2>/dev/null)"
+    else
+      echo "Error: --promote requires a session name or must be run inside tmux." >&2
+      return 1
+    fi
+  fi
+
+  if [[ ! "$session" =~ ^party- ]]; then
+    echo "Error: '$session' is not a party session." >&2
+    return 1
+  fi
+
+  if party_is_master "$session" 2>/dev/null; then
+    echo "Session '$session' is already a master session." >&2
+    return 0
+  fi
+
+  if ! tmux has-session -t "$session" 2>/dev/null; then
+    echo "Error: session '$session' is not running." >&2
+    return 1
+  fi
+
+  # Resolve tracker binary
+  local tracker_bin
+  tracker_bin="$(command -v party-tracker 2>/dev/null || true)"
+  if [[ -z "$tracker_bin" ]]; then
+    local repo_tracker="$SCRIPT_DIR/../tools/party-tracker/party-tracker"
+    if [[ -x "$repo_tracker" ]]; then
+      tracker_bin="$repo_tracker"
+    else
+      echo "Error: party-tracker binary not found. Run 'go build' in tools/party-tracker/." >&2
+      return 1
+    fi
+  fi
+
+  # Find and replace the codex pane with the tracker
+  local codex_pane
+  codex_pane="$(party_role_pane_target "$session" "codex" 2>/dev/null)" || {
+    echo "Error: cannot find Codex pane to replace." >&2
+    return 1
+  }
+
+  local repo_root
+  repo_root="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+  tmux respawn-pane -k -t "$codex_pane" "PARTY_REPO_ROOT=$repo_root $tracker_bin $session"
+  tmux set-option -p -t "$codex_pane" @party_role tracker
+  tmux select-pane -t "$codex_pane" -T "Tracker"
+
+  # Update manifest
+  party_state_set_field "$session" "session_type" "master" || true
+
+  echo "Session '$session' promoted to master."
 }
 
 party_start_master() {
@@ -693,6 +755,7 @@ while [[ $# -gt 0 ]]; do
     --stop)  party_stop "${2:-}"; exit ;;
     --list)  party_list; exit ;;
     --continue|continue) party_continue "${2:-}"; exit ;;
+    --promote) party_promote "${2:-}"; exit ;;
     --delete) party_delete "${2:?--delete requires a session ID}"; exit ;;
     --switch|switch) party_switch; exit ;;
     --pick-entries) party_pick_entries; exit ;;
