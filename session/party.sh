@@ -57,12 +57,13 @@ party_window_name() {
 }
 
 configure_party_theme() {
-  local session="${1:?Usage: configure_party_theme SESSION_NAME}"
+  local target="${1:?Usage: configure_party_theme SESSION_OR_WINDOW_TARGET}"
 
   # Role labels driven by @party_role metadata, with session ID suffix when available.
   # IDs appear after agents register (Claude on SessionStart, Codex on first message).
-  tmux set-option -t "$session" pane-border-status top
-  tmux set-option -t "$session" pane-border-format \
+  # Use -w to set as window option so each window gets it independently.
+  tmux set-option -w -t "$target" pane-border-status top
+  tmux set-option -w -t "$target" pane-border-format \
     ' #{?#{==:#{@party_role},claude},The Paladin#{?#{CLAUDE_SESSION_ID}, (#{CLAUDE_SESSION_ID}),},#{?#{==:#{@party_role},codex},The Wizard#{?#{CODEX_THREAD_ID}, (#{CODEX_THREAD_ID}),},#{?#{==:#{@party_role},shell},Shell,}}} '
 }
 
@@ -191,7 +192,13 @@ party_add_window() {
   tmux select-pane -t "$base.0" -T "The Wizard"
   tmux select-pane -t "$base.1" -T "The Paladin"
   tmux select-pane -t "$base.2" -T "Shell"
+  configure_party_theme "$base"
   tmux select-pane -t "$base.1"
+
+  # Switch to the new window if requested (interactive use)
+  if [[ "${PARTY_FOCUS_NEW:-0}" == "1" ]]; then
+    tmux select-window -t "$base"
+  fi
 
   echo "Worker window '$title' added to $parent_session (window $win_idx)."
 }
@@ -201,7 +208,8 @@ party_create_session() {
   local window_name="${2:?Missing window_name}"
   local session_cwd="${3:?Missing session_cwd}"
 
-  tmux new-session -d -s "$session" -n "$window_name" -c "$session_cwd"
+  # Unset TMUX to avoid nested-session errors when called from inside tmux
+  TMUX= tmux new-session -d -s "$session" -n "$window_name" -c "$session_cwd"
 }
 
 party_start() {
@@ -601,6 +609,11 @@ while [[ $# -gt 0 ]]; do
     *)       _party_title="$1"; shift ;;
   esac
 done
+
+# Auto-detect: if inside tmux and no explicit --parent, add a window to the current session
+if [[ -z "$_party_parent" && -n "${TMUX:-}" ]]; then
+  _party_parent="$(tmux display-message -p '#{session_name}')"
+fi
 
 if [[ -n "$_party_parent" ]]; then
   claude_bin="${CLAUDE_BIN:-$(command -v claude 2>/dev/null || echo "$HOME/.local/bin/claude")}"
