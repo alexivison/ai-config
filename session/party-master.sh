@@ -39,21 +39,21 @@ party_launch_master() {
 
   # Resolve tracker binary: PATH first, then repo-local build
   local tracker_bin
+  # Resolve tracker: installed binary > go run (always up to date, cached)
+  local tracker_cmd repo_root
+  repo_root="$(cd "$SCRIPT_DIR/.." && pwd)"
   tracker_bin="$(command -v party-tracker 2>/dev/null || true)"
-  if [[ -z "$tracker_bin" ]]; then
-    local repo_tracker="$SCRIPT_DIR/../tools/party-tracker/party-tracker"
-    if [[ -x "$repo_tracker" ]]; then
-      tracker_bin="$repo_tracker"
-    else
-      echo "Warning: party-tracker binary not found. Run 'go build' in tools/party-tracker/." >&2
-      tracker_bin="echo 'party-tracker not installed'; read"
-    fi
+  if [[ -n "$tracker_bin" ]]; then
+    tracker_cmd="PARTY_REPO_ROOT=$repo_root $tracker_bin $session"
+  elif command -v go &>/dev/null && [[ -f "$repo_root/tools/party-tracker/main.go" ]]; then
+    tracker_cmd="PARTY_REPO_ROOT=$repo_root go run $repo_root/tools/party-tracker $session"
+  else
+    echo "Warning: party-tracker not found and Go not available." >&2
+    tracker_cmd="echo 'party-tracker: install Go or build the binary'; read"
   fi
 
-  # Pane 0: Tracker (set PARTY_REPO_ROOT so tracker finds scripts post-install)
-  local repo_root
-  repo_root="$(cd "$SCRIPT_DIR/.." && pwd)"
-  tmux respawn-pane -k -t "$session:0.0" -c "$session_cwd" "PARTY_REPO_ROOT=$repo_root $tracker_bin $session"
+  # Pane 0: Tracker
+  tmux respawn-pane -k -t "$session:0.0" -c "$session_cwd" "$tracker_cmd"
   tmux set-option -p -t "$session:0.0" @party_role tracker
 
   # Pane 1: Claude (The Paladin — orchestrator)
@@ -99,17 +99,17 @@ party_promote() {
     return 1
   fi
 
-  # Resolve tracker binary
-  local tracker_bin
+  # Resolve tracker: installed binary > go run
+  local tracker_cmd repo_root tracker_bin
+  repo_root="$(cd "$SCRIPT_DIR/.." && pwd)"
   tracker_bin="$(command -v party-tracker 2>/dev/null || true)"
-  if [[ -z "$tracker_bin" ]]; then
-    local repo_tracker="$SCRIPT_DIR/../tools/party-tracker/party-tracker"
-    if [[ -x "$repo_tracker" ]]; then
-      tracker_bin="$repo_tracker"
-    else
-      echo "Error: party-tracker binary not found. Run 'go build' in tools/party-tracker/." >&2
-      return 1
-    fi
+  if [[ -n "$tracker_bin" ]]; then
+    tracker_cmd="PARTY_REPO_ROOT=$repo_root $tracker_bin $session"
+  elif command -v go &>/dev/null && [[ -f "$repo_root/tools/party-tracker/main.go" ]]; then
+    tracker_cmd="PARTY_REPO_ROOT=$repo_root go run $repo_root/tools/party-tracker $session"
+  else
+    echo "Error: party-tracker not found and Go not available." >&2
+    return 1
   fi
 
   local codex_pane
@@ -118,10 +118,7 @@ party_promote() {
     return 1
   }
 
-  local repo_root
-  repo_root="$(cd "$SCRIPT_DIR/.." && pwd)"
-
-  tmux respawn-pane -k -t "$codex_pane" "PARTY_REPO_ROOT=$repo_root $tracker_bin $session"
+  tmux respawn-pane -k -t "$codex_pane" "$tracker_cmd"
   tmux set-option -p -t "$codex_pane" @party_role tracker
   tmux select-pane -t "$codex_pane" -T "Tracker"
 
