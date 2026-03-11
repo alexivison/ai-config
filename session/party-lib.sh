@@ -288,9 +288,15 @@ party_role_pane_target() {
   local session="${1:?Usage: party_role_pane_target SESSION ROLE}"
   local role="${2:?Missing role}"
 
-  # Auto-discover current window; falls back to 0 when not inside tmux
+  # Auto-discover the window this pane is in. TMUX_PANE gives the exact pane ID
+  # (e.g. %5), so -t ensures we get OUR window, not the client's active window.
+  # This matters when multiple windows have the same roles.
   local window
-  window="$(tmux display-message -p '#{window_index}' 2>/dev/null || echo 0)"
+  if [[ -n "${TMUX_PANE:-}" ]]; then
+    window="$(tmux display-message -t "$TMUX_PANE" -p '#{window_index}' 2>/dev/null || echo 0)"
+  else
+    window="$(tmux display-message -p '#{window_index}' 2>/dev/null || echo 0)"
+  fi
 
   # Search current window first, then all windows in the session
   local -a search_windows=("$window")
@@ -351,7 +357,11 @@ party_role_pane_target_with_fallback() {
 
   # Topology-guarded fallback: only for legacy 2-pane sessions without role metadata
   local window
-  window="$(tmux display-message -p '#{window_index}' 2>/dev/null || echo 0)"
+  if [[ -n "${TMUX_PANE:-}" ]]; then
+    window="$(tmux display-message -t "$TMUX_PANE" -p '#{window_index}' 2>/dev/null || echo 0)"
+  else
+    window="$(tmux display-message -p '#{window_index}' 2>/dev/null || echo 0)"
+  fi
 
   local pane_list
   pane_list=$(tmux list-panes -t "$session:$window" -F '#{pane_index} #{@party_role}' 2>/dev/null) || {
