@@ -50,9 +50,6 @@ elif echo "$PROMPT_LOWER" | grep -qE '\bpr comment|\breview(er)? (comment|feedba
 elif echo "$PROMPT_LOWER" | grep -qE '\blearn from (this|session)\b|\bremember (this|that)\b|\bsave (this |that |)preference\b|\bextract pattern\b|/autoskill'; then
   SUGGESTION="RECOMMENDED: Invoke /autoskill to learn from this session."
   PRIORITY="should"
-elif echo "$PROMPT_LOWER" | grep -qE '\bcreate (a |new )?skill\b|\bnew skill\b|\bwrite (a |the )?skill\b|\bedit (a |the )?skill\b|\bskill\.md\b|\bskill (format|convention|structure|spec)\b'; then
-  SUGGESTION="RECOMMENDED: Invoke /working-with-skills for skill authoring conventions."
-  PRIORITY="should"
 fi
 
 # Output with priority level

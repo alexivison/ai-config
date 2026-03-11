@@ -109,7 +109,7 @@ Evidence before claims. No assertions without proof (test output, file:line, gre
 
 ## PR Gate
 
-Code PRs require all markers: pre-pr-verification, code-critic, minimizer, codex, test-runner, check-runner. Markers created by `agent-trace.sh` and `codex-trace.sh`.
+Code PRs require all markers: pre-pr-verification, code-critic, minimizer, codex, test-runner, check-runner. Markers created by `agent-trace-stop.sh` and `codex-trace.sh`.
 
 **Post-PR:** Changes in same branch → re-run /pre-pr-verification → amend + force-push with `--force-with-lease`.
 

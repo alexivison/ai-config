@@ -110,17 +110,29 @@
         ]
       }
     ],
-    "PostToolUse": [
+    "SubagentStart": [
       {
-        "matcher": "Agent",
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/agent-trace.sh",
+            "command": "~/.claude/hooks/agent-trace-start.sh",
             "timeout": 5
           }
         ]
-      },
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/agent-trace-stop.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
       {
         "matcher": "Bash",
         "hooks": [

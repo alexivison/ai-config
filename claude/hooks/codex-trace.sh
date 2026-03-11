@@ -5,7 +5,7 @@
 #    (only if codex-ran evidence exists — prevents self-declared approval)
 #
 # Triggered: PostToolUse on Bash tool
-# Fails open on errors (mirrors agent-trace.sh pattern)
+# Fails open on errors
 
 set -e
 

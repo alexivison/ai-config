@@ -48,8 +48,8 @@ case $PERIOD in
     ;;
 esac
 
-# Get filtered data
-FILTERED=$(eval "$FILTER_CMD" < "$TRACE_FILE" 2>/dev/null || cat "$TRACE_FILE")
+# Get filtered data — only "stop" events carry verdicts and represent completions
+FILTERED=$(eval "$FILTER_CMD" < "$TRACE_FILE" 2>/dev/null | jq -c 'select(.event == "stop")' || true)
 
 if [ -z "$FILTERED" ]; then
   echo "No agent activity for $PERIOD_LABEL"
@@ -103,7 +103,7 @@ echo ""
 
 # Recent activity
 echo "Recent Activity:"
-echo "$FILTERED" | jq -r 'select(.timestamp != null) | "\(.timestamp | .[11:16]) \(.agent) → \(.verdict) (\(.description))"' | tail -5 | while read line; do
+echo "$FILTERED" | jq -r 'select(.timestamp != null) | "\(.timestamp | .[11:16]) \(.agent) → \(.verdict)"' | tail -5 | while read line; do
   echo "  $line"
 done
 echo ""

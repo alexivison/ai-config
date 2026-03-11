@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# review-costs.sh — Aggregate token costs from agent-trace.jsonl
+# review-costs.sh — Review cascade summary from agent-trace.jsonl
 # Usage: review-costs.sh [session_id]
 #   session_id: filter to a specific session (default: latest session)
 set -euo pipefail
@@ -15,31 +15,35 @@ session_id="${1:-}"
 
 # If no session specified, use the latest session in the trace
 if [[ -z "$session_id" ]]; then
-  session_id=$(tail -1 "$TRACE_FILE" | jq -r '.session // empty' 2>/dev/null)
+  session_id=$(grep '"event":"stop"' "$TRACE_FILE" | tail -1 | jq -r '.session // empty' 2>/dev/null || true)
   if [[ -z "$session_id" ]]; then
     echo "No sessions found in trace file." >&2
     exit 1
   fi
 fi
 
-echo "Review Cost Summary (session: $session_id)"
+echo "Review Cascade Summary (session: $session_id)"
 echo "────────────────────────────────────────"
-printf '%-28s %s\n' "Agent" "Tokens"
-echo "─────                        ──────"
+printf '%-24s %-6s %s\n' "Agent" "Runs" "Verdicts"
+echo "─────                    ────── ────────"
 
-total=0
-# Aggregate tokens by agent type within the session
-while IFS=$'\t' read -r agent tokens; do
+# Aggregate stop events by agent type within the session
+jq -sr --arg sid "$session_id" '
+  [.[] | select(.session == $sid and .event == "stop")]
+  | group_by(.agent)
+  | map({
+      agent: .[0].agent,
+      count: length,
+      verdicts: (map(.verdict) | group_by(.) | map({v: .[0], c: length}) | sort_by(-.c) | map("\(.v)(\(.c))") | join(", "))
+    })
+  | sort_by(.agent)
+  | .[]
+  | [.agent, (.count | tostring), .verdicts]
+  | @tsv
+' "$TRACE_FILE" 2>/dev/null | while IFS=$'\t' read -r agent count verdicts; do
   [[ -z "$agent" ]] && continue
-  tokens=${tokens:-0}
-  [[ "$tokens" =~ ^[0-9]+$ ]] || tokens=0
-  printf '%-28s %d\n' "$agent" "$tokens"
-  total=$((total + tokens))
-done < <(jq -sr --arg sid "$session_id" \
-  '[.[] | select(.session == $sid)] | group_by(.agent) | map({agent: .[0].agent, tokens: (map(.tokens // 0) | add)}) | sort_by(.agent) | .[] | [.agent, .tokens] | @tsv' \
-  "$TRACE_FILE" 2>/dev/null)
+  printf '%-24s %-6s %s\n' "$agent" "$count" "$verdicts"
+done
 
 echo "────────────────────────────────────────"
-printf '%-28s %d\n' "Total" "$total"
-echo ""
 echo "Codex: tracked separately by Codex CLI"
