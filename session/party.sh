@@ -6,6 +6,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/party-lib.sh"
+source "$SCRIPT_DIR/party-master.sh"
+source "$SCRIPT_DIR/party-picker.sh"
 
 party_usage() {
   cat <<'EOF'
@@ -140,184 +142,6 @@ party_launch_agents() {
   configure_party_theme "$session"
   party_set_cleanup_hook "$session"
   tmux select-pane -t "$session:0.1"
-}
-
-party_launch_master() {
-  local session="${1:?Usage: party_launch_master SESSION CWD CLAUDE_BIN AGENT_PATH [CLAUDE_RESUME_ID] [PROMPT]}"
-  local session_cwd="${2:?Missing session_cwd}"
-  local claude_bin="${3:?Missing claude_bin}"
-  local agent_path="${4:?Missing agent_path}"
-  local claude_resume_id="${5:-}"
-  local prompt="${6:-}"
-  local state_dir
-
-  state_dir="$(ensure_party_state_dir "$session")"
-
-  tmux set-environment -g -u CLAUDECODE 2>/dev/null || true
-  tmux set-environment -t "$session" -u CLAUDECODE 2>/dev/null || true
-
-  local q_agent_path q_claude_bin
-  printf -v q_agent_path '%q' "$agent_path"
-  printf -v q_claude_bin '%q' "$claude_bin"
-
-  local claude_cmd
-  claude_cmd="export PATH=$q_agent_path; unset CLAUDECODE;"
-  claude_cmd="$claude_cmd exec $q_claude_bin --dangerously-skip-permissions"
-  if [[ -n "$claude_resume_id" ]]; then
-    local q_claude_resume_id
-    printf -v q_claude_resume_id '%q' "$claude_resume_id"
-    claude_cmd="$claude_cmd --resume $q_claude_resume_id"
-    printf '%s\n' "$claude_resume_id" > "$state_dir/claude-session-id"
-    tmux set-environment -t "$session" CLAUDE_SESSION_ID "$claude_resume_id" 2>/dev/null || true
-  fi
-
-  if [[ -n "$prompt" ]]; then
-    local q_prompt
-    printf -v q_prompt '%q' "$prompt"
-    claude_cmd="$claude_cmd -- $q_prompt"
-  fi
-
-  # Resolve tracker binary: PATH first, then repo-local build
-  local tracker_bin
-  tracker_bin="$(command -v party-tracker 2>/dev/null || true)"
-  if [[ -z "$tracker_bin" ]]; then
-    local repo_tracker="$SCRIPT_DIR/../tools/party-tracker/party-tracker"
-    if [[ -x "$repo_tracker" ]]; then
-      tracker_bin="$repo_tracker"
-    else
-      echo "Warning: party-tracker binary not found. Run 'go build' in tools/party-tracker/." >&2
-      tracker_bin="echo 'party-tracker not installed'; read"
-    fi
-  fi
-
-  # Pane 0: Tracker (set PARTY_REPO_ROOT so tracker finds scripts post-install)
-  local repo_root
-  repo_root="$(cd "$SCRIPT_DIR/.." && pwd)"
-  tmux respawn-pane -k -t "$session:0.0" -c "$session_cwd" "PARTY_REPO_ROOT=$repo_root $tracker_bin $session"
-  tmux set-option -p -t "$session:0.0" @party_role tracker
-
-  # Pane 1: Claude (The Paladin — orchestrator)
-  tmux split-window -h -t "$session:0.0" -c "$session_cwd" "$claude_cmd"
-  tmux set-option -p -t "$session:0.1" @party_role claude
-
-  # Pane 2: Shell (operator terminal)
-  tmux split-window -h -t "$session:0.1" -c "$session_cwd"
-  tmux set-option -p -t "$session:0.2" @party_role shell
-
-  tmux select-pane -t "$session:0.0" -T "Tracker"
-  tmux select-pane -t "$session:0.1" -T "The Paladin"
-  tmux select-pane -t "$session:0.2" -T "Shell"
-  configure_party_theme "$session:0"
-  party_set_cleanup_hook "$session"
-  tmux select-pane -t "$session:0.1"
-}
-
-party_promote() {
-  local session="${1:-}"
-
-  if [[ -z "$session" ]]; then
-    # Auto-discover current session
-    if [[ -n "${TMUX:-}" ]]; then
-      session="$(tmux display-message -p '#{session_name}' 2>/dev/null)"
-    else
-      echo "Error: --promote requires a session name or must be run inside tmux." >&2
-      return 1
-    fi
-  fi
-
-  if [[ ! "$session" =~ ^party- ]]; then
-    echo "Error: '$session' is not a party session." >&2
-    return 1
-  fi
-
-  if party_is_master "$session" 2>/dev/null; then
-    echo "Session '$session' is already a master session." >&2
-    return 0
-  fi
-
-  if ! tmux has-session -t "$session" 2>/dev/null; then
-    echo "Error: session '$session' is not running." >&2
-    return 1
-  fi
-
-  # Resolve tracker binary
-  local tracker_bin
-  tracker_bin="$(command -v party-tracker 2>/dev/null || true)"
-  if [[ -z "$tracker_bin" ]]; then
-    local repo_tracker="$SCRIPT_DIR/../tools/party-tracker/party-tracker"
-    if [[ -x "$repo_tracker" ]]; then
-      tracker_bin="$repo_tracker"
-    else
-      echo "Error: party-tracker binary not found. Run 'go build' in tools/party-tracker/." >&2
-      return 1
-    fi
-  fi
-
-  # Find and replace the codex pane with the tracker
-  local codex_pane
-  codex_pane="$(party_role_pane_target "$session" "codex" 2>/dev/null)" || {
-    echo "Error: cannot find Codex pane to replace." >&2
-    return 1
-  }
-
-  local repo_root
-  repo_root="$(cd "$SCRIPT_DIR/.." && pwd)"
-
-  tmux respawn-pane -k -t "$codex_pane" "PARTY_REPO_ROOT=$repo_root $tracker_bin $session"
-  tmux set-option -p -t "$codex_pane" @party_role tracker
-  tmux select-pane -t "$codex_pane" -T "Tracker"
-
-  # Update manifest
-  party_state_set_field "$session" "session_type" "master" || true
-
-  echo "Session '$session' promoted to master."
-}
-
-party_start_master() {
-  local title="${1:-}"
-  local resume_claude="${2:-}"
-  local detached="${3:-0}"
-  local prompt="${4:-}"
-  local session="party-$(date +%s)"
-  local state_dir
-  local session_cwd="$PWD"
-  local window_name
-  local claude_bin agent_path
-
-  if ! command -v jq >/dev/null 2>&1; then
-    echo "Error: jq is required for master party mode." >&2
-    return 1
-  fi
-
-  while tmux has-session -t "$session" 2>/dev/null; do
-    session="party-$(date +%s)-$RANDOM"
-  done
-
-  window_name="$(party_window_name "$title")"
-  claude_bin="${CLAUDE_BIN:-$(command -v claude 2>/dev/null || echo "$HOME/.local/bin/claude")}"
-  agent_path="$HOME/.local/bin:/opt/homebrew/bin:${PATH:-/usr/bin:/bin}"
-
-  party_prune_manifests
-  state_dir="$(ensure_party_state_dir "$session")"
-  party_state_upsert_manifest "$session" "$title" "$session_cwd" "$window_name" "$claude_bin" "" "$agent_path" || true
-  party_state_set_field "$session" "session_type" "master" || true
-  party_state_set_field "$session" "last_started_at" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" || true
-
-  party_create_session "$session" "$window_name" "$session_cwd"
-  party_launch_master "$session" "$session_cwd" "$claude_bin" "$agent_path" "$resume_claude" "$prompt"
-
-  if [[ -n "$prompt" ]]; then
-    party_state_set_field "$session" "initial_prompt" "$prompt" || true
-  fi
-
-  echo "Master session '$session' started."
-  echo "State dir: $state_dir"
-  echo "Manifest: $(party_state_file "$session")"
-  if [[ "$detached" -eq 1 ]]; then
-    echo "Master session '$session' launched detached."
-  else
-    party_attach "$session"
-  fi
 }
 
 party_create_session() {
@@ -489,200 +313,6 @@ party_delete() {
   echo "Deleted: $session"
 }
 
-_party_short_path() {
-  local p="${1:-}"
-  if [[ "$p" == "$HOME"* ]]; then
-    printf '~%s' "${p#"$HOME"}"
-  else
-    printf '%s' "$p"
-  fi
-}
-
-_party_short_ts() {
-  # 2026-03-03T00:28:08Z → 03/03
-  local ts="${1:-}"
-  [[ "$ts" == "-" || -z "$ts" ]] && { printf '-'; return; }
-  printf '%s/%s' "${ts:5:2}" "${ts:8:2}"
-}
-
-party_pick_entries() {
-  local active_only="${1:-0}"
-  local live_sessions manifest_dir
-  live_sessions=$(tmux ls -F '#{session_name}' 2>/dev/null | grep '^party-' | sort -r || true)
-  manifest_dir="$(party_state_root)"
-
-  local current_session
-  current_session="$(tmux display-message -p '#{session_name}' 2>/dev/null || true)"
-
-  if [[ -n "$live_sessions" ]]; then
-    # Separate sessions into masters, workers, and standalone
-    local -a masters=() workers=() standalone=()
-    local -A worker_parent=()
-
-    while IFS= read -r name; do
-      local stype parent
-      stype="$(party_state_get_field "$name" "session_type" 2>/dev/null || true)"
-      parent="$(party_state_get_field "$name" "parent_session" 2>/dev/null || true)"
-      if [[ "$stype" == "master" ]]; then
-        masters+=("$name")
-      elif [[ -n "$parent" ]]; then
-        workers+=("$name")
-        worker_parent["$name"]="$parent"
-      else
-        standalone+=("$name")
-      fi
-    done <<< "$live_sessions"
-
-    # Print standalone sessions first
-    for name in "${standalone[@]}"; do
-      local cwd title marker
-      cwd="$(party_state_get_field "$name" "cwd" 2>/dev/null || true)"
-      title="$(party_state_get_field "$name" "title" 2>/dev/null || true)"
-      marker="active"
-      [[ "$name" == "$current_session" ]] && marker="* current"
-      printf '%s\t%s\t%s\t%s\n' "$name" "$marker" "${title:--}" "$(_party_short_path "${cwd:--}")"
-    done
-
-    # Print masters with their workers indented beneath
-    for name in "${masters[@]}"; do
-      local cwd title marker worker_count
-      cwd="$(party_state_get_field "$name" "cwd" 2>/dev/null || true)"
-      title="$(party_state_get_field "$name" "title" 2>/dev/null || true)"
-      worker_count="$(party_state_get_workers "$name" 2>/dev/null | grep -c . || echo 0)"
-      marker="master ($worker_count)"
-      [[ "$name" == "$current_session" ]] && marker="* master ($worker_count)"
-      printf '%s\t%s\t%s\t%s\n' "$name" "$marker" "${title:--}" "$(_party_short_path "${cwd:--}")"
-
-      # Indented workers
-      for wname in "${workers[@]}"; do
-        [[ "${worker_parent[$wname]:-}" == "$name" ]] || continue
-        local wcwd wtitle wmarker
-        wcwd="$(party_state_get_field "$wname" "cwd" 2>/dev/null || true)"
-        wtitle="$(party_state_get_field "$wname" "title" 2>/dev/null || true)"
-        wmarker="  worker"
-        [[ "$wname" == "$current_session" ]] && wmarker="* worker"
-        printf '%s\t%s\t%s\t%s\n' "  $wname" "$wmarker" "${wtitle:--}" "$(_party_short_path "${wcwd:--}")"
-      done
-    done
-
-    # Orphan workers (master not running)
-    for wname in "${workers[@]}"; do
-      local parent="${worker_parent[$wname]:-}"
-      local found=0
-      for m in "${masters[@]}"; do [[ "$m" == "$parent" ]] && found=1; done
-      [[ $found -eq 0 ]] || continue
-      local wcwd wtitle wmarker
-      wcwd="$(party_state_get_field "$wname" "cwd" 2>/dev/null || true)"
-      wtitle="$(party_state_get_field "$wname" "title" 2>/dev/null || true)"
-      wmarker="worker (orphan)"
-      [[ "$wname" == "$current_session" ]] && wmarker="* worker (orphan)"
-      printf '%s\t%s\t%s\t%s\n' "$wname" "$wmarker" "${wtitle:--}" "$(_party_short_path "${wcwd:--}")"
-    done
-  fi
-
-  # Skip stale manifests in active-only mode
-  if [[ "$active_only" -eq 1 ]]; then
-    return
-  fi
-
-  if [[ -d "$manifest_dir" ]]; then
-    local stale_files=()
-    for f in "$manifest_dir"/party-*.json; do
-      [[ -f "$f" ]] || continue
-      local sid
-      sid="$(basename "$f" .json)"
-      if [[ -n "$live_sessions" ]] && grep -qxF "$sid" <<< "$live_sessions"; then
-        continue
-      fi
-      stale_files+=("$f")
-    done
-
-    if [[ ${#stale_files[@]} -gt 0 ]]; then
-      # Separator between active and resumable sections
-      [[ -n "$live_sessions" ]] && printf '\033[38;2;99;110;123m── resumable ──────────────────────────────\033[0m\n'
-      while IFS= read -r f; do
-        local sid cwd title ts
-        sid="$(basename "$f" .json)"
-        cwd="$(jq -r '.cwd // "-"' "$f" 2>/dev/null || echo "-")"
-        title="$(jq -r '.title // empty' "$f" 2>/dev/null || true)"
-        ts="$(jq -r '.last_started_at // .created_at // "-"' "$f" 2>/dev/null || echo "-")"
-        printf '%s\t%s\t%s\t%s\n' "$sid" "$(_party_short_ts "$ts")" "${title:--}" "$(_party_short_path "$cwd")"
-      done < <(printf '%s\0' "${stale_files[@]}" | xargs -0 ls -t)
-    fi
-  fi
-}
-
-# Shared fzf picker. Args: entries, header, [extra_fzf_args...]
-_party_fzf_select() {
-  local entries="$1"
-  local header="$2"
-  shift 2
-
-  local manifest_root preview_script
-  manifest_root="$(party_state_root)"
-  preview_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/party-preview.sh"
-
-  printf '%s\n' "$entries" | column -t -s $'\t' | fzf \
-    --ansi \
-    --header="$header" \
-    --no-info \
-    --reverse \
-    --preview="bash \"$preview_script\" \$(echo {1} | cut -d\" \" -f1) \"$manifest_root\" \"$HOME\"" \
-    --preview-window=right:40% \
-    "$@"
-}
-
-# Shared fzf session picker. Returns selected session ID.
-# Args: header_text [extra_fzf_args...]
-_party_pick_session() {
-  local header="${1:?Missing header}"
-  shift
-
-  if ! command -v fzf &>/dev/null; then
-    echo "Error: fzf is required for interactive picker. Install with: brew install fzf" >&2
-    return 1
-  fi
-
-  local entries
-  entries="$(party_pick_entries)"
-  if [[ -z "$entries" ]]; then
-    echo "No party sessions found." >&2
-    return 1
-  fi
-
-  local script_path
-  script_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/party.sh"
-
-  local selected
-  selected="$(_party_fzf_select "$entries" "$header" \
-    --bind="ctrl-d:execute(echo {} | grep -qv 'current' && echo {} | awk '{print \$1}' | xargs -I{} bash \"$script_path\" --delete {} || true)+reload(bash \"$script_path\" --pick-entries)" \
-    "$@" \
-  )" || return 1
-
-  local target
-  target="$(echo "$selected" | awk '{print $1}')"
-
-  # Ignore separator line selection
-  [[ "$target" =~ ^party- ]] || return 1
-
-  echo "$target"
-}
-
-party_pick() {
-  _party_pick_session "enter:resume  ctrl-d:delete  esc:cancel"
-}
-
-party_switch() {
-  local target
-  target="$(_party_pick_session "enter:switch/resume  ctrl-d:delete  esc:cancel")" || return 1
-
-  if tmux has-session -t "$target" 2>/dev/null; then
-    party_attach "$target"
-  else
-    party_continue "$target"
-  fi
-}
-
 party_stop() {
   local target="${1:-}"
 
@@ -722,7 +352,6 @@ party_prune_manifests() {
   manifest_dir="$(party_state_root)"
   [[ -d "$manifest_dir" ]] || return 0
 
-  # Delete manifests older than max_age_days, skip any with a live tmux session
   local live_sessions
   live_sessions=$(tmux ls -F '#{session_name}' 2>/dev/null | grep '^party-' || true)
 
@@ -745,7 +374,6 @@ party_list() {
   live_sessions=$(tmux ls -F '#{session_name}' 2>/dev/null | grep '^party-' || true)
   manifest_dir="$(party_state_root)"
 
-  # Show live tmux sessions
   if [[ -n "$live_sessions" ]]; then
     echo "Active:"
     while IFS= read -r name; do
@@ -756,7 +384,6 @@ party_list() {
     done <<< "$live_sessions"
   fi
 
-  # Show resumable manifests (not currently live)
   if [[ -d "$manifest_dir" ]]; then
     for f in "$manifest_dir"/party-*.json; do
       [[ -f "$f" ]] || continue
@@ -770,7 +397,6 @@ party_list() {
 
     if [[ ${#stale[@]} -gt 0 ]]; then
       echo "Resumable (--continue <id>):"
-      # Sort by modification time, newest first; show last 10
       printf '%s\0' "${stale[@]}" | xargs -0 ls -t | head -10 | while IFS= read -r f; do
         local sid cwd title ts
         sid="$(basename "$f" .json)"
