@@ -267,11 +267,14 @@ party_state_remove_worker() {
     return 1
   }
 
-  jq --arg w "$worker" '.workers = ((.workers // []) - [$w])' "$file" > "$tmp" && mv "$tmp" "$file"
-  local rc=$?
+  jq --arg w "$worker" '.workers = ((.workers // []) - [$w])' "$file" > "$tmp" || {
+    rm -f "$tmp"
+    _party_unlock "$lockdir"
+    return 1
+  }
 
+  mv "$tmp" "$file"
   _party_unlock "$lockdir"
-  return $rc
 }
 
 # Print worker IDs from a master's manifest, one per line.

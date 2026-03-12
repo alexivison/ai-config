@@ -77,9 +77,10 @@ party_set_cleanup_hook() {
   local state_root lib_path
   state_root="$(party_state_root)"
   lib_path="$SCRIPT_DIR/party-lib.sh"
-  # On session close: deregister from parent (if worker), remove runtime + manifest
+  # On session close: deregister from parent (if worker), remove runtime.
+  # Only delete manifest if not a master with active workers.
   tmux set-hook -t "$session" session-closed \
-    "run-shell 'source $lib_path 2>/dev/null && { p=\$(party_state_get_field $session parent_session 2>/dev/null); [ -n \"\$p\" ] && party_state_remove_worker \"\$p\" $session 2>/dev/null; }; rm -rf /tmp/$session; rm -f $state_root/$session.json'"
+    "run-shell 'source $lib_path 2>/dev/null && { p=\$(party_state_get_field $session parent_session 2>/dev/null); [ -n \"\$p\" ] && party_state_remove_worker \"\$p\" $session 2>/dev/null; }; rm -rf /tmp/$session; t=\$(party_state_get_field $session session_type 2>/dev/null); w=\$(party_state_get_field $session workers 2>/dev/null); if [ \"\$t\" = master ] && [ -n \"\$w\" ] && [ \"\$w\" != \"[]\" ]; then :; else rm -f $state_root/$session.json; fi'"
 }
 
 party_launch_agents() {
@@ -367,6 +368,15 @@ party_prune_manifests() {
     sid="$(basename "$f" .json)"
     if [[ -n "$live_sessions" ]] && grep -qxF "$sid" <<< "$live_sessions"; then
       continue
+    fi
+    # Never prune a master manifest that still has workers
+    if command -v jq >/dev/null 2>&1; then
+      local stype workers
+      stype="$(jq -r '.session_type // empty' "$f" 2>/dev/null)"
+      workers="$(jq -r '.workers // [] | length' "$f" 2>/dev/null)"
+      if [[ "$stype" == "master" && "${workers:-0}" -gt 0 ]]; then
+        continue
+      fi
     fi
     rm -f "$f" && pruned=$((pruned + 1))
   done < <(find "$manifest_dir" -name 'party-*.json' -mtime +"$max_age_days" -print0 2>/dev/null)
