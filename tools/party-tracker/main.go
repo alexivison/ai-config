@@ -79,6 +79,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.input.Width = max(10, msg.Width-8)
 		return m, nil
 
 	case tickMsg, refreshMsg:
@@ -202,19 +203,46 @@ func (m model) updateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// truncate cuts a string to maxLen, adding ellipsis if needed.
+func truncate(s string, maxLen int) string {
+	if maxLen <= 0 || len(s) <= maxLen {
+		return s
+	}
+	if maxLen <= 1 {
+		return "…"
+	}
+	return s[:maxLen-1] + "…"
+}
+
+// innerWidth returns usable content width (pane width minus padding).
+func (m model) innerWidth() int {
+	w := m.width - 4 // 2 char padding each side
+	if w < 10 {
+		w = 10
+	}
+	return w
+}
+
 func (m model) View() string {
 	var b strings.Builder
+	inner := m.innerWidth()
+	compact := m.width < 50
 
 	// Header
 	workerCount := len(m.workers)
-	header := titleStyle.Render(fmt.Sprintf("  Master: %s", m.masterID))
-	count := dimStyle.Render(fmt.Sprintf("  %d worker(s)", workerCount))
-	b.WriteString(header + count + "\n")
-	b.WriteString(headerRule.Render("  " + strings.Repeat("─", max(40, m.width-4))) + "\n\n")
+	if compact {
+		b.WriteString(titleStyle.Render(truncate(fmt.Sprintf(" %s", m.masterID), inner)) + "\n")
+		b.WriteString(dimStyle.Render(fmt.Sprintf(" %dw", workerCount)) + "\n")
+	} else {
+		header := titleStyle.Render(fmt.Sprintf("  Master: %s", m.masterID))
+		count := dimStyle.Render(fmt.Sprintf("  %d worker(s)", workerCount))
+		b.WriteString(header + count + "\n")
+	}
+	b.WriteString(headerRule.Render("  " + strings.Repeat("─", inner)) + "\n\n")
 
 	// Worker list
 	if workerCount == 0 {
-		b.WriteString(dimStyle.Render("  No workers. Press 's' to spawn one.") + "\n")
+		b.WriteString(dimStyle.Render("  No workers. 's' to spawn.") + "\n")
 	} else {
 		for i, w := range m.workers {
 			cursor := "  "
@@ -226,10 +254,18 @@ func (m model) View() string {
 
 			// Status indicator
 			var status string
-			if w.Status == "active" {
-				status = activeStyle.Render("● active")
+			if compact {
+				if w.Status == "active" {
+					status = activeStyle.Render("●")
+				} else {
+					status = stoppedStyle.Render("○")
+				}
 			} else {
-				status = stoppedStyle.Render("○ stopped")
+				if w.Status == "active" {
+					status = activeStyle.Render("● active")
+				} else {
+					status = stoppedStyle.Render("○ stopped")
+				}
 			}
 
 			// Worker line
@@ -237,13 +273,30 @@ func (m model) View() string {
 			if title == "" {
 				title = w.ID
 			}
+			// Reserve space for cursor(2) + status + gap(2)
+			statusLen := 2
+			if !compact {
+				statusLen = 10
+			}
+			maxTitle := inner - statusLen
+			if maxTitle < 4 {
+				maxTitle = 4
+			}
+			title = truncate(title, maxTitle)
+
 			line := fmt.Sprintf("%s%s  %s", cursor, nameStyle.Render(title), status)
 			b.WriteString(line + "\n")
 
-			// Snippet (may be multi-line)
-			if w.Snippet != "" {
+			// Snippet (may be multi-line) — skip in very narrow panes
+			if w.Snippet != "" && m.width >= 30 {
+				pad := 6
+				if compact {
+					pad = 3
+				}
+				snipStyle := lipgloss.NewStyle().Foreground(dim).PaddingLeft(pad)
+				maxSnip := inner - pad
 				for _, sline := range strings.Split(w.Snippet, "\n") {
-					b.WriteString(snippetStyle.Render(sline) + "\n")
+					b.WriteString(snipStyle.Render(truncate(sline, maxSnip)) + "\n")
 				}
 			}
 
@@ -252,21 +305,22 @@ func (m model) View() string {
 	}
 
 	// Footer
-	b.WriteString(headerRule.Render("  " + strings.Repeat("─", max(40, m.width-4))) + "\n")
+	b.WriteString(headerRule.Render("  " + strings.Repeat("─", inner)) + "\n")
 
 	if m.mode != modeNormal {
-		// Input mode
 		var label string
 		switch m.mode {
 		case modeRelay:
-			label = "relay"
+			label = "r"
 		case modeBroadcast:
-			label = "broadcast"
+			label = "b"
 		case modeSpawn:
-			label = "spawn"
+			label = "s"
 		}
-		b.WriteString(fmt.Sprintf("  %s> %s\n", label, m.input.View()))
-		b.WriteString(footerStyle.Render("  enter:send  esc:cancel") + "\n")
+		b.WriteString(fmt.Sprintf(" %s> %s\n", label, m.input.View()))
+		b.WriteString(footerStyle.Render(" ⏎:send esc:cancel") + "\n")
+	} else if compact {
+		b.WriteString(footerStyle.Render(" j/k ⏎ r b s x d q") + "\n")
 	} else {
 		b.WriteString(footerStyle.Render("  j/k:nav  ⏎:attach  r:relay  b:bcast  s:spawn  x:stop  d:delete  q:quit") + "\n")
 	}
