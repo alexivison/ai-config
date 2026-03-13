@@ -352,7 +352,7 @@ func (m model) View() string {
 	} else if compact {
 		b.WriteString(footerStyle.Render(" j/k ⏎ r b s m M x d q") + "\n")
 	} else {
-		b.WriteString(footerStyle.Render("  j/k:nav  ⏎:attach  r:relay  b:bcast  s:spawn  m/M:manifest  x:stop  d:delete  q:quit") + "\n")
+		b.WriteString(footerStyle.Render("  j/k:nav  ⏎:attach  r/b:msg  s:spawn  m/M:manifest  x/d:stop  q:quit") + "\n")
 	}
 
 	return b.String()
