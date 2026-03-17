@@ -51,7 +51,14 @@
       "Read(.env.*)",
       "Read(**/.env)",
       "Read(**/.env.*)",
-      "Read(**/secrets/**)"
+      "Read(**/secrets/**)",
+      "Read(**/node_modules/**)",
+      "Read(**/dist/**)",
+      "Read(**/build/**)",
+      "Read(**/.next/**)",
+      "Read(**/package-lock.json)",
+      "Read(**/yarn.lock)",
+      "Read(**/pnpm-lock.yaml)"
     ],
     "ask": [
       "Bash(gh pr merge:*)",
@@ -172,7 +179,6 @@
     "command": "~/.claude/scripts/status-line.sh"
   },
   "skipDangerousModePermissionPrompt": true,
-  "effortLevel": "high",
   "teammateMode": "in-process",
   "enabledPlugins": {
     "skill-creator@claude-plugins-official": true
