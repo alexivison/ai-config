@@ -78,6 +78,11 @@ party_launch_master() {
   # Apply once now
   eval "$layout_cmd"
   configure_party_theme "$session:0"
+
+  # Master sessions use gold pane separators to distinguish from workers
+  tmux set-option -t "$session" pane-border-style 'fg=#b8860b'
+  tmux set-option -t "$session" pane-active-border-style 'fg=#daaa3f'
+
   party_set_cleanup_hook "$session"
   tmux select-pane -t "$session:0.1"
 }
