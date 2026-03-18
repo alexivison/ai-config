@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
-
-# Color codes
-C_RESET='\033[0m'
-C_GRAY='\033[38;5;245m'
-C_YELLOW='\033[38;5;178m'
-C_RED='\033[38;5;167m'
-C_GREEN='\033[38;5;71m'
+# Write context data to a cache file for the tmux status bar widget.
+# The statusLine config must remain in settings.json so Claude Code
+# continues to invoke this script — it just produces no visible output.
 
 input=$(cat)
 
@@ -16,13 +12,14 @@ IFS=$'\t' read -r model pct < <(echo "$input" | jq -r '[
 pct=${pct%.*}
 [[ -z "$pct" || "$pct" == "null" ]] && pct=100
 
-if [[ $pct -le 5 ]]; then
-    C=$C_RED
-elif [[ $pct -le 15 ]]; then
-    C=$C_YELLOW
-else
-    C=$C_GREEN
+# Write cache file keyed by tmux server + pane for the tmux widget.
+# Include socket path hash to avoid collisions across tmux servers.
+if [[ -n "${TMUX:-}" ]]; then
+    cache_dir="/tmp/ai-context-cache"
+    mkdir -p "$cache_dir" 2>/dev/null
+    socket_path="${TMUX%%,*}"
+    server_hash=$(printf '%s' "$socket_path" | md5 -q 2>/dev/null || printf '%s' "$socket_path" | md5sum | cut -d' ' -f1)
+    server_hash="${server_hash:0:8}"
+    pane_id="${TMUX_PANE#%}"
+    printf '%s\t%s\n' "$model" "$pct" > "$cache_dir/claude-${server_hash}-${pane_id}"
 fi
-
-C_BLUE='\033[38;5;74m'
-printf '%b\n' "${C_BLUE}${model}${C_GRAY} | ${C}${pct}%${C_GRAY} context remaining${C_RESET}"
