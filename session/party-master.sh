@@ -68,20 +68,10 @@ party_launch_master() {
   tmux select-pane -t "$session:0.1" -T "The Paladin"
   tmux select-pane -t "$session:0.2" -T "Shell"
 
-  # Layout: tracker ~15%, Claude and shell split the rest equally.
-  # Global tmux hooks force even-horizontal on split/resize/kill-pane.
-  # Session-level hooks fire after globals, so we override here.
-  local layout_cmd="tmux resize-pane -t $session:0.0 -x 20% && tmux resize-pane -t $session:0.1 -x 40%"
-  tmux set-hook -t "$session" after-split-window "run-shell '$layout_cmd'"
-  tmux set-hook -t "$session" after-kill-pane "run-shell '$layout_cmd'"
-  tmux set-hook -t "$session" client-resized "run-shell '$layout_cmd'"
-  # Apply once now
-  eval "$layout_cmd"
   configure_party_theme "$session:0"
 
-  # Master sessions use gold pane separators to distinguish from workers
-  tmux set-option -t "$session" pane-border-style 'fg=#b8860b'
-  tmux set-option -t "$session" pane-active-border-style 'fg=#daaa3f'
+  # Master sessions use gold active border to distinguish from workers
+  tmux set-option -t "$session" pane-active-border-style 'fg=#ffd700'
 
   party_set_cleanup_hook "$session"
   tmux select-pane -t "$session:0.1"
