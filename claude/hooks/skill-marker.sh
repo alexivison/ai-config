@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # Skill Marker Hook
-# Creates markers when critical skills complete (for PR gate)
+# Creates evidence when critical skills complete (for PR gate)
 #
 # Triggered: PostToolUse on Skill tool
+
+source "$(dirname "$0")/lib/evidence.sh"
 
 INPUT=$(cat)
 TOOL=$(echo "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
 SKILL=$(echo "$INPUT" | jq -r '.tool_input.skill // empty' 2>/dev/null)
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty' 2>/dev/null)
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
 
 # Fail silently if we can't parse
 if [ -z "$SESSION_ID" ]; then
@@ -21,10 +24,10 @@ if [ "$TOOL" != "Skill" ]; then
   exit 0
 fi
 
-# --- Marker Creation for enforced skills ---
+# --- Evidence creation for enforced skills ---
 case "$SKILL" in
   pre-pr-verification)
-    touch "/tmp/claude-pr-verified-$SESSION_ID"
+    append_evidence "$SESSION_ID" "pr-verified" "COMPLETED" "$CWD"
     ;;
 esac
 

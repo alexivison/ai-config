@@ -41,11 +41,16 @@ Before critics:
 
 Out-of-scope touches without justification are blocking and require `NEEDS_DISCUSSION`.
 
-## Marker System
+## Evidence System
 
-`marker-invalidate.sh` deletes all review markers on Edit|Write of implementation files (skips `.md`, `/tmp/`, `.log`, `.jsonl`). Editing code after approval invalidates it — re-run the cascade. Markers are hook-created evidence; never create manually.
+Evidence is stored in a per-session JSONL log (`/tmp/claude-evidence-{session_id}.jsonl`). Each entry records a `diff_hash` — SHA-256 of the branch diff from merge-base. Gate hooks compute the current diff_hash and only accept evidence with a matching hash. Editing code after approval automatically invalidates prior evidence (different hash) — no invalidation hook needed.
 
-`codex-gate.sh` blocks `--review` without critic APPROVE markers, blocks `--approve` without codex-ran marker. If critics returned REQUEST_CHANGES, you MUST re-run them after fixing — the gate enforces this.
+`codex-gate.sh` blocks `--review` without critic APPROVE evidence, blocks `--approve` without codex-ran evidence. If critics returned REQUEST_CHANGES, you MUST re-run them after fixing — the gate enforces this.
+
+## Tiered Execution
+
+- **Full tier** (default): current sequence unchanged (`/write-tests → implement → ... → PR`). Required evidence: pr-verified, code-critic, minimizer, codex, test-runner, check-runner.
+- **Quick tier**: for non-behavioral changes only (config, docs-with-code, dependency bumps, typo fixes, CI tweaks). Sequence: `implement → test-runner → check-runner → PR`. Required evidence: test-runner, check-runner. Size limit: ≤30 changed lines (additions + deletions), ≤3 files, 0 new files. Explicitly forbidden for: new features, bug fixes, logic changes, API changes, security-relevant changes.
 
 ## Review Governance
 
@@ -91,7 +96,7 @@ Classify every finding before acting:
 | adversarial reviewer | Any findings | Paladin triages (advisory, no gating markers) | NO |
 | adversarial reviewer | Timeout | Proceed with Codex findings only | NO |
 | /pre-pr-verification | Pass/Fail | PR / fix | NO |
-| Edit/Write (impl) | Markers invalidated | Re-run cascade | NO |
+| Edit/Write (impl) | Evidence stale (diff_hash changed) | Re-run cascade | NO |
 
 ## Valid Pause Conditions
 
@@ -109,7 +114,7 @@ Evidence before claims. No assertions without proof (test output, file:line, gre
 
 ## PR Gate
 
-Code PRs require all markers: pre-pr-verification, code-critic, minimizer, codex, test-runner, check-runner. Markers created by `agent-trace-stop.sh` and `codex-trace.sh`.
+Code PRs require evidence matching the current diff_hash. Full tier: pr-verified, code-critic, minimizer, codex, test-runner, check-runner. Quick tier (≤30 lines, ≤3 files, 0 new files): test-runner, check-runner. Evidence created by `agent-trace-stop.sh`, `codex-trace.sh`, and `skill-marker.sh`.
 
 **Post-PR:** Changes in same branch → re-run /pre-pr-verification → amend + force-push with `--force-with-lease`.
 
@@ -126,8 +131,8 @@ Code PRs require all markers: pre-pr-verification, code-critic, minimizer, codex
 | Implement every finding without triage | Classify blocking/non-blocking/out-of-scope first |
 | Full cascade after one-line fix | Tiered re-review |
 | Approve without --review-complete | Gate blocks — run review first |
-| Edit after approval, then PR | Markers invalidated — re-run |
-| Create markers manually | Forbidden — hooks create evidence |
+| Edit after approval, then PR | Evidence stale (diff_hash changed) — re-run |
+| Create evidence manually | Forbidden — hooks create evidence |
 | Call codex without re-running critics | Gate blocks — re-run critics |
 | Third critic/codex round on same diff | Stop and escalate with NEEDS_DISCUSSION |
 | Run lint/typecheck via Bash instead of check-runner | Always delegate to sub-agents — they run the full suite |

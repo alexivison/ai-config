@@ -12,6 +12,8 @@ set -e
 TRACE_FILE="$HOME/.claude/logs/agent-trace.jsonl"
 mkdir -p "$(dirname "$TRACE_FILE")"
 
+source "$(dirname "$0")/lib/evidence.sh"
+
 hook_input=$(cat)
 
 if ! echo "$hook_input" | jq -e . >/dev/null 2>&1; then
@@ -91,23 +93,23 @@ trace_entry=$(jq -cn \
 echo "$trace_entry" >> "$TRACE_FILE"
 echo "$timestamp | STOP  | $agent_type | $verdict | $agent_id | $session_id" >> "$HOME/.claude/logs/evidence-trace.log"
 
-# ── Markers for PR gate enforcement ──
+# ── Evidence for PR gate enforcement ──
 
 if [ "$agent_type" = "code-critic" ] && [ "$verdict" = "APPROVED" ]; then
-  touch "/tmp/claude-code-critic-$session_id"
+  append_evidence "$session_id" "code-critic" "APPROVED" "$cwd"
 fi
 
 if [ "$agent_type" = "minimizer" ] && [ "$verdict" = "APPROVED" ]; then
-  touch "/tmp/claude-minimizer-$session_id"
+  append_evidence "$session_id" "minimizer" "APPROVED" "$cwd"
 fi
 
 if [ "$agent_type" = "test-runner" ] && [ "$verdict" = "PASS" ]; then
-  touch "/tmp/claude-tests-passed-$session_id"
+  append_evidence "$session_id" "test-runner" "PASS" "$cwd"
 fi
 
 if [ "$agent_type" = "check-runner" ]; then
   if [ "$verdict" = "PASS" ] || [ "$verdict" = "CLEAN" ]; then
-    touch "/tmp/claude-checks-passed-$session_id"
+    append_evidence "$session_id" "check-runner" "$verdict" "$cwd"
   fi
 fi
 

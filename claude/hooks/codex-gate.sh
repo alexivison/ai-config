@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 # Codex Review Gate Hook
-# Blocks tmux-codex.sh --review unless both critic APPROVE markers exist.
-# Blocks tmux-codex.sh --approve unless codex-ran marker exists.
-# Creates a hard gate: you cannot invoke codex review without first earning critic approval.
+# Blocks tmux-codex.sh --review unless both critic APPROVE evidence exists.
+# Blocks tmux-codex.sh --approve unless codex-ran evidence exists.
+# Uses JSONL evidence log with diff_hash matching.
 #
 # Triggered: PreToolUse on Bash tool
 # Fails open on errors (cannot determine session_id or command → allow)
 
+source "$(dirname "$0")/lib/evidence.sh"
+
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty' 2>/dev/null)
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
 
 # Fail open if we can't parse input
 if [ -z "$SESSION_ID" ] || [ -z "$COMMAND" ]; then
@@ -23,16 +26,15 @@ if ! echo "$COMMAND" | grep -qE '(^|[;&|] *)([^ ]*/)?tmux-codex\.sh'; then
   exit 0
 fi
 
-# Gate 2: --approve requires codex-ran marker (evidence that review actually ran)
+# Gate 2: --approve requires codex-ran evidence (review actually ran)
 if echo "$COMMAND" | grep -qE 'tmux-codex\.sh +--approve'; then
-  CODEX_RAN_MARKER="/tmp/claude-codex-ran-$SESSION_ID"
-  if [ ! -f "$CODEX_RAN_MARKER" ]; then
+  if ! check_evidence "$SESSION_ID" "codex-ran" "$CWD"; then
     cat << EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
     "permissionDecision": "deny",
-    "permissionDecisionReason": "BLOCKED: Codex approve gate — codex-ran marker missing. Run tmux-codex.sh --review-complete first."
+    "permissionDecisionReason": "BLOCKED: Codex approve gate — codex-ran evidence missing. Run tmux-codex.sh --review-complete first."
   }
 }
 EOF
@@ -42,19 +44,14 @@ EOF
   exit 0
 fi
 
-# Gate 1: --review requires critic APPROVE markers (not --prompt or verdict modes)
+# Gate 1: --review requires critic APPROVE evidence (not --prompt or verdict modes)
 if ! echo "$COMMAND" | grep -qE 'tmux-codex\.sh +--review( |[;&|]|$)'; then
   echo '{}'
   exit 0
 fi
 
-# Check for both critic APPROVE markers
-CODE_CRITIC_MARKER="/tmp/claude-code-critic-$SESSION_ID"
-MINIMIZER_MARKER="/tmp/claude-minimizer-$SESSION_ID"
-
-MISSING=""
-[ ! -f "$CODE_CRITIC_MARKER" ] && MISSING="$MISSING code-critic"
-[ ! -f "$MINIMIZER_MARKER" ] && MISSING="$MISSING minimizer"
+# Check for both critic APPROVE evidence
+MISSING=$(check_all_evidence "$SESSION_ID" "code-critic minimizer" "$CWD" 2>&1 || true)
 
 if [ -n "$MISSING" ]; then
   cat << EOF
@@ -62,12 +59,12 @@ if [ -n "$MISSING" ]; then
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
     "permissionDecision": "deny",
-    "permissionDecisionReason": "BLOCKED: Codex review gate — critic APPROVE markers missing:$MISSING. Re-run critics before codex review."
+    "permissionDecisionReason": "BLOCKED: Codex review gate — critic APPROVE evidence missing:$MISSING. Re-run critics before codex review."
   }
 }
 EOF
   exit 0
 fi
 
-# Both markers present — allow
+# Both evidence present — allow
 echo '{}'

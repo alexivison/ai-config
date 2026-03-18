@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # PR Gate Hook - Enforces workflow completion before PR creation
-# Blocks `gh pr create` unless ALL required markers exist:
-#   - /tmp/claude-pr-verified-{session_id} (from /pre-pr-verification)
-#   - /tmp/claude-code-critic-{session_id} (from code-critic APPROVE)
-#   - /tmp/claude-minimizer-{session_id} (from minimizer APPROVE)
-#   - /tmp/claude-codex-{session_id} (from codex CLI APPROVE via tmux-codex.sh)
-#   - /tmp/claude-tests-passed-{session_id} (from test-runner PASS)
-#   - /tmp/claude-checks-passed-{session_id} (from check-runner PASS)
+# Uses JSONL evidence log with diff_hash matching (stale evidence auto-ignored).
+#
+# Tiered gate:
+#   - Small changes (≤30 changed lines adds+dels, ≤3 files, 0 new files) → test-runner + check-runner
+#   - Full gate → pr-verified, code-critic, minimizer, codex, test-runner, check-runner
 #
 # Triggered: PreToolUse on Bash tool
 # Fails open on errors (allows operation if hook can't determine state)
+
+source "$(dirname "$0")/lib/evidence.sh"
 
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
@@ -27,37 +27,38 @@ if echo "$COMMAND" | grep -qE 'gh pr create'; then
   # Check if this is a docs/config-only PR (no implementation files in full branch diff)
   CWD=$(echo "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
   # Fail closed: assume code PR unless we can prove docs-only
+  # Use working-tree diff (no ..HEAD) to match evidence.sh scope
   IMPL_FILES="unknown"
   if [ -n "$CWD" ]; then
     DEFAULT_BRANCH=$(cd "$CWD" 2>/dev/null && git rev-parse --verify refs/heads/main >/dev/null 2>&1 && echo main || echo master)
     MERGE_BASE=$(cd "$CWD" 2>/dev/null && git merge-base "$DEFAULT_BRANCH" HEAD 2>/dev/null || echo "")
     if [ -n "$MERGE_BASE" ]; then
-      IMPL_FILES=$(cd "$CWD" 2>/dev/null && git diff --name-only "$MERGE_BASE"..HEAD 2>/dev/null \
+      IMPL_FILES=$(cd "$CWD" 2>/dev/null && git diff --name-only "$MERGE_BASE" 2>/dev/null \
         | grep -vE '\.(md|json|toml|yaml|yml)$' || true)
     fi
   fi
 
-  # Docs/config-only PRs skip the full marker chain (empty = no impl files found)
+  # Docs/config-only PRs skip the gate entirely (empty = no impl files found)
   if [ -z "$IMPL_FILES" ]; then
     echo '{}'
     exit 0
   fi
 
-  # Code PR - require all verification markers
-  VERIFY_MARKER="/tmp/claude-pr-verified-$SESSION_ID"
-  CODE_CRITIC_MARKER="/tmp/claude-code-critic-$SESSION_ID"
-  CODEX_MARKER="/tmp/claude-codex-$SESSION_ID"
-  TESTS_MARKER="/tmp/claude-tests-passed-$SESSION_ID"
-  CHECKS_MARKER="/tmp/claude-checks-passed-$SESSION_ID"
-  MINIMIZE_MARKER="/tmp/claude-minimizer-$SESSION_ID"
+  # Determine gate tier based on diff stats
+  STATS=$(diff_stats "$CWD")
+  LINES=$(echo "$STATS" | awk '{print $1}')
+  FILES=$(echo "$STATS" | awk '{print $2}')
+  NEW_FILES=$(echo "$STATS" | awk '{print $3}')
 
-  MISSING=""
-  [ ! -f "$VERIFY_MARKER" ] && MISSING="$MISSING /pre-pr-verification"
-  [ ! -f "$CODE_CRITIC_MARKER" ] && MISSING="$MISSING code-critic"
-  [ ! -f "$CODEX_MARKER" ] && MISSING="$MISSING codex"
-  [ ! -f "$TESTS_MARKER" ] && MISSING="$MISSING test-runner"
-  [ ! -f "$CHECKS_MARKER" ] && MISSING="$MISSING check-runner"
-  [ ! -f "$MINIMIZE_MARKER" ] && MISSING="$MISSING minimizer"
+  if [ "$LINES" -le 30 ] && [ "$FILES" -le 3 ] && [ "$NEW_FILES" -eq 0 ]; then
+    # Quick tier: small non-behavioral changes
+    REQUIRED="test-runner check-runner"
+  else
+    # Full tier: all evidence required
+    REQUIRED="pr-verified code-critic minimizer codex test-runner check-runner"
+  fi
+
+  MISSING=$(check_all_evidence "$SESSION_ID" "$REQUIRED" "$CWD" 2>&1 || true)
 
   if [ -n "$MISSING" ]; then
     cat << EOF
