@@ -3,12 +3,13 @@
 # Sourced by party.sh. Requires party-lib.sh already loaded.
 
 party_launch_master() {
-  local session="${1:?Usage: party_launch_master SESSION CWD CLAUDE_BIN AGENT_PATH [CLAUDE_RESUME_ID] [PROMPT]}"
+  local session="${1:?Usage: party_launch_master SESSION CWD CLAUDE_BIN AGENT_PATH [CLAUDE_RESUME_ID] [PROMPT] [TITLE]}"
   local session_cwd="${2:?Missing session_cwd}"
   local claude_bin="${3:?Missing claude_bin}"
   local agent_path="${4:?Missing agent_path}"
   local claude_resume_id="${5:-}"
   local prompt="${6:-}"
+  local title="${7:-}"
   local state_dir
 
   state_dir="$(ensure_party_state_dir "$session")"
@@ -23,6 +24,11 @@ party_launch_master() {
   local claude_cmd
   claude_cmd="export PATH=$q_agent_path; unset CLAUDECODE;"
   claude_cmd="$claude_cmd exec $q_claude_bin --dangerously-skip-permissions"
+  if [[ -n "$title" ]]; then
+    local q_title
+    printf -v q_title '%q' "$title"
+    claude_cmd="$claude_cmd --name $q_title"
+  fi
   if [[ -n "$claude_resume_id" ]]; then
     local q_claude_resume_id
     printf -v q_claude_resume_id '%q' "$claude_resume_id"
@@ -163,7 +169,7 @@ party_start_master() {
   party_state_set_field "$session" "last_started_at" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" || true
 
   party_create_session "$session" "$window_name" "$session_cwd"
-  party_launch_master "$session" "$session_cwd" "$claude_bin" "$agent_path" "$resume_claude" "$prompt"
+  party_launch_master "$session" "$session_cwd" "$claude_bin" "$agent_path" "$resume_claude" "$prompt" "$title"
 
   if [[ -n "$prompt" ]]; then
     party_state_set_field "$session" "initial_prompt" "$prompt" || true

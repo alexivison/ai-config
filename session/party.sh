@@ -84,7 +84,7 @@ party_set_cleanup_hook() {
 }
 
 party_launch_agents() {
-  local session="${1:?Usage: party_launch_agents SESSION CWD CLAUDE_BIN CODEX_BIN AGENT_PATH [CLAUDE_RESUME_ID] [CODEX_RESUME_ID] [PROMPT]}"
+  local session="${1:?Usage: party_launch_agents SESSION CWD CLAUDE_BIN CODEX_BIN AGENT_PATH [CLAUDE_RESUME_ID] [CODEX_RESUME_ID] [PROMPT] [TITLE]}"
   local session_cwd="${2:?Missing session_cwd}"
   local claude_bin="${3:?Missing claude_bin}"
   local codex_bin="${4:?Missing codex_bin}"
@@ -92,6 +92,7 @@ party_launch_agents() {
   local claude_resume_id="${6:-}"
   local codex_resume_id="${7:-}"
   local prompt="${8:-}"
+  local title="${9:-}"
   local state_dir
 
   state_dir="$(ensure_party_state_dir "$session")"
@@ -108,6 +109,11 @@ party_launch_agents() {
   local claude_cmd codex_cmd
   claude_cmd="export PATH=$q_agent_path; unset CLAUDECODE;"
   claude_cmd="$claude_cmd exec $q_claude_bin --dangerously-skip-permissions"
+  if [[ -n "$title" ]]; then
+    local q_title
+    printf -v q_title '%q' "$title"
+    claude_cmd="$claude_cmd --name $q_title"
+  fi
   if [[ -n "$claude_resume_id" ]]; then
     printf -v q_claude_resume_id '%q' "$claude_resume_id"
     claude_cmd="$claude_cmd --resume $q_claude_resume_id"
@@ -194,7 +200,7 @@ party_start() {
   fi
 
   party_create_session "$session" "$window_name" "$session_cwd"
-  party_launch_agents "$session" "$session_cwd" "$claude_bin" "$codex_bin" "$agent_path" "$resume_claude" "$resume_codex" "$prompt"
+  party_launch_agents "$session" "$session_cwd" "$claude_bin" "$codex_bin" "$agent_path" "$resume_claude" "$resume_codex" "$prompt" "$title"
 
   if [[ -n "$prompt" ]]; then
     party_state_set_field "$session" "initial_prompt" "$prompt" || true
@@ -266,9 +272,9 @@ party_continue() {
   session_type="$(party_state_get_field "$session" "session_type" 2>/dev/null || true)"
 
   if [[ "$session_type" == "master" ]]; then
-    party_launch_master "$session" "$session_cwd" "$claude_bin" "$agent_path" "$claude_resume_id"
+    party_launch_master "$session" "$session_cwd" "$claude_bin" "$agent_path" "$claude_resume_id" "" "$title"
   else
-    party_launch_agents "$session" "$session_cwd" "$claude_bin" "$codex_bin" "$agent_path" "$claude_resume_id" "$codex_resume_id"
+    party_launch_agents "$session" "$session_cwd" "$claude_bin" "$codex_bin" "$agent_path" "$claude_resume_id" "$codex_resume_id" "" "$title"
   fi
 
   party_state_upsert_manifest "$session" "$title" "$session_cwd" "$window_name" "$claude_bin" "$codex_bin" "$agent_path" || true
