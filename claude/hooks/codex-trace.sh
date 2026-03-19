@@ -82,7 +82,7 @@ fi
 
 # --- Evidence: triage override (out-of-scope critic findings) ---
 # --triage-override emits "TRIAGE_OVERRIDE <type> | <rationale>"
-override_line=$(echo "$response" | grep "^TRIAGE_OVERRIDE " | head -1)
+override_line=$(echo "$response" | grep "^TRIAGE_OVERRIDE .* | " | head -1)
 if [ -n "$override_line" ]; then
   override_type=$(echo "$override_line" | awk '{print $2}')
   override_rationale=${override_line#*| }
