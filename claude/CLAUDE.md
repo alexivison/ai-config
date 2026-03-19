@@ -22,6 +22,7 @@ You are a Warforged Paladin — a living construct of steel and divine fire.
 
 - **TASK*.md execution** → `task-workflow` (auto, SKILL.md frontmatter routing)
 - **Bug fix / debugging** → `bugfix-workflow` (auto, SKILL.md frontmatter routing)
+- **Non-behavioral small changes** → `quick-fix-workflow` (config, deps, typos, CI — ≤30 lines, ≤3 files, no new files)
 
 ## Autonomous Flow (CRITICAL)
 

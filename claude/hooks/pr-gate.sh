@@ -2,8 +2,13 @@
 # PR Gate Hook - Enforces workflow completion before PR creation
 # Uses JSONL evidence log with diff_hash matching (stale evidence auto-ignored).
 #
-# Required evidence: pr-verified, code-critic, minimizer, codex, test-runner, check-runner
-# Tiered gate (quick tier) will be added with quick-fix-workflow skill.
+# Two tiers:
+#   - Quick tier: requires explicit "quick-tier" evidence (from quick-fix-workflow)
+#     + code-critic + test-runner + check-runner. Size-gated: ≤30 lines, ≤3 files, 0 new files.
+#   - Full tier (default): pr-verified, code-critic, minimizer, codex, test-runner, check-runner
+#
+# The quick tier ONLY activates when quick-tier evidence exists — size alone is
+# insufficient. This prevents behavioral changes from skipping review.
 #
 # Triggered: PreToolUse on Bash tool
 # Fails open on errors (allows operation if hook can't determine state)
@@ -43,8 +48,26 @@ if echo "$COMMAND" | grep -qE 'gh pr create'; then
     exit 0
   fi
 
-  # Code PR - require all evidence
-  REQUIRED="pr-verified code-critic minimizer codex test-runner check-runner"
+  # Quick tier: requires explicit quick-tier evidence AND small diff
+  # The quick-fix-workflow skill writes quick-tier evidence after scope validation.
+  # Size alone never qualifies — prevents behavioral changes from skipping review.
+  if check_evidence "$SESSION_ID" "quick-tier" "$CWD" 2>/dev/null; then
+    STATS=$(diff_stats "$CWD")
+    LINES=$(echo "$STATS" | awk '{print $1}')
+    FILES=$(echo "$STATS" | awk '{print $2}')
+    NEW_FILES=$(echo "$STATS" | awk '{print $3}')
+
+    if [ "$LINES" -le 30 ] && [ "$FILES" -le 3 ] && [ "$NEW_FILES" -eq 0 ]; then
+      REQUIRED="quick-tier code-critic test-runner check-runner"
+    else
+      # Over size limit — fall through to full gate
+      REQUIRED="pr-verified code-critic minimizer codex test-runner check-runner"
+    fi
+  else
+    # No quick-tier evidence — full gate
+    REQUIRED="pr-verified code-critic minimizer codex test-runner check-runner"
+  fi
+
   MISSING=$(check_all_evidence "$SESSION_ID" "$REQUIRED" "$CWD" 2>&1 || true)
 
   if [ -n "$MISSING" ]; then

@@ -47,6 +47,11 @@ Evidence is stored in a per-session JSONL log (`/tmp/claude-evidence-{session_id
 
 `codex-gate.sh` blocks `--review` without critic APPROVE evidence, blocks `--approve` without codex-ran evidence. If critics returned REQUEST_CHANGES, you MUST re-run them after fixing — the gate enforces this.
 
+## Tiered Execution
+
+- **Full tier** (default): current sequence unchanged (`/write-tests → implement → ... → PR`). Required evidence: pr-verified, code-critic, minimizer, codex, test-runner, check-runner.
+- **Quick tier**: requires explicit `quick-tier` evidence from the quick-fix-workflow skill (size alone is insufficient). For non-behavioral changes only (config, deps, typos, CI). Sequence: `implement → code-critic → test-runner → check-runner → PR`. Required evidence: quick-tier, code-critic, test-runner, check-runner. Size limit: ≤30 changed lines (additions + deletions), ≤3 files, 0 new files. Explicitly forbidden for: new features, bug fixes, logic changes, API changes, security-relevant changes.
+
 ## Review Governance
 
 Classify every finding before acting:
@@ -109,7 +114,7 @@ Evidence before claims. No assertions without proof (test output, file:line, gre
 
 ## PR Gate
 
-Code PRs require evidence matching the current diff_hash: pr-verified, code-critic, minimizer, codex, test-runner, check-runner. Evidence created by `agent-trace-stop.sh`, `codex-trace.sh`, and `skill-marker.sh`.
+Code PRs require evidence matching the current diff_hash. Full tier: pr-verified, code-critic, minimizer, codex, test-runner, check-runner. Quick tier (requires explicit quick-tier evidence + size limits): quick-tier, code-critic, test-runner, check-runner. Evidence created by `agent-trace-stop.sh`, `codex-trace.sh`, `skill-marker.sh`, and workflow skills (e.g., `quick-fix-workflow` writes `quick-tier`).
 
 **Post-PR:** Changes in same branch → re-run /pre-pr-verification → amend + force-push with `--force-with-lease`.
 
@@ -127,7 +132,7 @@ Code PRs require evidence matching the current diff_hash: pr-verified, code-crit
 | Full cascade after one-line fix | Tiered re-review |
 | Approve without --review-complete | Gate blocks — run review first |
 | Edit after approval, then PR | Evidence stale (diff_hash changed) — re-run |
-| Create evidence manually | Forbidden — hooks create evidence |
+| Create evidence outside authorized paths | Forbidden — only hooks and workflow skills write evidence via `append_evidence` |
 | Call codex without re-running critics | Gate blocks — re-run critics |
 | Third critic/codex round on same diff | Stop and escalate with NEEDS_DISCUSSION |
 | Run lint/typecheck via Bash instead of check-runner | Always delegate to sub-agents — they run the full suite |
