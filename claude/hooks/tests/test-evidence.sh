@@ -40,7 +40,12 @@ setup_repo() {
 cleanup() {
   rm -f "$(evidence_file "$SESSION")"
   rm -f "/tmp/claude-evidence-${SESSION}.lock"
+  rm -f "/tmp/claude-worktree-${SESSION}"
   if [ -n "$TMPDIR_BASE" ] && [ -d "$TMPDIR_BASE" ]; then
+    # Remove any linked worktrees before deleting the repo
+    git -C "$TMPDIR_BASE" worktree list --porcelain 2>/dev/null | grep '^worktree ' | while read -r _ wt; do
+      [ "$wt" != "$TMPDIR_BASE" ] && git -C "$TMPDIR_BASE" worktree remove "$wt" 2>/dev/null || true
+    done
     rm -rf "$TMPDIR_BASE"
   fi
 }
@@ -218,6 +223,66 @@ NOT_GIT=$(mktemp -d)
 STATS=$(diff_stats "$NOT_GIT")
 assert "Non-git → 0 0 0" '[ "$STATS" = "0 0 0" ]'
 rm -rf "$NOT_GIT"
+
+# ═══ _resolve_cwd ════════════════════════════════════════════════════════════
+
+echo "=== _resolve_cwd: no override file ==="
+RESOLVED=$(_resolve_cwd "$SESSION" "/some/path")
+assert "No override → returns hook_cwd" '[ "$RESOLVED" = "/some/path" ]'
+
+echo "=== _resolve_cwd: valid override file ==="
+cleanup
+setup_repo
+WORKTREE_DIR=$(mktemp -d)
+cd "$TMPDIR_BASE" && git worktree add "$WORKTREE_DIR" main 2>/dev/null
+echo "$WORKTREE_DIR" > "/tmp/claude-worktree-${SESSION}"
+RESOLVED=$(_resolve_cwd "$SESSION" "/wrong/path")
+assert "Valid override → returns worktree path" '[ "$RESOLVED" = "$WORKTREE_DIR" ]'
+rm -f "/tmp/claude-worktree-${SESSION}"
+git -C "$TMPDIR_BASE" worktree remove "$WORKTREE_DIR" 2>/dev/null || rm -rf "$WORKTREE_DIR"
+
+echo "=== _resolve_cwd: override points to nonexistent dir ==="
+echo "/nonexistent/worktree" > "/tmp/claude-worktree-${SESSION}"
+RESOLVED=$(_resolve_cwd "$SESSION" "/fallback/path")
+assert "Bad override → returns hook_cwd" '[ "$RESOLVED" = "/fallback/path" ]'
+rm -f "/tmp/claude-worktree-${SESSION}"
+
+# ═══ Worktree scenario (integration) ════════════════════════════════════════
+
+echo "=== compute_diff_hash: worktree divergence ==="
+cleanup
+setup_repo
+# setup_repo leaves us on 'feature' branch with same commit as main
+# Add a commit on feature so it diverges
+echo "feature work" > feature.sh
+git add feature.sh && git commit -q -m "feature commit"
+
+MAIN_DIR="$TMPDIR_BASE"
+cd "$MAIN_DIR" && git checkout -q main
+WORKTREE_DIR=$(mktemp -d)
+git worktree add "$WORKTREE_DIR" feature
+
+# Worktree (on feature with diverged commit) should get a real hash
+HASH_WT=$(compute_diff_hash "$WORKTREE_DIR")
+assert "Worktree with diverged branch → real hash" '[ "$HASH_WT" != "clean" ] && [ "$HASH_WT" != "unknown" ]'
+
+# Main repo cwd (on main) returns "clean" — this IS the bug
+HASH_MAIN=$(compute_diff_hash "$MAIN_DIR")
+assert "Main repo on main branch → 'clean'" '[ "$HASH_MAIN" = "clean" ]'
+
+# With override file, append_evidence should use worktree hash
+echo "$WORKTREE_DIR" > "/tmp/claude-worktree-${SESSION}"
+append_evidence "$SESSION" "test-worktree" "PASS" "$MAIN_DIR"
+EFILE=$(evidence_file "$SESSION")
+STORED_HASH=$(jq -r '.diff_hash' "$EFILE" | tail -1)
+assert "Evidence with override uses worktree hash (not 'clean')" '[ "$STORED_HASH" = "$HASH_WT" ]'
+
+# check_evidence should also resolve to worktree hash
+assert "check_evidence matches with override" 'check_evidence "$SESSION" "test-worktree" "$MAIN_DIR"'
+
+# Clean up
+rm -f "/tmp/claude-worktree-${SESSION}"
+git -C "$MAIN_DIR" worktree remove "$WORKTREE_DIR" 2>/dev/null || rm -rf "$WORKTREE_DIR"
 
 # ─── Summary ─────────────────────────────────────────────────────────────────
 

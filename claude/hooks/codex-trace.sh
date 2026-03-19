@@ -34,6 +34,7 @@ if [ -z "$session_id" ] || [ "$session_id" = "unknown" ]; then
 fi
 
 cwd=$(echo "$hook_input" | jq -r '.cwd // ""' 2>/dev/null)
+cwd=$(_resolve_cwd "$session_id" "$cwd")
 
 # Only trace tmux-codex.sh invocations
 if ! echo "$command" | grep -qE '(^|[;&|] *)([^ ]*/)?tmux-codex\.sh'; then
