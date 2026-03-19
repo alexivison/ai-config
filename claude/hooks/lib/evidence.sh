@@ -36,6 +36,24 @@ _resolve_merge_base() {
   [ -n "$_EVIDENCE_MERGE_BASE" ]
 }
 
+# ── Worktree cwd resolution ──
+# When a session operates in a git worktree but hook input carries the main repo cwd,
+# the override file redirects to the actual worktree path.
+
+_resolve_cwd() {
+  local session_id="$1" hook_cwd="$2"
+  local override_file="/tmp/claude-worktree-${session_id}"
+  if [ -f "$override_file" ]; then
+    local worktree_cwd
+    worktree_cwd=$(cat "$override_file")
+    if [ -d "$worktree_cwd" ]; then
+      echo "$worktree_cwd"
+      return
+    fi
+  fi
+  echo "$hook_cwd"
+}
+
 # ── Diff exclusion pattern (shared constant) ──
 _DIFF_EXCLUDES=(-- . ':!*.md' ':!*.log' ':!*.jsonl' ':!*.tmp')
 
@@ -93,6 +111,7 @@ diff_stats() {
 
 append_evidence() {
   local session_id="$1" type="$2" result="$3" cwd="$4"
+  cwd=$(_resolve_cwd "$session_id" "$cwd")
   local file
   file=$(evidence_file "$session_id")
   local lock_file="/tmp/claude-evidence-${session_id}.lock"
@@ -135,6 +154,7 @@ append_evidence() {
 
 check_evidence() {
   local session_id="$1" type="$2" cwd="$3"
+  cwd=$(_resolve_cwd "$session_id" "$cwd")
   local file
   file=$(evidence_file "$session_id")
   [ ! -f "$file" ] && return 1

@@ -30,14 +30,15 @@ fi
 if echo "$COMMAND" | grep -qE 'gh pr create'; then
   # Check if this is a docs/config-only PR (no implementation files in full branch diff)
   CWD=$(echo "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
+  CWD=$(_resolve_cwd "$SESSION_ID" "$CWD")
   # Fail closed: assume code PR unless we can prove docs-only
   # Use working-tree diff (no ..HEAD) to match evidence.sh scope
   IMPL_FILES="unknown"
   if [ -n "$CWD" ]; then
-    DEFAULT_BRANCH=$(cd "$CWD" 2>/dev/null && git rev-parse --verify refs/heads/main >/dev/null 2>&1 && echo main || echo master)
-    MERGE_BASE=$(cd "$CWD" 2>/dev/null && git merge-base "$DEFAULT_BRANCH" HEAD 2>/dev/null || echo "")
-    if [ -n "$MERGE_BASE" ]; then
-      IMPL_FILES=$(cd "$CWD" 2>/dev/null && git diff --name-only "$MERGE_BASE" 2>/dev/null \
+    if ! _resolve_merge_base "$CWD"; then
+      IMPL_FILES="unknown"
+    elif [ -n "$_EVIDENCE_MERGE_BASE" ]; then
+      IMPL_FILES=$(cd "$CWD" 2>/dev/null && git diff --name-only "$_EVIDENCE_MERGE_BASE" 2>/dev/null \
         | grep -vE '\.(md|json|toml|yaml|yml)$' || true)
     fi
   fi

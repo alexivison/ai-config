@@ -24,6 +24,7 @@ agent_type=$(echo "$hook_input" | jq -r '.agent_type // "unknown"')
 agent_id=$(echo "$hook_input" | jq -r '.agent_id // "unknown"')
 session_id=$(echo "$hook_input" | jq -r '.session_id // "unknown"')
 cwd=$(echo "$hook_input" | jq -r '.cwd // ""')
+cwd=$(_resolve_cwd "$session_id" "$cwd")
 project=$(basename "$cwd")
 
 # last_assistant_message is a clean string — no content-block parsing needed
