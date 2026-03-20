@@ -76,9 +76,9 @@ PROMPT_EOF
 
 | Situation | Mode | Why |
 |-----------|------|-----|
-| New plan from scratch | `--prompt` | Codex creates the plan file and writes it |
-| Review an existing plan | `--plan-review` | Uses the review template, returns TOON findings |
-| Iterate on Codex's draft | `--prompt` | Send feedback, ask for revisions |
+| New plan from scratch | `--prompt "<task>" <work_dir>` | Codex creates the plan file and writes it |
+| Review an existing plan | `--plan-review "<plan_path>" <work_dir>` | Uses the plan-review template (ungated), returns TOON findings |
+| Iterate on Codex's draft | `--prompt "<feedback>" <work_dir>` | Send feedback, ask for revisions |
 
 `--plan-review` is for evaluating a plan that already exists as a file. For initial
 creation, use `--prompt` with explicit instructions to write the plan file.
@@ -97,7 +97,9 @@ Do NOT poll Codex. Wait for the `[CODEX]` notification.
 
 When `[CODEX] Task complete. Response at: <path>` arrives:
 
-1. **Read the plan** — Use your Read tool on the plan file Codex wrote
+1. **Read the plan** — The response path points to the file Codex wrote. But the actual
+   plan lives at the path you specified in the prompt's `## Output` section (e.g.,
+   `PLAN.md`). Read that file — not the response metadata file.
 2. **Verify completeness:**
    - Does it cover all requirements from the user's ask?
    - Are file paths real? (`Glob` or `Grep` to confirm)
