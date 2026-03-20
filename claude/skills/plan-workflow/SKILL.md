@@ -57,22 +57,26 @@ Create a PLAN.md for: <goal description>
 existing architecture, constraints, user preferences>
 
 ## Requirements
-- Create BOTH a PLAN.md AND individual TASK*.md files (e.g., tasks/TASK-01-setup.md, tasks/TASK-02-impl.md)
-- PLAN.md is the overall plan; TASK*.md files are the executable units that task-workflow consumes
-- Include scope boundaries (In Scope / Out of Scope) in PLAN.md
-- Break work into discrete, ordered tasks — each gets its own TASK*.md with checkboxes (`- [ ]`)
-- Identify risks, dependencies, and open questions in PLAN.md
-- Suggest a branch naming convention if multiple PRs are expected
+- Use the canonical planning templates at `codex/skills/planning/templates/` — do NOT
+  invent a parallel schema. Specifically:
+  - `plan.md` template for PLAN.md (includes checkbox-links, dependency graph, coverage matrix)
+  - `task.md` template for each TASK*.md (includes scope boundary, reference, design refs,
+    data transformation checklist, files to create/modify, tests, acceptance criteria)
+- Create BOTH a PLAN.md AND individual TASK*.md files in `tasks/`
+- PLAN.md Tasks section MUST use checkbox-link form:
+  `- [ ] [Task 1](./tasks/TASK1-short-title.md) — Description (deps: none)`
 - Keep it concise — a plan is a map, not a novel
 
 ## Output
 Write the plan to: <plan_path> (e.g., PLAN.md)
-Write task files to: tasks/TASK-*.md (one per discrete task)
-PLAN.md format: Goal, Context, Scope, Tasks, Risks, Open Questions.
-PLAN.md Tasks section MUST use checkbox-link form so task-workflow can toggle them:
-  - [ ] [Task 1: Setup](./tasks/TASK-01-setup.md)
-  - [ ] [Task 2: Implementation](./tasks/TASK-02-impl.md)
-TASK*.md format: Goal, In Scope, Out of Scope, Acceptance Criteria, checklist items.
+Write task files to: tasks/TASK<N>-<kebab-case-title>.md (one per discrete task)
+
+## Response File Contract
+After writing all files, write a summary to the response file (<response_path>) containing:
+- `STATUS: SUCCESS` or `STATUS: FAILED` with reason
+- `PLAN: <actual plan path>`
+- `TASKS:` followed by one path per line for each TASK*.md created
+- Any warnings or assumptions made
 PROMPT_EOF
 
 ~/.claude/skills/codex-transport/scripts/tmux-codex.sh \
@@ -113,11 +117,10 @@ Do NOT poll Codex. Wait for the `[CODEX]` notification.
 When `[CODEX] Task complete. Response at: <path>` arrives:
 
 1. **Read the response file first** — The `<path>` from the notification is Codex's
-   authoritative result channel. Read it to confirm success, check for errors or warnings,
-   and verify where Codex actually wrote the plan and task files.
-2. **Read the plan and task files** — Open PLAN.md and each TASK*.md at the paths Codex
-   confirmed. If the response indicates failure or a different output path, follow that
-   instead of assuming the paths from your prompt.
+   authoritative result channel. Check `STATUS:` line — if FAILED, report to user.
+   Extract `PLAN:` and `TASKS:` paths. Note any warnings.
+2. **Read the plan and task files** — Open PLAN.md and each TASK*.md at the paths from
+   the response file. If paths differ from your prompt, use the response file's paths.
 3. **Verify completeness:**
    - Does it cover all requirements from the user's ask?
    - Are file paths real? (`Glob` or `Grep` to confirm)
@@ -158,9 +161,17 @@ The user reviewed the plan at <plan_path> and has feedback:
 - Read the current plan at <plan_path> and all TASK*.md files in tasks/
 - Apply the requested changes to BOTH PLAN.md and any affected TASK*.md files
 - If feedback changes task boundaries, ordering, or scope: regenerate affected TASK*.md files
+- Follow the canonical templates at codex/skills/planning/templates/
 - Write the updated plan to the same path (overwrite)
 - Preserve parts the user didn't comment on
 - Keep PLAN.md checkbox-links and TASK*.md files in sync
+
+## Response File Contract
+Write to the response file:
+- STATUS: SUCCESS or FAILED with reason
+- PLAN: <plan path>
+- TASKS: list of all TASK*.md paths (created, updated, or unchanged)
+- CHANGED: list of files that were modified in this revision
 PROMPT_EOF
 
 ~/.claude/skills/codex-transport/scripts/tmux-codex.sh \
@@ -195,7 +206,7 @@ Once the user approves:
 | Phase | Paladin's Job | Codex's Job |
 |-------|---------------|-------------|
 | Gather | Read code, fetch tickets, assemble context | — |
-| Dispatch | Compose prompt, send via tmux-codex.sh | Research, reason, write PLAN.md + TASK*.md |
+| Dispatch | Compose prompt, send via tmux-codex.sh | Research, write PLAN.md + TASK*.md (canonical templates) |
 | Verify | Check paths, scope, completeness | — |
 | Present | Summarize plan, flag concerns | — |
 | Iterate | Relay feedback + own concerns | Revise plan |
