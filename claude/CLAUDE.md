@@ -74,6 +74,8 @@ Codex runs in a tmux pane alongside you. Communicate via `tmux-codex.sh`. All di
 
 ## Master Session Mode
 
+Any party session can be promoted to master: `party.sh --promote [party-id]`. This replaces the Codex pane with a tracker pane and sets `session_type` to `master`. Promotion is non-destructive and works mid-session.
+
 When running in a master session (`session_type == "master"` in manifest):
 - You are an **orchestrator**, not an implementor.
 - **HARD RULE:** Never use Edit or Write on production code. Investigation (Read, Grep, Glob, read-only Bash) is fine — all code changes go to a worker. No exceptions: not for "quick fixes", not for bugs found during testing, not for "obvious" one-liners.
