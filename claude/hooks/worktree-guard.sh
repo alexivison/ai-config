@@ -81,7 +81,7 @@ if [ "$GIT_ROOT" != "$MAIN_WORKTREE" ]; then
     exit 0
 fi
 
-# Rewrite: branch switch → worktree add
+# Block branch switch, suggest worktree add
 REPO_NAME=$(basename "$GIT_ROOT" 2>/dev/null || echo "repo")
 
 # Parse arguments after git checkout/switch
@@ -134,16 +134,13 @@ WORKTREE_DIR=$(echo "$BRANCH" | tr '/' '-')
 WORKTREE_PATH="../${REPO_NAME}-${WORKTREE_DIR}"
 
 if [ -n "$CREATE_FLAG" ]; then
-  REWRITTEN="git worktree add ${WORKTREE_PATH} ${CREATE_FLAG} ${BRANCH}"
-  [ -n "$START_POINT" ] && REWRITTEN="${REWRITTEN} ${START_POINT}"
+  SUGGESTED="git worktree add ${WORKTREE_PATH} ${CREATE_FLAG} ${BRANCH}"
 else
-  REWRITTEN="git worktree add ${WORKTREE_PATH} ${BRANCH}"
+  SUGGESTED="git worktree add ${WORKTREE_PATH} ${BRANCH}"
 fi
-REWRITTEN="${REWRITTEN} && cd ${WORKTREE_PATH}"
+[ -n "$START_POINT" ] && SUGGESTED="${SUGGESTED} ${START_POINT}"
 
-# Emit response via jq (safe JSON encoding)
 jq -cn \
-  --arg reason "Rewrote branch switch to worktree: ${BRANCH} → ${WORKTREE_PATH}" \
-  --arg cmd "$REWRITTEN" \
-  '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "allow", permissionDecisionReason: $reason, updatedInput: {command: $cmd}}}'
+  --arg reason "BLOCKED: Cannot switch/create branches in main worktree. Use: ${SUGGESTED} — then operate from ${WORKTREE_PATH} for all subsequent commands." \
+  '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $reason}}'
 exit 0
