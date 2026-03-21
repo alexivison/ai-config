@@ -248,6 +248,28 @@ OUTPUT=$(echo "$(gate_input)" | bash "$GATE")
 assert "Quick tier: new file with quick-tier evidence → full gate → blocked" \
   'echo "$OUTPUT" | grep -q "deny"'
 
+# ═══ Phase 2 hash-independence ══════════════════════════════════════════════
+
+echo "=== Phase 2: critics at old hash + codex approved at current → allows PR ==="
+setup_repo
+clean_evidence
+cd "$TMPDIR_BASE"
+echo "impl code" > impl.sh && git add impl.sh && git commit -q -m "impl"
+# Critics approve at hash_A
+append_evidence "$SESSION_ID" "code-critic" "APPROVED" "$TMPDIR_BASE"
+append_evidence "$SESSION_ID" "minimizer" "APPROVED" "$TMPDIR_BASE"
+append_evidence "$SESSION_ID" "codex-ran" "COMPLETED" "$TMPDIR_BASE"
+# Fix commit → hash_B (critics now at stale hash)
+echo "codex fix" >> impl.sh && git add impl.sh && git commit -q -m "codex fix"
+# Codex approves at hash_B, plus other required evidence at hash_B
+append_evidence "$SESSION_ID" "codex" "APPROVED" "$TMPDIR_BASE"
+append_evidence "$SESSION_ID" "pr-verified" "PASS" "$TMPDIR_BASE"
+append_evidence "$SESSION_ID" "test-runner" "PASS" "$TMPDIR_BASE"
+append_evidence "$SESSION_ID" "check-runner" "PASS" "$TMPDIR_BASE"
+OUTPUT=$(echo "$(gate_input)" | bash "$GATE")
+assert "Phase 2: hash-independent critic check → allows PR" \
+  '! echo "$OUTPUT" | grep -q "deny"'
+
 # ═══ Non-PR commands pass through ═══════════════════════════════════════════
 
 echo "=== Non-PR commands allowed ==="

@@ -66,20 +66,20 @@ if echo "$COMMAND" | grep -qE 'gh pr create'; then
     fi
   else
     # No quick-tier evidence — full gate
-    # Two-phase model: if codex approved at current hash, check that critics
-    # approved at the same hash codex first reviewed (proving both phases
-    # covered the same base code — subsequent changes are codex-fix iterations).
+    # Two-phase model: if codex approved at current hash and critics ran at
+    # any point in this session, skip critic hash-matching. Phase 1 (codex-gate)
+    # already enforced critics before the first --review, so codex-ran implies
+    # critics passed. Hash-independence avoids the invalidation loop where fix
+    # commits between iterations force unnecessary critic re-runs.
     EVIDENCE_FILE=$(evidence_file "$SESSION_ID")
-    CODEX_REVIEW_HASH=""
+    HAS_CODEX_RAN=""
     if [ -f "$EVIDENCE_FILE" ]; then
-      CODEX_REVIEW_HASH=$(jq -r 'select(.type == "codex-ran") | .diff_hash' "$EVIDENCE_FILE" 2>/dev/null | head -1)
+      HAS_CODEX_RAN=$(jq -r 'select(.type == "codex-ran")' "$EVIDENCE_FILE" 2>/dev/null | head -1)
     fi
     if check_evidence "$SESSION_ID" "codex" "$CWD" 2>/dev/null && \
-       [ -n "$CODEX_REVIEW_HASH" ] && \
-       jq -e --arg hash "$CODEX_REVIEW_HASH" \
-         'select(.type == "code-critic" and .diff_hash == $hash)' "$EVIDENCE_FILE" >/dev/null 2>&1 && \
-       jq -e --arg hash "$CODEX_REVIEW_HASH" \
-         'select(.type == "minimizer" and .diff_hash == $hash)' "$EVIDENCE_FILE" >/dev/null 2>&1; then
+       [ -n "$HAS_CODEX_RAN" ] && \
+       jq -e 'select(.type == "code-critic")' "$EVIDENCE_FILE" >/dev/null 2>&1 && \
+       jq -e 'select(.type == "minimizer")' "$EVIDENCE_FILE" >/dev/null 2>&1; then
       REQUIRED="pr-verified codex test-runner check-runner"
     else
       REQUIRED="pr-verified code-critic minimizer codex test-runner check-runner"

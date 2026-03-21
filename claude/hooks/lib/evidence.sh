@@ -204,10 +204,11 @@ append_triage_override() {
   diff_hash=$(compute_diff_hash "$cwd")
 
   # Guard: critic must have actually run on this hash (has any entry at current diff_hash).
-  # Prevents synthesizing approvals without critics ever running.
+  # Accepts both base type (e.g., "minimizer") and run-tracking type (e.g., "minimizer-run")
+  # as proof — the -run entries are recorded by oscillation tracking in agent-trace-stop.
   if [ -f "$file" ]; then
-    if ! jq -e --arg type "$type" --arg hash "$diff_hash" \
-      'select(.type == $type and .diff_hash == $hash)' "$file" >/dev/null 2>&1; then
+    if ! jq -e --arg type "$type" --arg run_type "${type}-run" --arg hash "$diff_hash" \
+      'select((.type == $type or .type == $run_type) and .diff_hash == $hash)' "$file" >/dev/null 2>&1; then
       echo "ERROR: triage override requires '$type' to have run at current diff_hash. Run the critic first." >&2
       return 1
     fi
@@ -229,6 +230,19 @@ append_triage_override() {
     '{timestamp: $ts, type: $type, result: $result, diff_hash: $hash, session: $session, triage_override: true, rationale: $rationale}')
 
   _atomic_append "$file" "$entry" "$session_id"
+
+  # Update the -run verdict timeline so check_evidence sees the override.
+  # Without this, the latest -run entry would still show REQUEST_CHANGES,
+  # causing check_evidence to reject despite the triage override.
+  local run_entry
+  run_entry=$(jq -cn \
+    --arg ts "$timestamp" \
+    --arg type "${type}-run" \
+    --arg result "APPROVED" \
+    --arg hash "$diff_hash" \
+    --arg session "$session_id" \
+    '{timestamp: $ts, type: $type, result: $result, diff_hash: $hash, session: $session, triage_override: true}')
+  _atomic_append "$file" "$run_entry" "$session_id"
 }
 
 # ── Evidence readers ──
@@ -244,8 +258,24 @@ check_evidence() {
   diff_hash=$(compute_diff_hash "$cwd")
 
   # Match on type AND current diff_hash — stale evidence is ignored
-  jq -e --arg type "$type" --arg hash "$diff_hash" \
-    'select(.type == $type and .diff_hash == $hash)' "$file" >/dev/null 2>&1
+  if ! jq -e --arg type "$type" --arg hash "$diff_hash" \
+    'select(.type == $type and .diff_hash == $hash)' "$file" >/dev/null 2>&1; then
+    return 1
+  fi
+
+  # For types with -run tracking (critics), the latest verdict at this hash
+  # supersedes prior APPROVED entries. A later REQUEST_CHANGES invalidates approval.
+  local run_type="${type}-run"
+  if jq -e --arg rt "$run_type" --arg hash "$diff_hash" \
+    'select(.type == $rt and .diff_hash == $hash)' "$file" >/dev/null 2>&1; then
+    local latest_run
+    latest_run=$(jq -s --arg rt "$run_type" --arg hash "$diff_hash" \
+      '[.[] | select(.type == $rt and .diff_hash == $hash)] | last | .result' "$file" 2>/dev/null)
+    if [ "$latest_run" = '"REQUEST_CHANGES"' ]; then
+      return 1
+    fi
+  fi
+  return 0
 }
 
 

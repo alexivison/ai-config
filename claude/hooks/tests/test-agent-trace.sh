@@ -210,6 +210,70 @@ echo "new code" >> impl.sh
 git add impl.sh && git commit -q -m "edit impl"
 assert "Evidence stale after edit" '! has_evidence "code-critic"'
 
+# ─── Oscillation detection tests ─────────────────────────────────────────────
+
+echo "=== Oscillation: 3 alternating minimizer verdicts → auto-triage-override ==="
+clean_evidence
+# Iteration 1: minimizer says REQUEST_CHANGES
+run_stop "$(stop_input minimizer "Found issues.\n\n**REQUEST_CHANGES**\n\n[must] Remove abstraction.")"
+assert "Oscillation iter 1: REQUEST_CHANGES recorded" '! has_evidence "minimizer"'
+# Iteration 2: minimizer says APPROVE (after fix)
+run_stop "$(stop_input minimizer "Looks good now.\n\n**APPROVE**")"
+assert "Oscillation iter 2: APPROVED recorded" 'has_evidence "minimizer"'
+# Iteration 3: minimizer says REQUEST_CHANGES again (same finding re-raised)
+# This should trigger auto-triage-override
+run_stop "$(stop_input minimizer "Actually, remove that abstraction.\n\n**REQUEST_CHANGES**")"
+# After oscillation detection, a triage override should exist → minimizer evidence stays APPROVED
+EFILE=$(evidence_file "$SESSION")
+OVERRIDE_COUNT=$(jq -r 'select(.type == "minimizer" and .triage_override == true)' "$EFILE" 2>/dev/null | jq -s 'length')
+assert "Oscillation: auto-triage-override created for minimizer" '[ "$OVERRIDE_COUNT" -gt 0 ]'
+
+echo "=== Oscillation: 2 consecutive REQUEST_CHANGES → no false positive ==="
+clean_evidence
+# Two REQUEST_CHANGES in a row is persistent disagreement, NOT oscillation
+run_stop "$(stop_input minimizer "Found issues.\n\n**REQUEST_CHANGES**")"
+run_stop "$(stop_input minimizer "Still has issues.\n\n**REQUEST_CHANGES**")"
+EFILE=$(evidence_file "$SESSION")
+if [ -f "$EFILE" ]; then
+  OVERRIDE_COUNT=$(jq -r 'select(.type == "minimizer" and .triage_override == true)' "$EFILE" 2>/dev/null | jq -s 'length')
+else
+  OVERRIDE_COUNT=0
+fi
+assert "No oscillation: consecutive REQUEST_CHANGES → no override" '[ "$OVERRIDE_COUNT" -eq 0 ]'
+
+echo "=== Oscillation: different critic types don't cross-trigger ==="
+clean_evidence
+# code-critic oscillates: RC → APPROVE → RC
+run_stop "$(stop_input code-critic "Issues found.\n\n**REQUEST_CHANGES**")"
+run_stop "$(stop_input code-critic "Fixed.\n\n**APPROVE**")"
+run_stop "$(stop_input code-critic "Wait, new issue.\n\n**REQUEST_CHANGES**")"
+# minimizer has only one verdict — should NOT get an override from code-critic's oscillation
+EFILE=$(evidence_file "$SESSION")
+MIN_OVERRIDE=$(jq -r 'select(.type == "minimizer" and .triage_override == true)' "$EFILE" 2>/dev/null | jq -s 'length')
+assert "Cross-type: code-critic oscillation → no minimizer override" '[ "$MIN_OVERRIDE" -eq 0 ]'
+# But code-critic SHOULD have its own override
+CC_OVERRIDE=$(jq -r 'select(.type == "code-critic" and .triage_override == true)' "$EFILE" 2>/dev/null | jq -s 'length')
+assert "Cross-type: code-critic oscillation → code-critic override exists" '[ "$CC_OVERRIDE" -gt 0 ]'
+
+echo "=== Oscillation: cross-hash alternation is NOT oscillation ==="
+clean_evidence
+cd "$TMPDIR_BASE"
+# hash_A: minimizer says REQUEST_CHANGES
+run_stop "$(stop_input minimizer "Remove this.\n\n**REQUEST_CHANGES**")"
+# Commit → hash_B: minimizer says APPROVE
+echo "fix1" >> impl.sh && git add impl.sh && git commit -q -m "fix1"
+run_stop "$(stop_input minimizer "Looks good.\n\n**APPROVE**")"
+# Commit → hash_C: minimizer says REQUEST_CHANGES (legitimate new finding)
+echo "fix2" >> impl.sh && git add impl.sh && git commit -q -m "fix2"
+run_stop "$(stop_input minimizer "New issue on new code.\n\n**REQUEST_CHANGES**")"
+EFILE=$(evidence_file "$SESSION")
+if [ -f "$EFILE" ]; then
+  OVERRIDE_COUNT=$(jq -r 'select(.type == "minimizer" and .triage_override == true)' "$EFILE" 2>/dev/null | jq -s 'length')
+else
+  OVERRIDE_COUNT=0
+fi
+assert "Cross-hash alternation → no auto-override (not oscillation)" '[ "$OVERRIDE_COUNT" -eq 0 ]'
+
 # ─── Summary ─────────────────────────────────────────────────────────────────
 
 echo ""

@@ -164,6 +164,40 @@ OUTPUT=$(echo "$(gate_input 'tmux-codex.sh --review main "test"')" | bash "$GATE
 assert "phase 1: no evidence at all → blocked" \
   'echo "$OUTPUT" | grep -q "deny"'
 
+# ═══ Bug regression: phase 2 hash-independence ═════════════════════════════
+
+# Test: phase 2 — codex-ran at DIFFERENT hash than critics → still allows
+# Real-world scenario: critics approve at hash_A, codex reviews at hash_A,
+# --review-complete runs AFTER a fix commit → codex-ran recorded at hash_B.
+# Next fix → hash_C. Phase 2 should still allow because codex HAS reviewed.
+clean_evidence
+cd "$TMPDIR_BASE"
+# Critics approve at current hash (hash_A)
+append_evidence "$SESSION_ID" "code-critic" "APPROVED" "$TMPDIR_BASE"
+append_evidence "$SESSION_ID" "minimizer" "APPROVED" "$TMPDIR_BASE"
+# Fix + commit → hash_B
+echo "fix for codex" >> impl.sh
+git add impl.sh && git commit -q -m "codex fix 1"
+# codex-ran recorded at hash_B (different from critics at hash_A)
+append_evidence "$SESSION_ID" "codex-ran" "COMPLETED" "$TMPDIR_BASE"
+# Another fix + commit → hash_C
+echo "fix for codex 2" >> impl.sh
+git add impl.sh && git commit -q -m "codex fix 2"
+OUTPUT=$(echo "$(gate_input 'tmux-codex.sh --review main "test"')" | bash "$GATE")
+assert "phase 2: codex-ran at different hash than critics → still allows" \
+  '! echo "$OUTPUT" | grep -q "deny"'
+
+# Test: phase 2 — codex-ran exists but critics NEVER ran → still blocked
+# Safety: codex-ran alone (without any critic evidence) must not bypass phase 1.
+clean_evidence
+cd "$TMPDIR_BASE"
+echo "sneaky code" >> impl.sh
+git add impl.sh && git commit -q -m "no critic run"
+append_evidence "$SESSION_ID" "codex-ran" "COMPLETED" "$TMPDIR_BASE"
+OUTPUT=$(echo "$(gate_input 'tmux-codex.sh --review main "test"')" | bash "$GATE")
+assert "phase 2: codex-ran exists but critics never ran → blocked" \
+  'echo "$OUTPUT" | grep -q "deny"'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

@@ -52,28 +52,27 @@ fi
 
 # Two-phase gate:
 # - Phase 1 (first review): both critics must APPROVE at current hash
-# - Phase 2 (re-review after codex fixes): codex previously reviewed, AND critics
-#   approved at the SAME hash codex first reviewed. This proves critics and codex
-#   reviewed the same code — subsequent changes are codex-fix iterations only.
+# - Phase 2 (re-review after codex fixes): codex previously reviewed AND critics
+#   approved at some point in this session. Phase 1 gates the first --review, so
+#   codex-ran existing already proves critics passed. We verify critics ran (any
+#   hash) as defense-in-depth, but don't require hash alignment — fix commits
+#   between reviews legitimately change the hash.
 CWD=$(_resolve_cwd "$SESSION_ID" "$CWD")
 EVIDENCE_FILE=$(evidence_file "$SESSION_ID")
-CODEX_REVIEW_HASH=""
+HAS_CODEX_RAN=""
 if [ -f "$EVIDENCE_FILE" ]; then
-  # Find the hash of the first codex-ran entry (when codex first reviewed)
-  CODEX_REVIEW_HASH=$(jq -r 'select(.type == "codex-ran") | .diff_hash' "$EVIDENCE_FILE" 2>/dev/null | head -1)
+  HAS_CODEX_RAN=$(jq -r 'select(.type == "codex-ran")' "$EVIDENCE_FILE" 2>/dev/null | head -1)
 fi
 
-if [ -n "$CODEX_REVIEW_HASH" ]; then
-  # Phase 2: codex already reviewed. Verify critics approved at the same hash
-  # codex first reviewed (proving both phases covered the same code).
-  if jq -e --arg hash "$CODEX_REVIEW_HASH" \
-    'select(.type == "code-critic" and .diff_hash == $hash)' "$EVIDENCE_FILE" >/dev/null 2>&1 && \
-     jq -e --arg hash "$CODEX_REVIEW_HASH" \
-    'select(.type == "minimizer" and .diff_hash == $hash)' "$EVIDENCE_FILE" >/dev/null 2>&1; then
+if [ -n "$HAS_CODEX_RAN" ]; then
+  # Phase 2: codex already reviewed. Verify critics approved at ANY hash
+  # (defense-in-depth — phase 1 already enforced this before codex-ran existed).
+  if jq -e 'select(.type == "code-critic")' "$EVIDENCE_FILE" >/dev/null 2>&1 && \
+     jq -e 'select(.type == "minimizer")' "$EVIDENCE_FILE" >/dev/null 2>&1; then
     echo '{}'
     exit 0
   fi
-  # Critics didn't approve at the same hash codex reviewed — fall through to phase 1
+  # Critics never ran — fall through to phase 1
 fi
 
 # Phase 1: first review — require both critic APPROVE evidence

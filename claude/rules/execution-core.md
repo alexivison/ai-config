@@ -45,7 +45,9 @@ Out-of-scope touches without justification are blocking and require `NEEDS_DISCU
 
 Evidence is stored in a per-session JSONL log (`/tmp/claude-evidence-{session_id}.jsonl`). Each entry records a `diff_hash` — SHA-256 of the branch diff from merge-base. Gate hooks compute the current diff_hash and only accept evidence with a matching hash. Editing code after approval automatically invalidates prior evidence (different hash) — no invalidation hook needed.
 
-`codex-gate.sh` enforces a two-phase review model. Phase 1: blocks first `--review` without critic APPROVE evidence. Phase 2: after codex has reviewed once (`codex-ran` exists), allows subsequent `--review` without re-running critics — codex validates its own fix requests. `--approve` is hard-blocked; approval flows through `--review-complete` reading the verdict Codex wrote.
+`codex-gate.sh` enforces a two-phase review model. Phase 1: blocks first `--review` without critic APPROVE evidence at the current diff_hash. Phase 2: after codex has reviewed once (`codex-ran` exists at any hash), allows subsequent `--review` without re-running critics — codex validates its own fix requests. Phase 2 is hash-independent: fix commits between codex iterations don't invalidate the phase. Critics must have run at some point (defense-in-depth), but hash alignment is not required. `--approve` is hard-blocked; approval flows through `--review-complete` reading the verdict Codex wrote.
+
+`agent-trace-stop.sh` tracks all critic verdicts (APPROVED and REQUEST_CHANGES) via `{type}-run` evidence entries. When 3 alternating verdicts are detected for the same critic (e.g., RC→A→RC), an auto-triage-override is recorded. This implements the "Critic reversing own feedback = oscillation" rule from Review Governance.
 
 ## Tiered Execution
 

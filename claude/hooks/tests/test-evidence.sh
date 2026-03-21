@@ -175,6 +175,37 @@ echo "stale edit" >> check.sh
 git add check.sh && git commit -q -m "stale"
 assert "Stale hash rejected" '! check_evidence "$SESSION" "test-runner" "$TMPDIR_BASE"'
 
+echo "=== check_evidence: latest -run REQUEST_CHANGES supersedes prior APPROVED ==="
+cleanup
+setup_repo
+echo "critic" > critic.sh
+git add critic.sh && git commit -q -m "critic test"
+# Critic approves at current hash
+append_evidence "$SESSION" "code-critic" "APPROVED" "$TMPDIR_BASE"
+assert "APPROVED → check_evidence passes" 'check_evidence "$SESSION" "code-critic" "$TMPDIR_BASE"'
+# Same critic later returns REQUEST_CHANGES at same hash (via -run tracking)
+append_evidence "$SESSION" "code-critic-run" "APPROVED" "$TMPDIR_BASE"
+append_evidence "$SESSION" "code-critic-run" "REQUEST_CHANGES" "$TMPDIR_BASE"
+assert "Latest -run is RC → check_evidence fails" '! check_evidence "$SESSION" "code-critic" "$TMPDIR_BASE"'
+
+echo "=== check_evidence: -run tracking doesn't affect non-critic types ==="
+cleanup
+setup_repo
+echo "runner" > runner.sh
+git add runner.sh && git commit -q -m "runner test"
+append_evidence "$SESSION" "test-runner" "PASS" "$TMPDIR_BASE"
+assert "test-runner without -run → passes" 'check_evidence "$SESSION" "test-runner" "$TMPDIR_BASE"'
+
+echo "=== check_evidence: latest -run APPROVED keeps evidence valid ==="
+cleanup
+setup_repo
+echo "ok" > ok.sh
+git add ok.sh && git commit -q -m "ok test"
+append_evidence "$SESSION" "minimizer" "APPROVED" "$TMPDIR_BASE"
+append_evidence "$SESSION" "minimizer-run" "REQUEST_CHANGES" "$TMPDIR_BASE"
+append_evidence "$SESSION" "minimizer-run" "APPROVED" "$TMPDIR_BASE"
+assert "Latest -run is APPROVED → check_evidence passes" 'check_evidence "$SESSION" "minimizer" "$TMPDIR_BASE"'
+
 echo "=== check_evidence: no evidence file ==="
 rm -f "$(evidence_file "$SESSION")"
 assert "Missing file returns 1" '! check_evidence "$SESSION" "test-runner" "$TMPDIR_BASE"'
@@ -280,9 +311,24 @@ append_evidence "$SESSION" "code-critic" "REQUEST_CHANGES" "$TMPDIR_BASE"
 append_triage_override "$SESSION" "code-critic" "Out-of-scope: rebased auth files" "$TMPDIR_BASE"
 assert "Triage override creates evidence" 'check_evidence "$SESSION" "code-critic" "$TMPDIR_BASE"'
 EFILE=$(evidence_file "$SESSION")
-assert "Evidence has triage_override flag" '[ "$(tail -1 "$EFILE" | jq -r .triage_override)" = "true" ]'
-assert "Evidence has rationale" '[ "$(tail -1 "$EFILE" | jq -r .rationale)" = "Out-of-scope: rebased auth files" ]'
-assert "Evidence result is APPROVED" '[ "$(tail -1 "$EFILE" | jq -r .result)" = "APPROVED" ]'
+# Override writes both base-type and -run entries; check the base-type override entry
+OVERRIDE_ENTRY=$(jq -s '[.[] | select(.type == "code-critic" and .triage_override == true)] | last' "$EFILE")
+assert "Evidence has triage_override flag" '[ "$(echo "$OVERRIDE_ENTRY" | jq -r .triage_override)" = "true" ]'
+assert "Evidence has rationale" '[ "$(echo "$OVERRIDE_ENTRY" | jq -r .rationale)" = "Out-of-scope: rebased auth files" ]'
+assert "Evidence result is APPROVED" '[ "$(echo "$OVERRIDE_ENTRY" | jq -r .result)" = "APPROVED" ]'
+
+echo "=== append_triage_override: override supersedes -run REQUEST_CHANGES ==="
+cleanup
+setup_repo
+echo "impl" > impl.sh && git add impl.sh && git commit -q -m "impl"
+# Real workflow: agent-trace-stop records -run RC, then triage override applied
+append_evidence "$SESSION" "code-critic" "REQUEST_CHANGES" "$TMPDIR_BASE"
+append_evidence "$SESSION" "code-critic-run" "REQUEST_CHANGES" "$TMPDIR_BASE"
+# Before override: check_evidence should fail (latest -run is RC)
+assert "Before override: check_evidence fails" '! check_evidence "$SESSION" "code-critic" "$TMPDIR_BASE"'
+append_triage_override "$SESSION" "code-critic" "Out-of-scope finding" "$TMPDIR_BASE"
+# After override: check_evidence should pass (override wrote -run APPROVED)
+assert "After override: check_evidence passes" 'check_evidence "$SESSION" "code-critic" "$TMPDIR_BASE"'
 
 echo "=== append_triage_override: rejected without prior critic run ==="
 cleanup

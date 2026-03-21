@@ -114,4 +114,35 @@ if [ "$agent_type" = "check-runner" ]; then
   fi
 fi
 
+# ── Oscillation detection for critics ──
+# Track all critic verdicts (APPROVED/REQUEST_CHANGES) with their diff_hash.
+# Detect alternating patterns at the SAME hash — cross-hash alternation is
+# legitimate (code changed between runs). Only same-hash flip-flops are oscillation.
+
+if [ "$agent_type" = "code-critic" ] || [ "$agent_type" = "minimizer" ]; then
+  if [ "$verdict" = "APPROVED" ] || [ "$verdict" = "REQUEST_CHANGES" ]; then
+    # Record every critic verdict for oscillation tracking
+    append_evidence "$session_id" "${agent_type}-run" "$verdict" "$cwd"
+
+    EVIDENCE_FILE=$(evidence_file "$session_id")
+    if [ -f "$EVIDENCE_FILE" ]; then
+      local_hash=$(compute_diff_hash "$cwd")
+      # Get verdicts for this critic at the CURRENT hash only
+      readarray -t verdicts < <(jq -r --arg type "${agent_type}-run" --arg hash "$local_hash" \
+        'select(.type == $type and .diff_hash == $hash) | .result' "$EVIDENCE_FILE" 2>/dev/null)
+      count=${#verdicts[@]}
+      if [ "$count" -ge 3 ]; then
+        v1="${verdicts[$((count - 3))]}"
+        v2="${verdicts[$((count - 2))]}"
+        v3="${verdicts[$((count - 1))]}"
+        # Alternating pattern at same hash: critic is flip-flopping on unchanged code
+        if [ "$v1" != "$v2" ] && [ "$v2" != "$v3" ] && [ "$v1" = "$v3" ]; then
+          append_triage_override "$session_id" "$agent_type" \
+            "Auto-detected oscillation: verdicts alternated ($v1 → $v2 → $v3) at same diff_hash" "$cwd" 2>/dev/null || true
+        fi
+      fi
+    fi
+  fi
+fi
+
 exit 0
