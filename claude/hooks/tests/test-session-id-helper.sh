@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tests for session-id-helper.sh
-# Covers: Strategy 2 (worktree override), Strategy 3 (evidence file), CLI mode
+# Covers: Strategy 2 (worktree override + repo root match), fallback behavior, CLI mode
 #
 # Usage: bash ~/.claude/hooks/tests/test-session-id-helper.sh
 
@@ -70,39 +70,18 @@ assert "Empty override file returns no match" \
 
 # ═══ Strategy 3: Evidence file discovery ════════════════════════════════════
 
-echo "=== Strategy 3: discovers session from evidence file + worktree override ==="
+echo "=== Fallback: evidence file without worktree override returns nothing ==="
 TMPDIR_BASE=$(mktemp -d)
 cd "$TMPDIR_BASE"
 git init -q && git checkout -q -b main
 echo "init" > file.sh && git add file.sh && git commit -q -m "init"
 
-# Remove any Strategy 2 override, create evidence file + override pair
+# Evidence exists but no worktree override — both Strategy 2 and 3 need overrides
 rm -f "/tmp/claude-worktree-${TEST_SID}"
-echo '{"type":"test-runner","result":"PASS","diff_hash":"abc123","session":"'"$TEST_SID"'"}' > "/tmp/claude-evidence-${TEST_SID}.jsonl"
-echo "$TMPDIR_BASE" > "/tmp/claude-worktree-${TEST_SID}"
-
-# Use a different cwd (subdirectory) so Strategy 2 doesn't short-circuit
-# (Strategy 2 would match first since override points to same repo)
-# Instead, test that Strategy 3 picks newest evidence by creating a second
-# evidence file for a different session pointing to a different repo
-TMPDIR_OTHER=$(mktemp -d)
-cd "$TMPDIR_OTHER" && git init -q && echo "x" > f && git add f && git commit -q -m "init"
-OTHER_SID="test-other-$$"
-echo '{"type":"test-runner","result":"PASS","diff_hash":"def456","session":"'"$OTHER_SID"'"}' > "/tmp/claude-evidence-${OTHER_SID}.jsonl"
-echo "$TMPDIR_OTHER" > "/tmp/claude-worktree-${OTHER_SID}"
-
-# Strategy 3 should find TEST_SID for TMPDIR_BASE (not OTHER_SID)
-# Clear the worktree override so Strategy 2 doesn't fire
-rm -f "/tmp/claude-worktree-${TEST_SID}"
-# Re-create it so Strategy 3 can match repo root
-echo "$TMPDIR_BASE" > "/tmp/claude-worktree-${TEST_SID}"
-FOUND_SID=$(discover_session_id "$TMPDIR_BASE")
-assert "Discovers session from evidence file matching repo root" \
-  '[ "$FOUND_SID" = "$TEST_SID" ]'
-
-# Cleanup other session artifacts
-rm -f "/tmp/claude-evidence-${OTHER_SID}.jsonl" "/tmp/claude-worktree-${OTHER_SID}"
-rm -rf "$TMPDIR_OTHER"
+echo '{"type":"test-runner","result":"PASS","diff_hash":"abc123"}' > "/tmp/claude-evidence-${TEST_SID}.jsonl"
+FOUND_SID=$(discover_session_id "$TMPDIR_BASE" 2>/dev/null || echo "none")
+assert "No discovery when evidence exists but no worktree override" \
+  '[ "$FOUND_SID" = "none" ]'
 
 # ═══ CLI mode ═══════════════════════════════════════════════════════════════
 
