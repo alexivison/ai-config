@@ -67,25 +67,8 @@ if echo "$COMMAND" | grep -qE 'gh pr create'; then
       REQUIRED="pr-verified code-critic minimizer codex test-runner check-runner"
     fi
   else
-    # No quick-tier evidence — full gate
-    # Two-phase model: if codex approved at current hash and critics ran at
-    # any point in this session, skip critic hash-matching. Phase 1 (codex-gate)
-    # already enforced critics before the first --review, so codex-ran implies
-    # critics passed. Hash-independence avoids the invalidation loop where fix
-    # commits between iterations force unnecessary critic re-runs.
-    EVIDENCE_FILE=$(evidence_file "$SESSION_ID")
-    HAS_CODEX_RAN=""
-    if [ -f "$EVIDENCE_FILE" ]; then
-      HAS_CODEX_RAN=$(jq -r 'select(.type == "codex-ran")' "$EVIDENCE_FILE" 2>/dev/null | head -1)
-    fi
-    if check_evidence "$SESSION_ID" "codex" "$CWD" 2>/dev/null && \
-       [ -n "$HAS_CODEX_RAN" ] && \
-       jq -e 'select(.type == "code-critic")' "$EVIDENCE_FILE" >/dev/null 2>&1 && \
-       jq -e 'select(.type == "minimizer")' "$EVIDENCE_FILE" >/dev/null 2>&1; then
-      REQUIRED="pr-verified codex test-runner check-runner"
-    else
-      REQUIRED="pr-verified code-critic minimizer codex test-runner check-runner"
-    fi
+    # No quick-tier evidence — full gate requires all evidence at current hash
+    REQUIRED="pr-verified code-critic minimizer codex test-runner check-runner"
   fi
 
   DIAG_FILE=$(mktemp 2>/dev/null || echo "/tmp/pr-gate-diag-$$")

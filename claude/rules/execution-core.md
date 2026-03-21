@@ -10,7 +10,7 @@ This section is the single source of truth for execution order across workflow d
 /write-tests → implement → checkboxes → [code-critic + minimizer] → codex [+ adversarial reviewer] → /pre-pr-verification → commit → PR
 ```
 
-Adversarial reviewer runs after critics pass. Advisory only — no gating markers.
+Workflow skills enforce the critic-before-Codex ordering. Hooks only record evidence and block self-approval — they do not gate sequencing. Adversarial reviewer runs after critics pass. Advisory only — no gating markers.
 
 ## RED Evidence Gate
 
@@ -45,9 +45,11 @@ Out-of-scope touches without justification are blocking and require `NEEDS_DISCU
 
 Evidence is stored in a per-session JSONL log (`/tmp/claude-evidence-{session_id}.jsonl`). Each entry records a `diff_hash` — SHA-256 of the branch diff from merge-base. Gate hooks compute the current diff_hash and only accept evidence with a matching hash. Editing code after approval automatically invalidates prior evidence (different hash) — no invalidation hook needed.
 
-`codex-gate.sh` enforces a two-phase review model. Phase 1: blocks first `--review` without critic APPROVE evidence at the current diff_hash. Phase 2: after codex has reviewed once (`codex-ran` exists at any hash), allows subsequent `--review` without re-running critics — codex validates its own fix requests. Phase 2 is hash-independent: fix commits between codex iterations don't invalidate the phase. Critics must have run at some point (defense-in-depth), but hash alignment is not required. `--approve` is hard-blocked; approval flows through `--review-complete` reading the verdict Codex wrote.
+`codex-gate.sh` only blocks `tmux-codex.sh --approve` (self-approval). All other Codex commands (`--review`, `--prompt`, `--plan-review`, `--review-complete`) pass through freely. Workflow skills are responsible for running critics before dispatching Codex review. `--approve` is hard-blocked; approval flows through `--review-complete` reading the verdict Codex wrote.
 
-`agent-trace-stop.sh` tracks all critic verdicts (APPROVED and REQUEST_CHANGES) via `{type}-run` evidence entries. When 3 alternating verdicts are detected for the same critic (e.g., RC→A→RC), an auto-triage-override is recorded. This implements the "Critic reversing own feedback = oscillation" rule from Review Governance.
+`agent-trace-stop.sh` tracks all critic verdicts (APPROVED and REQUEST_CHANGES) via `{type}-run` evidence entries and detects oscillation in two modes:
+- **Same-hash alternation** (both critics): when 3 alternating verdicts are detected at the same hash (e.g., RC→A→RC), an auto-triage-override is recorded.
+- **Cross-hash repeated findings** (minimizer only): when the same normalized REQUEST_CHANGES body appears across 3+ distinct hashes, an auto-triage-override is recorded. Code-critic is exempt — correctness bugs legitimately persist across fix attempts.
 
 ## Tiered Execution
 
@@ -70,9 +72,9 @@ Classify every finding before acting:
 - Critics run in two-pass mode: initial pass, then one re-review pass after fixing blocking items.
 - Codex runs in two-pass mode: initial pass, then one re-review pass after fixing blocking items.
 - `[q]` and `[nit]` are opt-in (only when explicitly requested). By default, suppress them.
-- Critics should return `APPROVE` when only non-blocking findings remain, so codex-gate markers stay aligned with policy.
+- Critics should return `APPROVE` when only non-blocking findings remain.
 
-**Caps:** Blocking: max 3 critic iterations (phase 1) + 3 codex iterations (phase 2). When cap is reached, enter dispute resolution (2 rounds) before escalating to user. Non-blocking: max 1 round → accept or drop.
+**Caps:** Blocking: max 3 critic iterations + 3 codex iterations. When cap is reached, enter dispute resolution (2 rounds) before escalating to user. Non-blocking: max 1 round → accept or drop.
 
 **Tiered re-review:** One-symbol swap → test-runner only. Logic change → test-runner + critics. New export/signature/security path → full cascade.
 
@@ -92,7 +94,7 @@ Classify every finding before acting:
 | code-critic or minimizer | NEEDS_DISCUSSION / oscillation / cap | Dispute resolution: re-run critic with context explaining dismissed findings (2 rounds) → escalate to user if unresolved | NO (until dispute cap) |
 | Both critics done, no blocking | — | Run codex | NO |
 | codex | APPROVE | /pre-pr-verification | NO |
-| codex | REQUEST_CHANGES (blocking) | Fix in one batch + commit + new `--review` (no critic re-run needed — phase 2) | NO |
+| codex | REQUEST_CHANGES (blocking) | Fix in one batch + commit + re-run critics + new `--review` → `--review-complete` | NO |
 | codex | REQUEST_CHANGES (non-blocking) | Record and proceed to /pre-pr-verification | NO |
 | codex | REQUEST_CHANGES with out-of-scope findings | Dismiss with rationale in dispute context file → re-review (2 dispute rounds) → escalate if unresolved | NO (until dispute cap) |
 | codex | NEEDS_DISCUSSION | Debate via `--prompt` (2 rounds) → escalate to user if unresolved | NO (until dispute cap) |
@@ -134,7 +136,7 @@ Evidence before claims. No assertions without proof (test output, file:line, gre
 
 ## PR Gate
 
-Code PRs require evidence matching the current diff_hash. Full tier: pr-verified, code-critic, minimizer, codex, test-runner, check-runner. Quick tier (requires explicit quick-tier evidence + size limits): quick-tier, code-critic, test-runner, check-runner. Evidence created by `agent-trace-stop.sh`, `codex-trace.sh`, `skill-marker.sh`, and workflow skills (e.g., `quick-fix-workflow` writes `quick-tier`).
+Code PRs require all evidence at the current diff_hash. The PR gate (`pr-gate.sh`) is the single enforcement point — no other hook gates sequencing. Full tier: pr-verified, code-critic, minimizer, codex, test-runner, check-runner. Quick tier (requires explicit quick-tier evidence + size limits): quick-tier, code-critic, test-runner, check-runner. Evidence created by `agent-trace-stop.sh`, `codex-trace.sh`, `skill-marker.sh`, and workflow skills (e.g., `quick-fix-workflow` writes `quick-tier`).
 
 **Post-PR:** Changes in same branch → re-run /pre-pr-verification → amend + force-push with `--force-with-lease`.
 
@@ -153,7 +155,6 @@ Code PRs require evidence matching the current diff_hash. Full tier: pr-verified
 | Approve without --review-complete | Gate blocks — run review first |
 | Edit after approval, then PR | Evidence stale (diff_hash changed) — re-run |
 | Create evidence outside authorized paths | Forbidden — only hooks and workflow skills write evidence via `append_evidence` |
-| Call codex for first review without critic evidence | Gate blocks — run critics first (phase 1) |
 | Fourth critic or codex round on same diff | Enter dispute resolution (2 rounds) → escalate to user if unresolved |
 | Run lint/typecheck via Bash instead of check-runner | Always delegate to sub-agents — they run the full suite |
 | Push without running check-runner | Run check-runner before every push, no exceptions |

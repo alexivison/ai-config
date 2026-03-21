@@ -48,7 +48,7 @@ After creating a plan:
 ```bash
 ~/.claude/skills/codex-transport/scripts/tmux-codex.sh --plan-review "<plan_path>" <work_dir>
 ```
-`work_dir` is **REQUIRED**. Plan review is advisory — it is intentionally ungated by critic markers and does NOT create or reuse the `codex-ran` approval marker. Codex will notify via `[CODEX] Plan review complete. Findings at: <path>` when done. Findings are raw TOON (`.toon` file, no markdown fences).
+`work_dir` is **REQUIRED**. Plan review is advisory — it is ungated and does not create any evidence. Codex will notify via `[CODEX] Plan review complete. Findings at: <path>` when done. Findings are raw TOON (`.toon` file, no markdown fences).
 
 ### Send a task (non-blocking)
 **IMPORTANT:** Prompts with quotes, backticks, or >500 characters risk `unmatched '` shell errors when passed inline. Write to a temp file first:
@@ -73,9 +73,9 @@ Short prompts can be passed directly:
 ```
 
 This reads the findings file and extracts the verdict Codex wrote:
-- If findings contain `VERDICT: APPROVED` → creates both `codex-ran` and `codex APPROVED` evidence
-- If findings contain `VERDICT: REQUEST_CHANGES` → creates only `codex-ran` evidence
-- If no verdict line found → creates only `codex-ran` evidence (warning emitted)
+- If findings contain `VERDICT: APPROVED` → creates `codex` APPROVED evidence directly
+- If findings contain `VERDICT: REQUEST_CHANGES` → no evidence created
+- If no verdict line found → no evidence created (warning emitted)
 
 **You CANNOT call `--approve` directly.** The gate hard-blocks it. Approval can only come from Codex via the verdict line in the findings file. This prevents workers from self-approving their own fixes.
 
@@ -106,7 +106,6 @@ For out-of-scope Codex findings or NEEDS_DISCUSSION, see [execution-core.md § D
 - `--review-complete` emits `CODEX_REVIEW_RAN` only after findings exist.
 - `--needs-discussion` is instant — outputs a sentinel for hook detection.
 - **You cannot self-approve.** Codex decides the verdict via the `VERDICT:` line in the findings file.
-- Before the **first** `--review`, ensure sub-agent critics have passed (codex-gate.sh phase 1 enforces this).
-- After codex has reviewed once, subsequent `--review` calls skip the critic gate (phase 2 — codex validates its own fix requests).
-- `--plan-review` is ungated — no critic markers or codex-ran markers required or affected.
-- **Blocking codex findings:** fix code → commit → new `--review` → `--review-complete`. No critic re-run needed in phase 2.
+- Workflow skills enforce running critics before `--review`. The hook only blocks `--approve`.
+- `--plan-review` is ungated — no evidence required or affected.
+- **Blocking codex findings:** fix code → commit → re-run critics → new `--review` → `--review-complete`.

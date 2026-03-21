@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # Codex Trace Hook
-# 1. Creates codex-ran evidence when tmux-codex.sh --review-complete emits CODEX_REVIEW_RAN
-# 2. Creates codex APPROVED evidence when --review-complete also emits CODEX APPROVED
-#    (happens when findings file contains VERDICT: APPROVED from Codex)
-#    Only creates approval if codex-ran evidence exists at the same diff_hash.
-# 3. Creates triage override evidence when --triage-override emits TRIAGE_OVERRIDE
+# 1. Creates codex APPROVED evidence directly when --review-complete emits CODEX APPROVED
+#    (happens when findings file contains VERDICT: APPROVED from Codex).
+#    Requires CODEX_REVIEW_RAN sentinel in the same response as proof of review completion.
+# 2. Creates triage override evidence when --triage-override emits TRIAGE_OVERRIDE
 #
 # Triggered: PostToolUse on Bash tool
 # Fails open on errors
@@ -58,25 +57,17 @@ fi
 ts=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 log_evidence() { echo "$ts | codex-trace | $1 | $session_id" >> "$HOME/.claude/logs/evidence-trace.log"; }
 
-# --- Evidence: codex review actually completed ---
-# tmux-codex.sh --review-complete emits CODEX_REVIEW_RAN after verifying findings file exists.
-# It may ALSO emit CODEX APPROVED if the findings file contains a Codex approval verdict.
-# Do NOT exit early — both sentinels may appear in the same response.
-if echo "$response" | grep -qx "CODEX_REVIEW_RAN"; then
-  append_evidence "$session_id" "codex-ran" "COMPLETED" "$cwd"
-  log_evidence "CODEX_REVIEW_RAN"
-fi
-
 # --- Evidence: Codex approval (via verdict in findings file) ---
-# --review-complete emits "CODEX APPROVED" when findings contain VERDICT: APPROVED.
+# --review-complete emits both CODEX_REVIEW_RAN and CODEX APPROVED when findings
+# contain VERDICT: APPROVED. The CODEX_REVIEW_RAN sentinel proves the review
+# actually completed (findings file exists). We require it before writing approval.
 if echo "$response" | grep -qx "CODEX APPROVED"; then
-  # Gate: only create approval evidence if codex-ran was just recorded above
-  if check_evidence "$session_id" "codex-ran" "$cwd"; then
+  if echo "$response" | grep -qx "CODEX_REVIEW_RAN"; then
     append_evidence "$session_id" "codex" "APPROVED" "$cwd"
     log_evidence "CODEX_APPROVED"
   else
-    echo "BLOCKED: tmux-codex.sh --approve called without evidence of codex review completion"
-    log_evidence "CODEX_APPROVE_BLOCKED"
+    echo "BLOCKED: CODEX APPROVED without CODEX_REVIEW_RAN sentinel — review may not have completed" >&2
+    log_evidence "CODEX_APPROVE_BLOCKED:no_review_ran"
   fi
 fi
 

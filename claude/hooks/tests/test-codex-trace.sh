@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Tests for codex-trace.sh
-# Covers: evidence creation, response format handling, exit code extraction
+# Single-phase model: codex evidence created directly from CODEX APPROVED + CODEX_REVIEW_RAN.
+# No codex-ran intermediate evidence.
 #
 # Usage: bash ~/.claude/hooks/tests/test-codex-trace.sh
 
@@ -85,65 +86,52 @@ bash_input_str() {
     '{tool_name:"Bash",tool_input:{command:$cmd},tool_response:$stdout,session_id:$sid,cwd:$cwd}'
 }
 
-# ═══ --review-complete ════════════════════════════════════════════════════════
+# ═══ --review-complete with APPROVED verdict ═════════════════════════════════
 
 setup_repo
 
-echo "=== review-complete: Object response format ==="
-clean_evidence
-run_hook "$(bash_input_obj 'tmux-codex.sh --review-complete /tmp/f.toon' 'CODEX_REVIEW_RAN')"
-assert "Object response → codex-ran evidence created" 'has_evidence "codex-ran"'
-
-echo "=== review-complete: String response format ==="
-clean_evidence
-run_hook "$(bash_input_str 'tmux-codex.sh --review-complete /tmp/f.toon' 'CODEX_REVIEW_RAN')"
-assert "String response → codex-ran evidence created" 'has_evidence "codex-ran"'
-
-echo "=== review-complete: Full path to tmux-codex.sh ==="
-clean_evidence
-run_hook "$(bash_input_obj '~/.claude/skills/codex-transport/scripts/tmux-codex.sh --review-complete /tmp/f.toon' 'CODEX_REVIEW_RAN')"
-assert "Full path → codex-ran evidence created" 'has_evidence "codex-ran"'
-
-echo "=== review-complete: Failed command (exit 1) → no evidence ==="
-clean_evidence
-run_hook "$(bash_input_obj 'tmux-codex.sh --review-complete bad' 'Error: file not found' 1)" || true
-assert "Exit 1 → no codex-ran evidence" '! has_evidence "codex-ran"'
-
-# ═══ --review-complete with verdict ═══════════════════════════════════════════
-
-echo "=== review-complete with APPROVED verdict → creates both evidence ==="
+echo "=== review-complete: APPROVED creates codex evidence directly (object response) ==="
 clean_evidence
 COMBINED_STDOUT=$'CODEX_REVIEW_RAN\nCODEX APPROVED'
 run_hook "$(bash_input_obj 'tmux-codex.sh --review-complete /tmp/f.toon' "$COMBINED_STDOUT")"
-assert "Combined response → codex-ran evidence created" 'has_evidence "codex-ran"'
-assert "Combined response → codex evidence created" 'has_evidence "codex"'
+assert "APPROVED → codex evidence created" 'has_evidence "codex"'
 
-echo "=== review-complete with REQUEST_CHANGES → only codex-ran ==="
+echo "=== review-complete: APPROVED creates codex evidence (string response) ==="
+clean_evidence
+run_hook "$(bash_input_str 'tmux-codex.sh --review-complete /tmp/f.toon' "$COMBINED_STDOUT")"
+assert "String APPROVED → codex evidence created" 'has_evidence "codex"'
+
+echo "=== review-complete: APPROVED via full path ==="
+clean_evidence
+run_hook "$(bash_input_obj '~/.claude/skills/codex-transport/scripts/tmux-codex.sh --review-complete /tmp/f.toon' "$COMBINED_STDOUT")"
+assert "Full path APPROVED → codex evidence created" 'has_evidence "codex"'
+
+# ═══ --review-complete with REQUEST_CHANGES ═══════════════════════════════════
+
+echo "=== review-complete: REQUEST_CHANGES → no codex evidence ==="
 clean_evidence
 RC_STDOUT=$'CODEX_REVIEW_RAN\nCODEX REQUEST_CHANGES'
 run_hook "$(bash_input_obj 'tmux-codex.sh --review-complete /tmp/f.toon' "$RC_STDOUT")"
-assert "REQUEST_CHANGES → codex-ran evidence created" 'has_evidence "codex-ran"'
 assert "REQUEST_CHANGES → no codex evidence" '! has_evidence "codex"'
 
-echo "=== review-complete with APPROVED verdict (string response) ==="
+# ═══ --review-complete without CODEX_REVIEW_RAN sentinel ═════════════════════
+
+echo "=== review-complete: CODEX APPROVED without CODEX_REVIEW_RAN → no evidence ==="
 clean_evidence
-run_hook "$(bash_input_str 'tmux-codex.sh --review-complete /tmp/f.toon' "$COMBINED_STDOUT")"
-assert "String combined response → codex-ran evidence" 'has_evidence "codex-ran"'
-assert "String combined response → codex evidence" 'has_evidence "codex"'
+run_hook "$(bash_input_obj 'tmux-codex.sh --review-complete /tmp/f.toon' 'CODEX APPROVED')"
+assert "APPROVED without review-ran sentinel → no codex evidence" '! has_evidence "codex"'
+
+echo "=== review-complete: CODEX_REVIEW_RAN alone → no codex evidence ==="
+clean_evidence
+run_hook "$(bash_input_obj 'tmux-codex.sh --review-complete /tmp/f.toon' 'CODEX_REVIEW_RAN')"
+assert "Review-ran alone → no codex evidence" '! has_evidence "codex"'
 
 # ═══ --plan-review (advisory only) ════════════════════════════════════════════
 
-echo "=== plan-review: Object response does not create evidence ==="
+echo "=== plan-review: does not create evidence ==="
 clean_evidence
 run_hook "$(bash_input_obj 'tmux-codex.sh --plan-review PLAN.md /tmp/work' 'CODEX_PLAN_REVIEW_REQUESTED')"
-assert "Object plan-review → no codex-ran evidence" '! has_evidence "codex-ran"'
-assert "Object plan-review → no codex evidence" '! has_evidence "codex"'
-
-echo "=== plan-review: String response does not create evidence ==="
-clean_evidence
-run_hook "$(bash_input_str 'tmux-codex.sh --plan-review PLAN.md /tmp/work' 'CODEX_PLAN_REVIEW_REQUESTED')"
-assert "String plan-review → no codex-ran evidence" '! has_evidence "codex-ran"'
-assert "String plan-review → no codex evidence" '! has_evidence "codex"'
+assert "Plan-review → no codex evidence" '! has_evidence "codex"'
 
 # ═══ Exit code extraction ════════════════════════════════════════════════════
 
@@ -152,26 +140,21 @@ clean_evidence
 INPUT=$(jq -cn \
   --arg sid "$SESSION" \
   --arg cwd "$TMPDIR_BASE" \
-  '{tool_name:"Bash",tool_input:{command:"tmux-codex.sh --review-complete /tmp/f.toon"},tool_response:{stdout:"CODEX_REVIEW_RAN",stderr:""},tool_exit_code:1,session_id:$sid,cwd:$cwd}')
+  '{tool_name:"Bash",tool_input:{command:"tmux-codex.sh --review-complete /tmp/f.toon"},tool_response:{stdout:"CODEX_REVIEW_RAN\nCODEX APPROVED",stderr:""},tool_exit_code:1,session_id:$sid,cwd:$cwd}')
 echo "$INPUT" | bash "$HOOK" 2>/dev/null || true
-assert "tool_exit_code=1 → no evidence" '! has_evidence "codex-ran"'
+assert "tool_exit_code=1 → no evidence" '! has_evidence "codex"'
 
 echo "=== Exit code: nested in tool_response ==="
 clean_evidence
 run_hook "$(bash_input_obj 'tmux-codex.sh --review-complete /tmp/f.toon' 'Error' 1)" || true
-assert "tool_response.exit_code=1 → no evidence" '! has_evidence "codex-ran"'
-
-echo "=== Exit code: string response (no exit_code field) defaults to 0 ==="
-clean_evidence
-run_hook "$(bash_input_str 'tmux-codex.sh --review-complete /tmp/f.toon' 'CODEX_REVIEW_RAN')"
-assert "String response defaults exit_code=0 → evidence created" 'has_evidence "codex-ran"'
+assert "tool_response.exit_code=1 → no evidence" '! has_evidence "codex"'
 
 # ═══ Guard clauses ═══════════════════════════════════════════════════════════
 
 echo "=== Guard: Non-tmux command ignored ==="
 clean_evidence
-run_hook "$(bash_input_obj 'echo CODEX_REVIEW_RAN' 'CODEX_REVIEW_RAN')"
-assert "Non-tmux → no evidence" '! has_evidence "codex-ran"'
+run_hook "$(bash_input_obj 'echo CODEX_REVIEW_RAN' "$COMBINED_STDOUT")"
+assert "Non-tmux → no evidence" '! has_evidence "codex"'
 
 echo "=== Guard: Invalid JSON fails open ==="
 clean_evidence
@@ -182,33 +165,30 @@ echo "=== Guard: Missing session_id → no evidence ==="
 clean_evidence
 INPUT=$(jq -cn \
   --arg cwd "$TMPDIR_BASE" \
-  '{tool_name:"Bash",tool_input:{command:"tmux-codex.sh --review-complete /tmp/f.toon"},tool_response:{stdout:"CODEX_REVIEW_RAN",stderr:""},cwd:$cwd}')
+  '{tool_name:"Bash",tool_input:{command:"tmux-codex.sh --review-complete /tmp/f.toon"},tool_response:{stdout:"CODEX_REVIEW_RAN\nCODEX APPROVED",stderr:""},cwd:$cwd}')
 echo "$INPUT" | bash "$HOOK" 2>/dev/null || true
-assert "No session_id → no evidence" '! has_evidence "codex-ran"'
+assert "No session_id → no evidence" '! has_evidence "codex"'
 
 # ═══ Full workflow simulation ════════════════════════════════════════════════
 
-echo "=== Workflow: review-complete with APPROVED verdict → both evidence ==="
+echo "=== Workflow: APPROVED verdict → codex evidence ==="
 clean_evidence
 APPROVED_STDOUT=$'CODEX_REVIEW_RAN\nCODEX APPROVED'
 run_hook "$(bash_input_obj 'tmux-codex.sh --review-complete /tmp/f.toon' "$APPROVED_STDOUT")"
-assert "Step 1: codex-ran evidence created" 'has_evidence "codex-ran"'
-assert "Step 2: codex evidence created" 'has_evidence "codex"'
+assert "Workflow: codex evidence created" 'has_evidence "codex"'
 
 echo "=== Workflow: stale evidence after code edit ==="
 clean_evidence
 run_hook "$(bash_input_obj 'tmux-codex.sh --review-complete /tmp/f.toon' "$APPROVED_STDOUT")"
-assert "Step 1: both evidence created" 'has_evidence "codex-ran" && has_evidence "codex"'
+assert "Step 1: codex evidence created" 'has_evidence "codex"'
 # Simulate code edit — changes diff_hash
 cd "$TMPDIR_BASE"
 echo "new code" >> impl.sh
 git add impl.sh && git commit -q -m "code edit"
-assert "Step 2: codex-ran stale after edit" '! has_evidence "codex-ran"'
-assert "Step 3: codex stale after edit" '! has_evidence "codex"'
+assert "Step 2: codex stale after edit" '! has_evidence "codex"'
 # Re-do review with approval
 run_hook "$(bash_input_obj 'tmux-codex.sh --review-complete /tmp/f.toon' "$APPROVED_STDOUT")"
-assert "Step 4: codex-ran recreated" 'has_evidence "codex-ran"'
-assert "Step 5: codex recreated" 'has_evidence "codex"'
+assert "Step 3: codex recreated" 'has_evidence "codex"'
 
 # ═══ --triage-override ════════════════════════════════════════════════════════
 
@@ -238,7 +218,6 @@ clean_evidence
 append_evidence "$SESSION" "minimizer" "REQUEST_CHANGES" "$TMPDIR_BASE"
 COMBINED_OVERRIDE=$'CODEX_REVIEW_RAN\nTRIAGE_OVERRIDE minimizer | Rebased code from PR #65315'
 run_hook "$(bash_input_obj 'tmux-codex.sh --review-complete /tmp/f.toon' "$COMBINED_OVERRIDE")"
-assert "Combined → codex-ran evidence" 'has_evidence "codex-ran"'
 assert "Combined → minimizer override evidence" 'has_evidence "minimizer"'
 
 # ─── Summary ─────────────────────────────────────────────────────────────────

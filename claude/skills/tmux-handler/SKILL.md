@@ -72,7 +72,7 @@ Message: `[CODEX] Review complete. Findings at: <path>`
 5. Update your issue ledger (reject re-raised closed findings, detect oscillation)
 6. The verdict comes from the `VERDICT:` line Codex wrote in the findings file — `--review-complete` reads it automatically:
    - `VERDICT: APPROVED` in findings → approval evidence created
-   - `VERDICT: REQUEST_CHANGES` → only codex-ran evidence; fix code, re-run critics, dispatch new `--review` → `--review-complete`
+   - `VERDICT: REQUEST_CHANGES` → no approval evidence; fix code, re-run critics, dispatch new `--review` → `--review-complete`
    - Unresolvable → `tmux-codex.sh --needs-discussion "reason"`
    - **Do NOT call `--approve` directly** — the gate blocks it.
 

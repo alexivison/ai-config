@@ -274,6 +274,76 @@ else
 fi
 assert "Cross-hash alternation → no auto-override (not oscillation)" '[ "$OVERRIDE_COUNT" -eq 0 ]'
 
+# ─── Cross-hash oscillation detection tests ──────────────────────────────────
+
+echo "=== Cross-hash: minimizer same finding across 3 hashes → auto-triage ==="
+clean_evidence
+cd "$TMPDIR_BASE"
+SAME_FINDING="Remove the unnecessary abstraction.\n\n**REQUEST_CHANGES**\n\n[must] This helper is only used once."
+# hash_A
+run_stop "$(stop_input minimizer "$SAME_FINDING")"
+# hash_B
+echo "crossfix1" >> impl.sh && git add impl.sh && git commit -q -m "crossfix1"
+run_stop "$(stop_input minimizer "$SAME_FINDING")"
+# hash_C
+echo "crossfix2" >> impl.sh && git add impl.sh && git commit -q -m "crossfix2"
+run_stop "$(stop_input minimizer "$SAME_FINDING")"
+EFILE=$(evidence_file "$SESSION")
+OVERRIDE_COUNT=$(jq -r 'select(.type == "minimizer" and .triage_override == true)' "$EFILE" 2>/dev/null | jq -s 'length')
+assert "Cross-hash: same minimizer finding across 3 hashes → auto-triage" '[ "$OVERRIDE_COUNT" -gt 0 ]'
+
+echo "=== Cross-hash: minimizer same finding across 2 hashes only → no override ==="
+clean_evidence
+cd "$TMPDIR_BASE"
+# hash_A
+run_stop "$(stop_input minimizer "$SAME_FINDING")"
+# hash_B
+echo "crossfix3" >> impl.sh && git add impl.sh && git commit -q -m "crossfix3"
+run_stop "$(stop_input minimizer "$SAME_FINDING")"
+EFILE=$(evidence_file "$SESSION")
+if [ -f "$EFILE" ]; then
+  OVERRIDE_COUNT=$(jq -r 'select(.type == "minimizer" and .triage_override == true)' "$EFILE" 2>/dev/null | jq -s 'length')
+else
+  OVERRIDE_COUNT=0
+fi
+assert "Cross-hash: same finding across 2 hashes only → no override" '[ "$OVERRIDE_COUNT" -eq 0 ]'
+
+echo "=== Cross-hash: minimizer different findings across hashes → no override ==="
+clean_evidence
+cd "$TMPDIR_BASE"
+FINDING_A="Remove abstraction A.\n\n**REQUEST_CHANGES**"
+FINDING_B="Remove abstraction B.\n\n**REQUEST_CHANGES**"
+FINDING_C="Remove abstraction C.\n\n**REQUEST_CHANGES**"
+run_stop "$(stop_input minimizer "$FINDING_A")"
+echo "crossfix4" >> impl.sh && git add impl.sh && git commit -q -m "crossfix4"
+run_stop "$(stop_input minimizer "$FINDING_B")"
+echo "crossfix5" >> impl.sh && git add impl.sh && git commit -q -m "crossfix5"
+run_stop "$(stop_input minimizer "$FINDING_C")"
+EFILE=$(evidence_file "$SESSION")
+if [ -f "$EFILE" ]; then
+  OVERRIDE_COUNT=$(jq -r 'select(.type == "minimizer" and .triage_override == true)' "$EFILE" 2>/dev/null | jq -s 'length')
+else
+  OVERRIDE_COUNT=0
+fi
+assert "Cross-hash: different findings across hashes → no override" '[ "$OVERRIDE_COUNT" -eq 0 ]'
+
+echo "=== Cross-hash: code-critic same finding across 3 hashes → NO auto-triage ==="
+clean_evidence
+cd "$TMPDIR_BASE"
+CC_FINDING="Null check missing in handler.\n\n**REQUEST_CHANGES**\n\n[must] Fix the null check."
+run_stop "$(stop_input code-critic "$CC_FINDING")"
+echo "crossfix6" >> impl.sh && git add impl.sh && git commit -q -m "crossfix6"
+run_stop "$(stop_input code-critic "$CC_FINDING")"
+echo "crossfix7" >> impl.sh && git add impl.sh && git commit -q -m "crossfix7"
+run_stop "$(stop_input code-critic "$CC_FINDING")"
+EFILE=$(evidence_file "$SESSION")
+if [ -f "$EFILE" ]; then
+  OVERRIDE_COUNT=$(jq -r 'select(.type == "code-critic" and .triage_override == true)' "$EFILE" 2>/dev/null | jq -s 'length')
+else
+  OVERRIDE_COUNT=0
+fi
+assert "Cross-hash: code-critic same finding across 3 hashes → NO auto-triage (correctness exempt)" '[ "$OVERRIDE_COUNT" -eq 0 ]'
+
 # ─── Summary ─────────────────────────────────────────────────────────────────
 
 echo ""
