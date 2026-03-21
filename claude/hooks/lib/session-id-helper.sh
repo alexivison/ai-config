@@ -59,18 +59,18 @@ discover_session_id() {
     # Check if any entry references our repo (via cwd in _resolve_cwd)
     local sid="${f#/tmp/claude-evidence-}"
     sid="${sid%.jsonl}"
-    local mtime
-    mtime=$(stat -f '%m' "$f" 2>/dev/null || stat -c '%Y' "$f" 2>/dev/null || echo 0)
-    if [ "$mtime" -gt "$newest_ts" ]; then
-      # Verify this session's worktree override or evidence relates to our repo
-      local override="/tmp/claude-worktree-${sid}"
-      if [ -f "$override" ]; then
-        local op
-        op=$(cat "$override")
-        if [ -n "$op" ] && [ -d "$op" ]; then
-          local op_root
-          op_root=$(cd "$op" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null) || continue
-          if [ "$op_root" = "$repo_root" ]; then
+    # Verify this session's worktree override relates to our repo
+    local override="/tmp/claude-worktree-${sid}"
+    if [ -f "$override" ]; then
+      local op
+      op=$(cat "$override")
+      if [ -n "$op" ] && [ -d "$op" ]; then
+        local op_root
+        op_root=$(cd "$op" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null) || continue
+        if [ "$op_root" = "$repo_root" ]; then
+          local mtime
+          mtime=$(stat -f '%m' "$f" 2>/dev/null || stat -c '%Y' "$f" 2>/dev/null || echo 0)
+          if [ "$mtime" -gt "$newest_ts" ]; then
             newest_sid="$sid"
             newest_ts="$mtime"
           fi
