@@ -20,12 +20,12 @@ fi
 # Args: hook_name session_id outcome [details]
 
 _HOOK_TRACE_LOG="${HOME}/.claude/logs/hook-trace.log"
+mkdir -p "$(dirname "$_HOOK_TRACE_LOG")" 2>/dev/null || true
 
 hook_log() {
   local hook_name="${1:-unknown}" session_id="${2:-unknown}" outcome="${3:-unknown}" details="${4:-}"
   local ts
   ts=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
-  mkdir -p "$(dirname "$_HOOK_TRACE_LOG")"
   local line="${ts} | ${hook_name} | ${session_id} | ${outcome}"
   [ -n "$details" ] && line="${line} | ${details}"
   echo "$line" >> "$_HOOK_TRACE_LOG"
