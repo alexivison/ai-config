@@ -8,6 +8,7 @@
 #   party-relay.sh --list                          # list workers + status
 #   party-relay.sh --stop <worker-id>              # stop a worker
 #   party-relay.sh --spawn [--prompt "..."] "title" # spawn a new worker
+#   party-relay.sh --file <path> <worker-id>        # send file pointer to worker
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,6 +24,7 @@ Usage:
   party-relay.sh --list
   party-relay.sh --stop <worker-id>
   party-relay.sh --spawn [--prompt "text"] "title"
+  party-relay.sh --file <path> <worker-id>    # send file pointer to worker
 EOF
 }
 
@@ -37,6 +39,17 @@ relay_discover_master() {
     echo "Error: session '$SESSION_NAME' is not a master session." >&2
     return 1
   fi
+}
+
+# Write message to temp file, return pointer message for tmux paste safety.
+relay_via_file() {
+  local relay_file="/tmp/party-relay-$$-$RANDOM.md"
+  printf '%s\n' "$1" > "$relay_file"
+  echo "Read relay instructions at $relay_file"
+}
+
+relay_needs_file() {
+  [[ ${#1} -gt 200 || "$1" == *$'\n'* ]]
 }
 
 relay_to_worker() {
@@ -54,6 +67,9 @@ relay_to_worker() {
     return 1
   }
 
+  if relay_needs_file "$message"; then
+    message="$(relay_via_file "$message")"
+  fi
   tmux_send "$target" "$message" "relay"
 }
 
@@ -65,6 +81,10 @@ relay_broadcast() {
   if [[ -z "$workers" ]]; then
     echo "No workers to broadcast to."
     return 0
+  fi
+
+  if relay_needs_file "$message"; then
+    message="$(relay_via_file "$message")"
   fi
 
   local count=0
@@ -207,6 +227,16 @@ case "$1" in
     relay_discover_master
     shift
     relay_spawn "$@"
+    ;;
+  --file)
+    shift
+    _file_path="${1:?--file requires a file path}"
+    _file_worker="${2:?--file requires a worker ID}"
+    if [[ ! -f "$_file_path" ]]; then
+      echo "Error: file '$_file_path' not found." >&2
+      exit 1
+    fi
+    relay_to_worker "$_file_worker" "Read relay instructions at $_file_path"
     ;;
   --help|-h)
     relay_usage
