@@ -118,6 +118,22 @@ HASH_NEW=$(compute_diff_hash "$TMPDIR_BASE")
 OUTPUT=$(check_all_evidence "$SESSION" "code-critic" "$TMPDIR_BASE" 2>&1 || true)
 assert "Stale diagnostic mentions existing hash" 'echo "$OUTPUT" | grep -q "stale\|exists at"'
 
+echo "=== Fix 2: APPROVED@A then REQUEST_CHANGES@B suppresses stale hint ==="
+cleanup
+setup_repo
+echo "impl_rc" > impl_rc.sh
+git add impl_rc.sh && git commit -q -m "add impl_rc"
+# Critic approves at hash A
+append_evidence "$SESSION" "code-critic" "APPROVED" "$TMPDIR_BASE"
+# Change code → hash B
+echo "changed_rc" >> impl_rc.sh
+git add impl_rc.sh && git commit -q -m "change impl_rc"
+# Critic re-runs at hash B with REQUEST_CHANGES (via -run tracking)
+append_evidence "$SESSION" "code-critic-run" "REQUEST_CHANGES" "$TMPDIR_BASE"
+# check_all_evidence should NOT emit stale hint — critic already ran at current hash
+OUTPUT=$(check_all_evidence "$SESSION" "code-critic" "$TMPDIR_BASE" 2>&1 || true)
+assert "RC at current hash: no stale hint" '! echo "$OUTPUT" | grep -q "stale\|exists at"'
+
 echo "=== Fix 2: missing evidence (never ran) shows no hash diagnostic ==="
 cleanup
 setup_repo

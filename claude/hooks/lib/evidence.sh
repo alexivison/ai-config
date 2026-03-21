@@ -323,11 +323,19 @@ check_all_evidence() {
         _diag_file=$(evidence_file "$session_id")
       fi
       if [ -f "$_diag_file" ] && [ "$_diag_hash" != "unknown" ]; then
-        local stale_hash
-        stale_hash=$(jq -r --arg type "$type" \
-          'select(.type == $type) | .diff_hash' "$_diag_file" 2>/dev/null | tail -1)
-        if [ -n "$stale_hash" ] && [ "$stale_hash" != "$_diag_hash" ]; then
-          diagnostics="${diagnostics}\n  ${type}: exists at stale hash ${stale_hash:0:12}… but current code is at ${_diag_hash:0:12}… — re-run to refresh"
+        # Skip stale hint if a -run entry exists at the current hash — the critic
+        # already ran on current code (e.g. REQUEST_CHANGES), so this is an active
+        # failure, not stale evidence.
+        local has_current_run=""
+        has_current_run=$(jq -r --arg rt "${type}-run" --arg hash "$_diag_hash" \
+          'select(.type == $rt and .diff_hash == $hash) | .type' "$_diag_file" 2>/dev/null | head -1)
+        if [ -z "$has_current_run" ]; then
+          local stale_hash
+          stale_hash=$(jq -r --arg type "$type" \
+            'select(.type == $type) | .diff_hash' "$_diag_file" 2>/dev/null | tail -1)
+          if [ -n "$stale_hash" ] && [ "$stale_hash" != "$_diag_hash" ]; then
+            diagnostics="${diagnostics}\n  ${type}: exists at stale hash ${stale_hash:0:12}… but current code is at ${_diag_hash:0:12}… — re-run to refresh"
+          fi
         fi
       fi
     fi
