@@ -88,9 +88,9 @@ Test cases:
 
 ## Acceptance Criteria
 
-- [ ] `party-cli` owns lifecycle commands and worker spawn behavior
-- [ ] Session creation and teardown preserve current layout semantics
-- [ ] Promotion works in both classic and sidebar layout modes
-- [ ] Sidebar promotion replaces sidebar pane (window 1) with tracker; window 0 (Codex) remains
-- [ ] Shell entrypoints can coexist as wrappers without diverging behavior
-- [ ] Lifecycle tests pass
+- [x] `party-cli` owns lifecycle commands and worker spawn behavior
+- [x] Session creation and teardown preserve current layout semantics
+- [x] Promotion works in both classic and sidebar layout modes
+- [x] Sidebar promotion replaces sidebar pane (window 1) with tracker; window 0 (Codex) remains
+- [x] Shell entrypoints can coexist as wrappers without diverging behavior
+- [x] Lifecycle tests pass

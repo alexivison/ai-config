@@ -40,7 +40,7 @@ The former standalone sidebar evaluation phase is removed. `docs/projects/sideba
 
 ### Phase 3: Feature Parity + TUI Views
 
-- [ ] [Task 10](./tasks/TASK10-port-session-lifecycle-and-worker-spawn.md) — Port `start`, `continue`, `stop`, `delete`, `promote`, and worker-spawn flows while Bash entrypoints still coexist as wrappers (deps: Task 8, Task 9)
+- [x] [Task 10](./tasks/TASK10-port-session-lifecycle-and-worker-spawn.md) — Port `start`, `continue`, `stop`, `delete`, `promote`, and worker-spawn flows while Bash entrypoints still coexist as wrappers (deps: Task 8, Task 9)
 - [ ] [Task 11](./tasks/TASK11-port-messaging-and-report-back-commands.md) — Port `relay`, `broadcast`, `read`, `report`, and worker enumeration onto the delivery-confirmed tmux service without taking ownership of `tmux-codex.sh` itself (deps: Task 8, Task 9, Task 10)
 - [ ] [Task 12](./tasks/TASK12-build-worker-sidebar-view.md) — Build the worker/standalone sidebar view with Codex status, evidence summary, session info, offline handling, and peek popup backed by `codex-status.json` plus pane capture (deps: Task 7, Task 9, Task 11)
 - [ ] [Task 13](./tasks/TASK13-build-master-tracker-view.md) — Build the master tracker view inside `party-cli` with worker list, attach, relay, spawn, and manifest inspection, reusing the existing tracker interaction patterns (deps: Task 7, Task 10, Task 11)
