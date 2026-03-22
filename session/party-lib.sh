@@ -153,10 +153,6 @@ tmux_send() {
   local text="$2"
   local caller="${3:-}"
 
-  # Unique sentinel appended to each message for delivery confirmation.
-  # Prevents false-positive matches against stale pane buffer content.
-  local sentinel="@@${RANDOM}${RANDOM}"
-
   # Force bypass for tests and explicit override (no confirmation)
   if [[ "${TMUX_SEND_FORCE:-}" == "1" ]]; then
     tmux send-keys -t "$target" -l "$text"
@@ -165,18 +161,21 @@ tmux_send() {
     return 0
   fi
 
-  # _tmux_send_once: send text with sentinel suffix, then verify delivery
+  # _tmux_send_once: send keys then verify delivery via capture-pane.
+  # Checks that the first 40 chars of the message appear in the pane buffer.
+  # False positives from stale buffer content are acceptable — the alternative
+  # (embedding a sentinel in the payload) corrupts the AI prompt.
   _tmux_send_once() {
-    local payload="${text} ${sentinel}"
-    tmux send-keys -t "$target" -l "$payload"
+    tmux send-keys -t "$target" -l "$text"
     sleep 0.1
     tmux send-keys -t "$target" Enter
 
-    # Verify: check pane buffer for the unique sentinel
+    # Verify: check pane buffer for the message
     sleep 0.2
+    local verify_text="${text:0:40}"
     local buffer
     buffer=$(tmux capture-pane -t "$target" -p -S -50 2>/dev/null || true)
-    if [[ -n "$buffer" ]] && [[ "$buffer" == *"$sentinel"* ]]; then
+    if [[ -n "$buffer" ]] && [[ "$buffer" == *"$verify_text"* ]]; then
       return 0
     fi
     return 1

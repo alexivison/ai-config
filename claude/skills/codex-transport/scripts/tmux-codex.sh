@@ -40,20 +40,18 @@ _require_session() {
   }
 }
 
-# Delivery-confirmed send with one retry on unconfirmed (exit 76).
-# Returns 0 on success, 75 (pane busy), 76 (unconfirmed after retry).
+# Delivery-confirmed send. Exit 76 (keys sent but buffer check failed)
+# is treated as success — the keys were delivered, capture-pane just
+# couldn't confirm. Retrying would cause duplicate dispatch.
+# Returns 0 on success/unconfirmed, 75 on pane busy (dropped).
 _send_with_retry() {
   local target="$1" text="$2" caller="$3"
   local rc=0
   tmux_send "$target" "$text" "$caller" || rc=$?
-  if [[ $rc -eq 0 ]]; then
-    return 0
-  fi
   if [[ $rc -eq 76 ]]; then
-    # Unconfirmed — retry once after a short delay
-    sleep 0.5
-    tmux_send "$target" "$text" "$caller" || rc=$?
-    return $rc
+    # Keys were sent, buffer verification failed — treat as delivered
+    echo "tmux_send: delivery unconfirmed for '$caller' (capture-pane miss)" >&2
+    return 0
   fi
   return $rc
 }
