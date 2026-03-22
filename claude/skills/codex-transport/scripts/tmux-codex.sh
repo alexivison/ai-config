@@ -34,7 +34,7 @@ _require_session() {
     echo "CODEX_NOT_AVAILABLE: Master sessions have no Codex pane. Route review work through a worker session." >&2
     exit 1
   fi
-  CODEX_PANE=$(party_role_pane_target_with_fallback "$SESSION_NAME" "codex") || {
+  CODEX_PANE=$(party_codex_pane_target "$SESSION_NAME") || {
     echo "Error: Cannot resolve Codex pane in session '$SESSION_NAME'" >&2
     exit 1
   }

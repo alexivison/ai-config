@@ -36,7 +36,7 @@ The former standalone sidebar evaluation phase is removed. `docs/projects/sideba
 - [x] [Task 6](./tasks/TASK6-port-tmux-service-and-pane-capture.md) — Port tmux session queries, role resolution, delivery-confirmed sends, pane capture, popup helpers, and window-management helpers into shared Go packages (deps: Task 4, Task 5)
 - [x] [Task 7](./tasks/TASK7-absorb-tracker-runtime-into-tui-foundation.md) — Reuse `party-tracker` Bubble Tea structure, Lip Gloss palette, and narrow-width behavior inside `party-cli`, with auto-selection between worker sidebar mode and master tracker mode (deps: Task 5, Task 6)
 - [x] [Task 8](./tasks/TASK8-port-read-only-cli-commands.md) — Port `list`, `status`, and `prune` as safe read-only CLI commands backed by the shared state and tmux services (deps: Task 5, Task 6)
-- [ ] [Task 9](./tasks/TASK9-launch-party-cli-pane-and-sidebar-layouts.md) — Launch `party-cli` in window 1 (pane `0`), keep master tracker layout, add sidebar layout as opt-in for standard and worker sessions (`PARTY_LAYOUT=classic` stays default), move Codex to a hidden window 0 within the same tmux session, and configure the tmux status bar to visually distinguish agent windows from workspace windows (deps: Task 6, Task 7, Task 8)
+- [x] [Task 9](./tasks/TASK9-launch-party-cli-pane-and-sidebar-layouts.md) — Launch `party-cli` in window 1 (pane `0`), keep master tracker layout, add sidebar layout as opt-in for standard and worker sessions (`PARTY_LAYOUT=classic` stays default), move Codex to a hidden window 0 within the same tmux session, and configure the tmux status bar to visually distinguish agent windows from workspace windows (deps: Task 6, Task 7, Task 8)
 
 ### Phase 3: Feature Parity + TUI Views
 

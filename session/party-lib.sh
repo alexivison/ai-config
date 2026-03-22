@@ -461,3 +461,60 @@ party_role_pane_target() {
 party_role_pane_target_with_fallback() {
   party_role_pane_target "$@"
 }
+
+# ---------------------------------------------------------------------------
+# Layout mode helpers
+# ---------------------------------------------------------------------------
+
+# Returns the active layout mode: "sidebar" or "classic".
+# sidebar: hidden Codex window 0 + workspace window 1 (party-cli | Claude | Shell)
+# classic: single window with Codex | Claude | Shell (original layout)
+party_layout_mode() {
+  local mode="${PARTY_LAYOUT:-classic}"
+  case "$mode" in
+    sidebar) echo "sidebar" ;;
+    *)       echo "classic" ;;
+  esac
+}
+
+# Resolve the Codex pane target, layout-aware.
+# sidebar → always ${session}:0.0 (hidden window 0)
+# classic → role-based resolution via party_role_pane_target
+party_codex_pane_target() {
+  local session="${1:?Usage: party_codex_pane_target SESSION}"
+  if [[ "$(party_layout_mode)" == "sidebar" ]]; then
+    printf '%s:0.0\n' "$session"
+    return 0
+  fi
+  party_role_pane_target "$session" "codex"
+}
+
+# Resolve the party-cli command string for launching in a pane.
+# Tries: installed binary on PATH > go run from source.
+# --strict: return 1 instead of fallback placeholder (for promotion)
+party_resolve_cli_cmd() {
+  local strict=0
+  if [[ "${1:-}" == "--strict" ]]; then
+    strict=1; shift
+  fi
+  local session="${1:?Usage: party_resolve_cli_cmd [--strict] SESSION REPO_ROOT}"
+  local repo_root="${2:?Missing repo_root}"
+  local cli_bin
+
+  cli_bin="$(command -v party-cli 2>/dev/null || true)"
+  if [[ -n "$cli_bin" ]]; then
+    printf 'PARTY_REPO_ROOT=%q %q --session %q\n' "$repo_root" "$cli_bin" "$session"
+    return 0
+  fi
+
+  if command -v go &>/dev/null && [[ -f "$repo_root/tools/party-cli/main.go" ]]; then
+    printf 'cd %q/tools/party-cli && PARTY_REPO_ROOT=%q go run . --session %q\n' "$repo_root" "$repo_root" "$session"
+    return 0
+  fi
+
+  if [[ "$strict" -eq 1 ]]; then
+    return 1
+  fi
+  echo "Warning: party-cli not found and Go not available." >&2
+  printf "echo 'party-cli: install Go or build the binary'; read\n"
+}

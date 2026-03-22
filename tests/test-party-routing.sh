@@ -134,6 +134,42 @@ err=$(party_role_pane_target_with_fallback "party-test" "codex" 2>&1 >/dev/null 
 assert "wrapper: duplicate role propagates ROLE_AMBIGUOUS" \
   '[[ "$err" == *"ROLE_AMBIGUOUS"* ]]'
 
+# === Sidebar mode: multi-window routing ===
+# In sidebar mode, Codex lives in window 0 and workspace in window 1.
+# Run in subshell to isolate the multi-window tmux mock.
+
+_sidebar_results=$(
+  tmux() {
+    if [[ "$1" == "list-panes" ]]; then
+      local target="" prev=""
+      for arg in "$@"; do
+        if [[ "$prev" == "-t" ]]; then target="$arg"; break; fi
+        prev="$arg"
+      done
+      local win="${target##*:}"
+      if [[ "$win" == "0" ]]; then printf '0 codex\n'; return 0
+      elif [[ "$win" == "1" ]]; then printf '0 sidebar\n1 claude\n2 shell\n'; return 0; fi
+      return 1
+    fi
+    if [[ "$1" == "list-windows" ]]; then printf '0\n1\n'; return 0; fi
+    if [[ "$1" == "display-message" ]] && [[ "$*" == *'#{window_index}'* ]]; then echo "1"; return 0; fi
+    command tmux "$@"
+  }
+
+  r1=$(party_role_pane_target "party-test" "codex")
+  r2=$(party_role_pane_target "party-test" "claude")
+  r3=$(party_role_pane_target "party-test" "sidebar")
+  echo "$r1|$r2|$r3"
+)
+
+IFS='|' read -r _sr1 _sr2 _sr3 <<< "$_sidebar_results"
+assert "sidebar routing: codex resolves to window 0 pane 0" \
+  '[ "$_sr1" = "party-test:0.0" ]'
+assert "sidebar routing: claude resolves to window 1 pane 1" \
+  '[ "$_sr2" = "party-test:1.1" ]'
+assert "sidebar routing: sidebar resolves to window 1 pane 0" \
+  '[ "$_sr3" = "party-test:1.0" ]'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
