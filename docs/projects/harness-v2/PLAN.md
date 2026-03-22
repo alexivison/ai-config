@@ -45,7 +45,7 @@ The former standalone sidebar evaluation phase is removed. `docs/projects/sideba
 - [x] [Task 12](./tasks/TASK12-build-worker-sidebar-view.md) — Build the worker/standalone sidebar view with Codex status, evidence summary, session info, offline handling, and peek popup backed by `codex-status.json` plus pane capture (deps: Task 7, Task 9, Task 11)
 - [x] [Task 13](./tasks/TASK13-build-master-tracker-view.md) — Build the master tracker view inside `party-cli` with worker list, attach, relay, spawn, and manifest inspection, reusing the existing tracker interaction patterns (deps: Task 7, Task 10, Task 11)
 - [x] [Task 14](./tasks/TASK14-absorb-picker-into-unified-binary.md) — Replace the Bash picker flow with `party-cli picker`, preserving preview/selection behavior through the new read/write services and an `fzf` fallback where it still buys simplicity (deps: Task 8, Task 10)
-- [ ] [Task 15](./tasks/TASK15-cut-over-wrappers-and-retire-duplicate-bash.md) — Make `party-cli` the primary implementation surface, reduce `party.sh`, `party-master.sh`, `party-relay.sh`, and `party-picker.sh` to thin wrappers or retire them, and explicitly retain `party-lib.sh` for `tmux-codex.sh` and classic routing (deps: Task 12, Task 13, Task 14)
+- [x] [Task 15](./tasks/TASK15-cut-over-wrappers-and-retire-duplicate-bash.md) — Make `party-cli` the primary implementation surface, reduce `party.sh`, `party-master.sh`, `party-relay.sh`, and `party-picker.sh` to thin wrappers or retire them, and explicitly retain `party-lib.sh` for `tmux-codex.sh` and classic routing (deps: Task 12, Task 13, Task 14)
 
 ## Coverage Matrix
 
@@ -140,13 +140,13 @@ Source reconciliation:
 
 ## Definition of Done
 
-- [ ] All task checkboxes complete
-- [ ] Phase 1 removes the known dead-code and silent-failure paths from the research brief
-- [ ] `party-cli` runs as TUI with no args and as CLI with subcommands from the same binary
-- [ ] Standard and worker sessions support sidebar layout with Codex in hidden window 0 (opt-in via `PARTY_LAYOUT=sidebar` until promotion + status parity are proven, then flipped to default), with `PARTY_LAYOUT=classic` preserving the old visible-Codex path
-- [ ] Master tracker behavior lives inside `party-cli`
-- [ ] Lifecycle, relay, report-back, picker, and tracker flows are owned by `party-cli`
-- [ ] `tmux-codex.sh` continues to function through retained `party-lib.sh` helpers
-- [ ] Bash entrypoints are retired or reduced to thin wrappers where planned
-- [ ] Regression suites for shell, hooks, and Go all pass
-- [ ] SPEC acceptance criteria are satisfied
+- [x] All task checkboxes complete
+- [x] Phase 1 removes the known dead-code and silent-failure paths from the research brief
+- [x] `party-cli` runs as TUI with no args and as CLI with subcommands from the same binary
+- [x] Standard and worker sessions support sidebar layout with Codex in hidden window 0 (opt-in via `PARTY_LAYOUT=sidebar` until promotion + status parity are proven, then flipped to default), with `PARTY_LAYOUT=classic` preserving the old visible-Codex path
+- [x] Master tracker behavior lives inside `party-cli`
+- [x] Lifecycle, relay, report-back, picker, and tracker flows are owned by `party-cli`
+- [x] `tmux-codex.sh` continues to function through retained `party-lib.sh` helpers
+- [x] Bash entrypoints are retired or reduced to thin wrappers where planned
+- [x] Regression suites for shell, hooks, and Go all pass
+- [x] SPEC acceptance criteria are satisfied

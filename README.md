@@ -23,15 +23,15 @@ ai-config/
 ├── claude/          # Claude Code configuration
 ├── codex/           # OpenAI Codex CLI configuration
 ├── shared/          # Skills shared by both platforms
-├── session/         # Party session launcher and helpers
-│   ├── party.sh           # CLI entrypoint and core lifecycle
-│   ├── party-lib.sh       # State helpers, locking, routing
-│   ├── party-master.sh    # Master session launch and promote
-│   ├── party-picker.sh    # fzf picker with hierarchical display
-│   ├── party-relay.sh     # Worker message relay CLI
-│   └── party-preview.sh   # fzf preview pane
+├── session/         # Shell wrappers and retained routing library
+│   ├── party.sh           # Thin wrapper — delegates to party-cli
+│   ├── party-lib.sh       # State helpers, locking, routing (retained for tmux-codex.sh)
+│   ├── party-relay.sh     # Thin wrapper — delegates to party-cli
+│   ├── party-picker.sh    # Thin wrapper — delegates to party-cli picker
+│   └── party-preview.sh   # Thin wrapper — delegates to party-cli picker preview
 ├── tools/
-│   └── party-tracker/     # Bubble Tea TUI for master sessions (Go)
+│   ├── party-cli/         # Unified Go binary: TUI + CLI (primary implementation)
+│   └── party-tracker/     # Legacy Bubble Tea tracker (absorbed into party-cli)
 ├── tmux/            # tmux configuration
 ├── tests/           # Test suite
 ├── install.sh       # Install CLIs, create symlinks, build tracker
@@ -66,9 +66,9 @@ The installer will:
 | Codex | `brew install --cask codex` |
 | tmux | `brew install tmux` |
 | fzf | `brew install fzf` |
-| Go | `brew install go` *(optional — for building party-tracker)* |
+| Go | `brew install go` *(required — for building party-cli)* |
 
-> **Note:** tmux and fzf are required for party sessions. Go is only needed to build the tracker TUI for master sessions.
+> **Note:** tmux and fzf are required for party sessions. Go is required to build party-cli, the unified binary that powers all session operations.
 
 ## Uninstallation
 

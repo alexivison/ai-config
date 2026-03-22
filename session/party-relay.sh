@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# party-relay.sh — Communication between master and worker sessions.
+# party-relay.sh — Thin wrapper for master/worker communication via party-cli.
 # Usage:
 #   party-relay.sh <worker-id> "message"          # relay to one worker
 #   party-relay.sh --broadcast "message"           # broadcast to all workers
@@ -13,15 +13,6 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/party-lib.sh"
-
-# Resolve party-cli binary for delegation (array form for paths with spaces).
-_PARTY_CLI=()
-if command -v party-cli &>/dev/null; then
-  _PARTY_CLI=(party-cli)
-elif [[ -n "${PARTY_REPO_ROOT:-}" ]] && command -v go &>/dev/null \
-     && [[ -f "$PARTY_REPO_ROOT/tools/party-cli/main.go" ]]; then
-  _PARTY_CLI=(go run "$PARTY_REPO_ROOT/tools/party-cli")
-fi
 
 relay_usage() {
   cat <<'EOF'
@@ -37,8 +28,7 @@ Usage:
 EOF
 }
 
-# Discover master session. Requires running inside a master party session
-# or PARTY_SESSION being set to a master session.
+# Discover master session for commands that require it.
 relay_discover_master() {
   discover_session || {
     echo "Error: party-relay.sh must be run inside a party session or with PARTY_SESSION set." >&2
@@ -50,136 +40,7 @@ relay_discover_master() {
   fi
 }
 
-# Write message to temp file, return pointer message for tmux paste safety.
-relay_via_file() {
-  local relay_file="/tmp/party-relay-$$-$RANDOM.md"
-  printf '%s\n' "$1" > "$relay_file"
-  echo "Read relay instructions at $relay_file"
-}
-
-relay_needs_file() {
-  [[ ${#1} -gt 200 || "$1" == *$'\n'* ]]
-}
-
-relay_to_worker() {
-  local worker="${1:?Missing worker ID}"
-  local message="${2:?Missing message}"
-
-  if ! tmux has-session -t "$worker" 2>/dev/null; then
-    echo "Error: worker session '$worker' is not running." >&2
-    return 1
-  fi
-
-  local target
-  target="$(party_role_pane_target "$worker" "claude" 2>/dev/null)" || {
-    echo "Error: cannot find Claude pane in worker '$worker'." >&2
-    return 1
-  }
-
-  if relay_needs_file "$message"; then
-    message="$(relay_via_file "$message")"
-  fi
-  tmux_send "$target" "$message" "relay"
-}
-
-relay_broadcast() {
-  local message="${1:?Missing message}"
-  local workers
-  workers="$(party_state_get_workers "$SESSION_NAME")"
-
-  if [[ -z "$workers" ]]; then
-    echo "No workers to broadcast to."
-    return 0
-  fi
-
-  if relay_needs_file "$message"; then
-    message="$(relay_via_file "$message")"
-  fi
-
-  local count=0
-  while IFS= read -r wid; do
-    if tmux has-session -t "$wid" 2>/dev/null; then
-      local target
-      target="$(party_role_pane_target "$wid" "claude" 2>/dev/null)" || continue
-      tmux_send "$target" "$message" "broadcast" || true
-      count=$((count + 1))
-    fi
-  done <<< "$workers"
-
-  echo "Broadcast sent to $count worker(s)."
-}
-
-relay_list() {
-  local workers
-  workers="$(party_state_get_workers "$SESSION_NAME")"
-
-  if [[ -z "$workers" ]]; then
-    echo "No workers registered."
-    return 0
-  fi
-
-  printf '%-25s %-8s %s\n' "SESSION" "STATUS" "TITLE"
-  while IFS= read -r wid; do
-    local status title
-    if tmux has-session -t "$wid" 2>/dev/null; then
-      status="active"
-    else
-      status="stopped"
-    fi
-    title="$(party_state_get_field "$wid" "title" 2>/dev/null || true)"
-    printf '%-25s %-8s %s\n' "$wid" "$status" "${title:--}"
-  done <<< "$workers"
-}
-
-relay_read() {
-  local worker="${1:?Missing worker ID}"
-  local lines="${2:-50}"
-
-  if ! tmux has-session -t "$worker" 2>/dev/null; then
-    echo "Error: worker session '$worker' is not running." >&2
-    return 1
-  fi
-
-  local target
-  target="$(party_role_pane_target "$worker" "claude" 2>/dev/null)" || {
-    echo "Error: cannot find Claude pane in worker '$worker'." >&2
-    return 1
-  }
-
-  tmux capture-pane -t "$target" -p -S "-$lines" 2>/dev/null
-}
-
-relay_report() {
-  local message="${1:?Missing message}"
-
-  # Discover our own session
-  discover_session || {
-    echo "Error: must be run inside a party session." >&2
-    return 1
-  }
-
-  # Find parent master from manifest
-  local parent
-  parent="$(party_state_get_field "$SESSION_NAME" "parent_session" 2>/dev/null || true)"
-  if [[ -z "$parent" ]]; then
-    echo "Error: session '$SESSION_NAME' has no parent_session — not a worker." >&2
-    return 1
-  fi
-
-  if ! tmux has-session -t "$parent" 2>/dev/null; then
-    echo "Error: master session '$parent' is not running." >&2
-    return 1
-  fi
-
-  local target
-  target="$(party_role_pane_target "$parent" "claude" 2>/dev/null)" || {
-    echo "Error: cannot find Claude pane in master '$parent'." >&2
-    return 1
-  }
-
-  tmux_send "$target" "[WORKER:$SESSION_NAME] $message" "report"
-}
-
+# Spawn a worker (routes through party.sh for attach handling).
 relay_spawn() {
   local prompt=""
   local title=""
@@ -205,14 +66,12 @@ if [[ $# -eq 0 ]]; then
   exit 1
 fi
 
+party_resolve_cli_bin || exit 1
+
 case "$1" in
   --broadcast)
-    if [[ ${#_PARTY_CLI[@]} -gt 0 ]]; then
-      relay_discover_master
-      exec "${_PARTY_CLI[@]}" broadcast "$SESSION_NAME" "${2:?--broadcast requires a message}"
-    fi
     relay_discover_master
-    relay_broadcast "${2:?--broadcast requires a message}"
+    exec "${PARTY_CLI_CMD[@]}" broadcast "$SESSION_NAME" "${2:?--broadcast requires a message}"
     ;;
   --read)
     shift
@@ -223,29 +82,19 @@ case "$1" in
       _read_lines="${2:?--lines requires a number}"
       shift 2
     fi
-    if [[ ${#_PARTY_CLI[@]} -gt 0 ]]; then
-      exec "${_PARTY_CLI[@]}" read "$_read_worker" --lines "$_read_lines"
-    fi
-    relay_read "$_read_worker" "$_read_lines"
+    exec "${PARTY_CLI_CMD[@]}" read "$_read_worker" --lines "$_read_lines"
     ;;
   --report)
-    if [[ ${#_PARTY_CLI[@]} -gt 0 ]]; then
-      discover_session || { echo "Error: must be run inside a party session." >&2; exit 1; }
-      exec "${_PARTY_CLI[@]}" report "$SESSION_NAME" "${2:?--report requires a message}"
-    fi
-    relay_report "${2:?--report requires a message}"
+    discover_session || { echo "Error: must be run inside a party session." >&2; exit 1; }
+    exec "${PARTY_CLI_CMD[@]}" report "$SESSION_NAME" "${2:?--report requires a message}"
     ;;
   --list)
-    if [[ ${#_PARTY_CLI[@]} -gt 0 ]]; then
-      relay_discover_master
-      exec "${_PARTY_CLI[@]}" workers "$SESSION_NAME"
-    fi
     relay_discover_master
-    relay_list
+    exec "${PARTY_CLI_CMD[@]}" workers "$SESSION_NAME"
     ;;
   --stop)
     relay_discover_master
-    bash "$SCRIPT_DIR/party.sh" --stop "${2:?--stop requires a worker ID}"
+    exec "${PARTY_CLI_CMD[@]}" stop "${2:?--stop requires a worker ID}"
     ;;
   --spawn)
     relay_discover_master
@@ -260,10 +109,7 @@ case "$1" in
       echo "Error: file '$_file_path' not found." >&2
       exit 1
     fi
-    # --file stays on the shell path: the pointer is already formed,
-    # and re-routing through party-cli relay would double-indirect if
-    # the pointer string exceeded LargeMessageThreshold.
-    relay_to_worker "$_file_worker" "Read relay instructions at $_file_path"
+    exec "${PARTY_CLI_CMD[@]}" relay "$_file_worker" "Read relay instructions at $_file_path"
     ;;
   --help|-h)
     relay_usage
@@ -274,9 +120,6 @@ case "$1" in
       relay_usage >&2
       exit 1
     fi
-    if [[ ${#_PARTY_CLI[@]} -gt 0 ]]; then
-      exec "${_PARTY_CLI[@]}" relay "$1" "$2"
-    fi
-    relay_to_worker "$1" "$2"
+    exec "${PARTY_CLI_CMD[@]}" relay "$1" "$2"
     ;;
 esac

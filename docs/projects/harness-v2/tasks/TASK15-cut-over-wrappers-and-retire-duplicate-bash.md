@@ -78,11 +78,11 @@ Test cases:
 
 ## Acceptance Criteria
 
-- [ ] `party-cli` is the primary implementation surface
-- [ ] Legacy Bash entrypoints are removed or reduced to thin wrappers
-- [ ] `party-lib.sh` remains available for retained Codex transport
-- [ ] Classic mode (`PARTY_LAYOUT=classic`) works correctly AFTER wrappers are thinned — full lifecycle, messaging, and layout
-- [ ] Sidebar mode works correctly after cutover — all views, hidden-window handling, and Codex status
-- [ ] `tmux-codex.sh` continues to function through `party-lib.sh` after wrapper retirement
-- [ ] Rollback path documented: if sidebar mode has issues, `PARTY_LAYOUT=classic` restores full pre-migration behavior without code changes
-- [ ] End-to-end regression suites pass after cutover (both layout modes)
+- [x] `party-cli` is the primary implementation surface
+- [x] Legacy Bash entrypoints are removed or reduced to thin wrappers
+- [x] `party-lib.sh` remains available for retained Codex transport
+- [x] Classic mode (`PARTY_LAYOUT=classic`) works correctly AFTER wrappers are thinned — full lifecycle, messaging, and layout
+- [x] Sidebar mode works correctly after cutover — all views, hidden-window handling, and Codex status
+- [x] `tmux-codex.sh` continues to function through `party-lib.sh` after wrapper retirement
+- [x] Rollback path documented: if sidebar mode has issues, `PARTY_LAYOUT=classic` restores full pre-migration behavior without code changes
+- [x] End-to-end regression suites pass after cutover (both layout modes)
