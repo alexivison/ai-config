@@ -237,12 +237,16 @@ func discoverSessionID(tc *tmux.Client) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	// 2. Inside tmux — ask for the current session name
+	// 2. Inside tmux — ask for the current session name (no fallthrough)
 	if os.Getenv("TMUX") != "" {
 		name, err := tc.CurrentSessionName(ctx)
-		if err == nil && strings.HasPrefix(name, "party-") {
-			return name, nil
+		if err != nil {
+			return "", fmt.Errorf("cannot detect tmux session: %w", err)
 		}
+		if !strings.HasPrefix(name, "party-") {
+			return "", fmt.Errorf("current tmux session %q is not a party session", name)
+		}
+		return name, nil
 	}
 
 	// 3. Not inside tmux — scan for a unique party session

@@ -66,13 +66,14 @@ func staticResolver(sessionID string) SessionResolver {
 }
 
 // newAutoModel builds a model using environment-derived state root.
-// Falls back to a worker-mode fallback resolver if the store cannot be created.
+// Propagates store init errors as resolver errors so the TUI surfaces them.
 func newAutoModel() Model {
 	root := stateRoot()
 	store, err := state.NewStore(root)
 	if err != nil {
+		storeErr := fmt.Errorf("cannot initialize state store at %s: %w", root, err)
 		return NewModelWithResolver(func() (string, ViewMode, error) {
-			return "unknown", ViewWorker, nil
+			return "", ViewWorker, storeErr
 		})
 	}
 	client := tmux.NewExecClient()
