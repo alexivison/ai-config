@@ -99,7 +99,10 @@ party_promote() {
   fi
 
   # Sidebar promotion deferred to Task 10 — fail closed
-  if [[ "$(party_layout_mode)" == "sidebar" ]]; then
+  # Read layout from tmux session env (set at launch), not calling shell
+  local _session_layout
+  _session_layout="$(tmux show-environment -t "$session" PARTY_LAYOUT 2>/dev/null | sed 's/^PARTY_LAYOUT=//' || true)"
+  if [[ "$_session_layout" == "sidebar" ]]; then
     echo "Error: promotion in sidebar mode is not yet supported (deferred to Task 10)." >&2
     return 1
   fi

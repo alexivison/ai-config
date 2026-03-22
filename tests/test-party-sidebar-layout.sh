@@ -167,6 +167,24 @@ if [[ -n "$_go_bin" ]] && [[ -f "$REPO_ROOT/tools/party-cli/main.go" ]]; then
   PATH="$_orig_path"
 fi
 
+# --strict mode returns 1 when no binary available
+PATH="/usr/bin:/bin"
+if party_resolve_cli_cmd --strict "party-test-session" "/nonexistent" 2>/dev/null; then
+  FAIL=$((FAIL + 1))
+  echo "  [FAIL] resolve_cli: --strict fails when no binary"
+else
+  PASS=$((PASS + 1))
+  echo "  [PASS] resolve_cli: --strict fails when no binary"
+fi
+PATH="$_orig_path"
+
+# Non-strict mode returns placeholder when no binary available
+PATH="/usr/bin:/bin"
+result=$(party_resolve_cli_cmd "party-test-session" "/nonexistent" 2>/dev/null)
+assert "resolve_cli: non-strict returns placeholder" \
+  '[[ "$result" == *"party-cli"* ]]'
+PATH="$_orig_path"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
