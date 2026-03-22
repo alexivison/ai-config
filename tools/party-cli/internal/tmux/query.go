@@ -17,12 +17,16 @@ var (
 )
 
 // ListSessions returns the names of all live tmux sessions.
-// Returns an empty slice (not an error) when no tmux server is running,
-// matching the shell convention of `tmux ls ... || true`.
+// Returns an empty slice (not an error) when no tmux server is running or
+// the tmux command fails, matching the shell convention of `tmux ls ... || true`.
+// Context errors (cancellation, deadline) are propagated.
 func (c *Client) ListSessions(ctx context.Context) ([]string, error) {
 	out, err := c.runner.Run(ctx, "list-sessions", "-F", "#{session_name}")
 	if err != nil {
-		// No server or no sessions — treat as empty, matching shell precedent.
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("list sessions: %w", err)
+		}
+		// tmux command failures (no server, no sessions) → empty result.
 		return nil, nil //nolint:nilnil
 	}
 	if out == "" {

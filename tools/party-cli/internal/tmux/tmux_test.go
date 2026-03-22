@@ -121,6 +121,23 @@ func TestListSessions_NoServer(t *testing.T) {
 	}
 }
 
+func TestListSessions_ContextCanceled(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel() // cancel immediately
+
+	m := newMock(func(_ context.Context, _ ...string) (string, error) {
+		return "", context.Canceled
+	})
+	c := NewClient(m)
+
+	_, err := c.ListSessions(ctx)
+	if err == nil {
+		t.Fatal("expected error for canceled context, got nil")
+	}
+}
+
 // ---------------------------------------------------------------------------
 // ListPanes
 // ---------------------------------------------------------------------------
