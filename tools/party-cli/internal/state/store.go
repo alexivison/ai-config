@@ -82,6 +82,7 @@ func (s *Store) Update(partyID string, fn func(*Manifest)) error {
 			return err
 		}
 		fn(&m)
+		m.PartyID = partyID // preserve filename/content invariant
 		return s.writeManifest(s.manifestPath(partyID), m)
 	})
 }

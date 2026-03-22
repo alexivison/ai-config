@@ -246,6 +246,34 @@ func TestStore_UpdateNotFound(t *testing.T) {
 	}
 }
 
+func TestStore_UpdatePreservesPartyID(t *testing.T) {
+	t.Parallel()
+	s := newTestStore(t)
+
+	if err := s.Create(Manifest{PartyID: "party-inv", Cwd: "/tmp"}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// Callback tries to mutate PartyID — should be overridden
+	if err := s.Update("party-inv", func(m *Manifest) {
+		m.PartyID = "party-other"
+		m.Title = "mutated"
+	}); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	got, err := s.Read("party-inv")
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	if got.PartyID != "party-inv" {
+		t.Errorf("PartyID: got %q, want %q", got.PartyID, "party-inv")
+	}
+	if got.Title != "mutated" {
+		t.Errorf("Title: got %q, want %q", got.Title, "mutated")
+	}
+}
+
 func TestStore_UpdateViaField(t *testing.T) {
 	t.Parallel()
 	s := newTestStore(t)
