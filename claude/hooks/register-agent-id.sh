@@ -30,4 +30,15 @@ fi
 printf '%s\n' "$session_id" > "$id_file"
 tmux set-environment -t "$SESSION_NAME" CLAUDE_SESSION_ID "$session_id" 2>/dev/null || true
 
+# Persist to manifest for resume path (continue.go reads claude_session_id from manifest)
+manifest="$(party_state_file "$SESSION_NAME")"
+if [[ -f "$manifest" ]] && command -v jq >/dev/null 2>&1; then
+  tmp="$(mktemp "${TMPDIR:-/tmp}/party-state.XXXXXX")"
+  if jq --arg v "$session_id" '.claude_session_id = $v' "$manifest" > "$tmp" 2>/dev/null; then
+    mv "$tmp" "$manifest"
+  else
+    rm -f "$tmp"
+  fi
+fi
+
 echo '{}'

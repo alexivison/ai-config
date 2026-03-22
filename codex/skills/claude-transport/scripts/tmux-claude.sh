@@ -13,7 +13,17 @@ discover_session
 if [[ -n "${CODEX_THREAD_ID:-}" && ! -s "$STATE_DIR/codex-thread-id" ]]; then
   printf '%s\n' "$CODEX_THREAD_ID" > "$STATE_DIR/codex-thread-id"
   tmux set-environment -t "$SESSION_NAME" CODEX_THREAD_ID "$CODEX_THREAD_ID" 2>/dev/null || true
-  # Manifest write retired — codex_thread_id is in STATE_DIR file + tmux env
+
+  # Persist to manifest for resume path (continue.go reads codex_thread_id)
+  manifest="$(party_state_file "$SESSION_NAME")"
+  if [[ -f "$manifest" ]] && command -v jq >/dev/null 2>&1; then
+    tmp="$(mktemp "${TMPDIR:-/tmp}/party-state.XXXXXX")"
+    if jq --arg v "$CODEX_THREAD_ID" '.codex_thread_id = $v' "$manifest" > "$tmp" 2>/dev/null; then
+      mv "$tmp" "$manifest"
+    else
+      rm -f "$tmp"
+    fi
+  fi
 fi
 
 CLAUDE_PANE=$(party_role_pane_target "$SESSION_NAME" "claude") || {
@@ -30,7 +40,14 @@ case "$MESSAGE" in
   "Task complete. Response at: "*)         _is_completion=true ;;
 esac
 
-if tmux_send "$CLAUDE_PANE" "[CODEX] $MESSAGE" "tmux-claude.sh"; then
+# Send with exit-76 handling: keys sent but buffer check failed → treat as delivered
+_send_rc=0
+tmux_send "$CLAUDE_PANE" "[CODEX] $MESSAGE" "tmux-claude.sh" || _send_rc=$?
+
+if [[ $_send_rc -eq 0 || $_send_rc -eq 76 ]]; then
+  if [[ $_send_rc -eq 76 ]]; then
+    echo "tmux_send: delivery unconfirmed (capture-pane miss)" >&2
+  fi
   if $_is_completion; then
     RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
     _verdict=""
