@@ -103,17 +103,21 @@ func TestListSessions_Empty(t *testing.T) {
 	}
 }
 
-func TestListSessions_Error(t *testing.T) {
+func TestListSessions_NoServer(t *testing.T) {
 	t.Parallel()
 
+	// When tmux isn't running, treat as empty (matching shell `tmux ls || true`)
 	m := newMock(func(_ context.Context, _ ...string) (string, error) {
-		return "", errors.New("tmux not running")
+		return "", errors.New("error connecting to /tmp/tmux-501/default (No such file or directory)")
 	})
 	c := NewClient(m)
 
-	_, err := c.ListSessions(t.Context())
-	if err == nil {
-		t.Fatal("expected error, got nil")
+	sessions, err := c.ListSessions(t.Context())
+	if err != nil {
+		t.Fatalf("expected nil error for no-server, got: %v", err)
+	}
+	if sessions != nil {
+		t.Fatalf("sessions: got %v, want nil", sessions)
 	}
 }
 
@@ -256,6 +260,26 @@ func TestResolveRole_DuplicateAcrossWindows_NoPreference(t *testing.T) {
 	}
 	if target != "party-s:0.0" {
 		t.Errorf("target: got %q, want %q", target, "party-s:0.0")
+	}
+}
+
+func TestResolveRole_AmbiguousWindowBlocksLaterMatch(t *testing.T) {
+	t.Parallel()
+
+	// Window 1 has ambiguous claude, window 2 has single claude.
+	// Sequential search should stop at window 1 with ErrRoleAmbiguous,
+	// NOT skip to window 2 (matching party-lib.sh contract).
+	m := newMock(func(_ context.Context, _ ...string) (string, error) {
+		return "0 0 codex\n1 0 claude\n1 1 claude\n2 0 claude", nil
+	})
+	c := NewClient(m)
+
+	_, err := c.ResolveRole(t.Context(), "party-s", "claude", -1)
+	if err == nil {
+		t.Fatal("expected ErrRoleAmbiguous, got nil")
+	}
+	if !errors.Is(err, ErrRoleAmbiguous) {
+		t.Errorf("error: got %v, want ErrRoleAmbiguous", err)
 	}
 }
 

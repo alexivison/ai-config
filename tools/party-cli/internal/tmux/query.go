@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -16,10 +17,13 @@ var (
 )
 
 // ListSessions returns the names of all live tmux sessions.
+// Returns an empty slice (not an error) when no tmux server is running,
+// matching the shell convention of `tmux ls ... || true`.
 func (c *Client) ListSessions(ctx context.Context) ([]string, error) {
 	out, err := c.runner.Run(ctx, "list-sessions", "-F", "#{session_name}")
 	if err != nil {
-		return nil, fmt.Errorf("list sessions: %w", err)
+		// No server or no sessions — treat as empty, matching shell precedent.
+		return nil, nil //nolint:nilnil
 	}
 	if out == "" {
 		return nil, nil //nolint:nilnil
@@ -65,24 +69,22 @@ func (c *Client) ResolveRole(ctx context.Context, sessionID, role string, prefer
 		// Not found in preferred window — fall through to remaining windows.
 	}
 
-	// Search remaining windows, pick the lowest-indexed unambiguous match.
+	// Search remaining windows in index order, stopping at first match or ambiguity.
+	// Mirrors party-lib.sh: sequential search, first hit wins or ambiguity aborts.
 	windowMatches := groupByWindow(panes, role, preferredWindow)
 	if len(windowMatches) == 0 {
 		return "", fmt.Errorf("%w: %q in session %s", ErrRoleNotFound, role, sessionID)
 	}
-	var best *Pane
-	for _, matches := range windowMatches {
-		if len(matches) != 1 {
-			continue
+	windows := sortedKeys(windowMatches)
+	for _, winIdx := range windows {
+		matches := windowMatches[winIdx]
+		if len(matches) == 1 {
+			return matches[0].Target(), nil
 		}
-		if best == nil || matches[0].WindowIndex < best.WindowIndex {
-			best = &matches[0]
-		}
+		return "", fmt.Errorf("%w: %q found %d times in window %d of session %s",
+			ErrRoleAmbiguous, role, len(matches), winIdx, sessionID)
 	}
-	if best != nil {
-		return best.Target(), nil
-	}
-	return "", fmt.Errorf("%w: %q in session %s", ErrRoleAmbiguous, role, sessionID)
+	return "", fmt.Errorf("%w: %q in session %s", ErrRoleNotFound, role, sessionID)
 }
 
 // resolveInWindow searches for a role within a single window.
@@ -113,6 +115,16 @@ func groupByWindow(panes []Pane, role string, skipWindow int) map[int][]Pane {
 		}
 	}
 	return result
+}
+
+// sortedKeys returns the keys of a map in ascending order.
+func sortedKeys(m map[int][]Pane) []int {
+	keys := make([]int, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Ints(keys)
+	return keys
 }
 
 // parsePanes parses tmux list-panes output into Pane structs.
