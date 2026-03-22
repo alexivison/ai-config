@@ -1482,6 +1482,13 @@ func TestCleanupHook_VariableVisibility(t *testing.T) {
 	if !strings.Contains(hookCmd, "$SR/$p.json") {
 		t.Error("inner command should reference $SR/$p.json")
 	}
+	// Verify Perl uses system() not exec() — exec drops the flock before bash runs
+	if strings.Contains(hookCmd, "exec @ARGV") {
+		t.Error("hook must use system() not exec() to hold flock during rewrite")
+	}
+	if !strings.Contains(hookCmd, "system(@ARGV") {
+		t.Error("hook must use system() to hold flock while bash -c runs")
+	}
 }
 
 // ---------------------------------------------------------------------------
