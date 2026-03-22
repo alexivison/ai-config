@@ -84,66 +84,55 @@ err=$(party_role_pane_target "party-test" "codex" 2>&1 >/dev/null || true)
 assert "role resolver: duplicate role emits ROLE_AMBIGUOUS" \
   '[[ "$err" == *"ROLE_AMBIGUOUS"* ]]'
 
-# === party_role_pane_target_with_fallback ===
+# === party_role_pane_target_with_fallback (legacy fallback removed) ===
 
 # Role metadata present → resolves by role
 MOCK_PANE_DATA=$'0 codex\n1 claude\n2 shell'
 
 result=$(party_role_pane_target_with_fallback "party-test" "claude")
-assert "fallback: role present, resolves by role" \
+assert "wrapper: role present, resolves by role" \
   '[ "$result" = "party-test:0.1" ]'
 
-# Legacy 2-pane session without roles → fallback activates
+# 2-pane session without roles → now rejected (no legacy fallback)
 MOCK_PANE_DATA=$'0 \n1 '
 
-result=$(party_role_pane_target_with_fallback "party-test" "claude")
-assert "fallback: legacy 2-pane, claude falls back to 0.0" \
-  '[ "$result" = "party-test:0.0" ]'
+if party_role_pane_target_with_fallback "party-test" "claude" 2>/dev/null; then
+  FAIL=$((FAIL + 1))
+  echo "  [FAIL] wrapper: 2-pane without roles now rejected"
+else
+  PASS=$((PASS + 1))
+  echo "  [PASS] wrapper: 2-pane without roles now rejected"
+fi
 
-result=$(party_role_pane_target_with_fallback "party-test" "codex")
-assert "fallback: legacy 2-pane, codex falls back to 0.1" \
-  '[ "$result" = "party-test:0.1" ]'
+err=$(party_role_pane_target_with_fallback "party-test" "codex" 2>&1 >/dev/null || true)
+assert "wrapper: 2-pane without roles emits ROLE_NOT_FOUND" \
+  '[[ "$err" == *"ROLE_NOT_FOUND"* ]]'
 
-# 3-pane session without roles → topology guard rejects
+# 3-pane session without roles → rejected
 MOCK_PANE_DATA=$'0 \n1 \n2 '
 
 if party_role_pane_target_with_fallback "party-test" "claude" 2>/dev/null; then
   FAIL=$((FAIL + 1))
-  echo "  [FAIL] fallback: 3-pane without roles rejects fallback"
+  echo "  [FAIL] wrapper: 3-pane without roles rejected"
 else
   PASS=$((PASS + 1))
-  echo "  [PASS] fallback: 3-pane without roles rejects fallback"
+  echo "  [PASS] wrapper: 3-pane without roles rejected"
 fi
 
-err=$(party_role_pane_target_with_fallback "party-test" "claude" 2>&1 >/dev/null || true)
-assert "fallback: 3-pane without roles emits ROUTING_UNRESOLVED" \
-  '[[ "$err" == *"ROUTING_UNRESOLVED"* ]]'
-
-# Duplicate role through fallback wrapper → ROLE_AMBIGUOUS propagated (not masked)
+# Duplicate role through wrapper → ROLE_AMBIGUOUS propagated
 MOCK_PANE_DATA=$'0 codex\n1 codex\n2 shell'
 
 if party_role_pane_target_with_fallback "party-test" "codex" 2>/dev/null; then
   FAIL=$((FAIL + 1))
-  echo "  [FAIL] fallback: duplicate role returns error"
+  echo "  [FAIL] wrapper: duplicate role returns error"
 else
   PASS=$((PASS + 1))
-  echo "  [PASS] fallback: duplicate role returns error"
+  echo "  [PASS] wrapper: duplicate role returns error"
 fi
 
 err=$(party_role_pane_target_with_fallback "party-test" "codex" 2>&1 >/dev/null || true)
-assert "fallback: duplicate role propagates ROLE_AMBIGUOUS (not ROUTING_UNRESOLVED)" \
+assert "wrapper: duplicate role propagates ROLE_AMBIGUOUS" \
   '[[ "$err" == *"ROLE_AMBIGUOUS"* ]]'
-
-# Unknown role in legacy session → unresolved (no fallback for non-agent roles)
-MOCK_PANE_DATA=$'0 \n1 '
-
-if party_role_pane_target_with_fallback "party-test" "shell" 2>/dev/null; then
-  FAIL=$((FAIL + 1))
-  echo "  [FAIL] fallback: unknown role in legacy session unresolved"
-else
-  PASS=$((PASS + 1))
-  echo "  [PASS] fallback: unknown role in legacy session unresolved"
-fi
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

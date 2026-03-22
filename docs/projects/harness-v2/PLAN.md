@@ -26,7 +26,7 @@ The former standalone sidebar evaluation phase is removed. `docs/projects/sideba
 `quick-fix-workflow` target: Task 1 and Task 2 should remain eligible where the final diffs stay within the quick-fix limits. Task 3 is intentionally larger because it introduces a new hook library and dedicated tests.
 
 - [x] [Task 1](./tasks/TASK1-prune-dead-code-and-docs-debt.md) — Remove dead transition code, backward-compat argument shims, stale task metadata, and merge the too-thin general rule file into `CLAUDE.md` (deps: none)
-- [ ] [Task 2](./tasks/TASK2-harden-shell-prereqs-and-transport.md) — Fail fast on missing `jq`, tighten temp-file and hook quoting behavior, require authoritative pane-role routing, and surface tmux send failures on stderr (deps: Task 1)
+- [x] [Task 2](./tasks/TASK2-harden-shell-prereqs-and-transport.md) — Fail fast on missing `jq`, tighten temp-file and hook quoting behavior, require authoritative pane-role routing, and surface tmux send failures on stderr (deps: Task 1)
 - [x] [Task 3](./tasks/TASK3-extract-oscillation-and-add-hook-coverage.md) — Extract oscillation detection into `claude/hooks/lib/oscillation.sh` and add the missing dedicated `worktree-guard` hook suite (deps: none)
 
 ### Phase 2: Unified Binary Foundation

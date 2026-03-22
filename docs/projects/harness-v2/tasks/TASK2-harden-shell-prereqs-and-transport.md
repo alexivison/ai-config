@@ -76,8 +76,8 @@ Test cases:
 
 ## Acceptance Criteria
 
-- [ ] `party-lib.sh` enforces `jq` before any manifest mutation
-- [ ] Legacy pane-routing fallback is removed and `@party_role` is mandatory
-- [ ] tmux send failures are visible on stderr
-- [ ] Hook sourcing uses a quoted `$lib_path`
-- [ ] Temp file cleanup is trap-based and verified by tests
+- [x] `party-lib.sh` enforces `jq` before any manifest mutation
+- [x] Legacy pane-routing fallback is removed and `@party_role` is mandatory
+- [x] tmux send failures are visible on stderr
+- [x] Hook sourcing uses a quoted `$lib_path`
+- [x] Temp file cleanup is trap-based and verified by tests

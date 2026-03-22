@@ -62,8 +62,7 @@ _party_unlock() {
   rmdir "$lockdir" 2>/dev/null || true
 }
 
-# Persist launch metadata for a party session. JSON persistence is best-effort:
-# if jq is unavailable, runtime behavior still works, but resume metadata is skipped.
+# Persist launch metadata for a party session.
 party_state_upsert_manifest() {
   local session="${1:?Usage: party_state_upsert_manifest SESSION TITLE CWD WINDOW CLAUDE_BIN CODEX_BIN AGENT_PATH}"
   local title="${2:-}"
@@ -73,7 +72,10 @@ party_state_upsert_manifest() {
   local codex_bin="${6:-}"
   local agent_path="${7:?Missing agent_path}"
 
-  command -v jq >/dev/null 2>&1 || return 0
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "Error: jq is required for manifest operations" >&2
+    return 1
+  fi
 
   local root file tmp now
   root="$(party_state_root)"
@@ -82,9 +84,10 @@ party_state_upsert_manifest() {
 
   mkdir -p "$root"
   local lockdir="${file}.lock"
-  local tmp="$(mktemp "${TMPDIR:-/tmp}/party-state.XXXXXX")"
+  tmp="$(mktemp "${TMPDIR:-/tmp}/party-state.XXXXXX")"
+  trap "rm -f '$tmp'" RETURN
 
-  _party_lock "$lockdir" || { rm -f "$tmp"; return 1; }
+  _party_lock "$lockdir" || return 1
 
   if [[ -f "$file" ]]; then
     jq --arg session "$session" \
@@ -106,7 +109,6 @@ party_state_upsert_manifest() {
       | .codex_bin = $codex
       | .agent_path = $path
       ' "$file" > "$tmp" || {
-      rm -f "$tmp"
       _party_unlock "$lockdir"
       return 1
     }
@@ -133,7 +135,6 @@ party_state_upsert_manifest() {
         agent_path: $path
       }
       ' > "$tmp" || {
-      rm -f "$tmp"
       _party_unlock "$lockdir"
       return 1
     }
@@ -148,7 +149,10 @@ party_state_set_field() {
   local key="${2:?Missing key}"
   local value="${3:-}"
 
-  command -v jq >/dev/null 2>&1 || return 0
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "Error: jq is required for manifest operations" >&2
+    return 1
+  fi
 
   local root file tmp now
   root="$(party_state_root)"
@@ -157,9 +161,10 @@ party_state_set_field() {
 
   mkdir -p "$root"
   local lockdir="${file}.lock"
-  local tmp="$(mktemp "${TMPDIR:-/tmp}/party-state.XXXXXX")"
+  tmp="$(mktemp "${TMPDIR:-/tmp}/party-state.XXXXXX")"
+  trap "rm -f '$tmp'" RETURN
 
-  _party_lock "$lockdir" || { rm -f "$tmp"; return 1; }
+  _party_lock "$lockdir" || return 1
 
   if [[ -f "$file" ]]; then
     jq --arg session "$session" \
@@ -172,7 +177,6 @@ party_state_set_field() {
       | .updated_at = $now
       | .[$key] = $value
       ' "$file" > "$tmp" || {
-      rm -f "$tmp"
       _party_unlock "$lockdir"
       return 1
     }
@@ -190,7 +194,6 @@ party_state_set_field() {
       }
       | .[$key] = $value
       ' > "$tmp" || {
-      rm -f "$tmp"
       _party_unlock "$lockdir"
       return 1
     }
@@ -232,15 +235,16 @@ party_state_add_worker() {
 
   file="$(party_state_file "$master")"
   [[ -f "$file" ]] || return 1
-  command -v jq >/dev/null 2>&1 || return 1
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "Error: jq is required for manifest operations" >&2
+    return 1
+  fi
 
   lockdir="${file}.lock"
   tmp="$(mktemp "${TMPDIR:-/tmp}/party-state.XXXXXX")"
+  trap "rm -f '$tmp'" RETURN
 
-  _party_lock "$lockdir" || {
-    rm -f "$tmp"
-    return 1
-  }
+  _party_lock "$lockdir" || return 1
 
   jq --arg w "$worker" '.workers = ((.workers // []) + [$w] | unique)' "$file" > "$tmp" && mv "$tmp" "$file"
   local rc=$?
@@ -257,18 +261,18 @@ party_state_remove_worker() {
 
   file="$(party_state_file "$master")"
   [[ -f "$file" ]] || return 0
-  command -v jq >/dev/null 2>&1 || return 0
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "Error: jq is required for manifest operations" >&2
+    return 1
+  fi
 
   lockdir="${file}.lock"
   tmp="$(mktemp "${TMPDIR:-/tmp}/party-state.XXXXXX")"
+  trap "rm -f '$tmp'" RETURN
 
-  _party_lock "$lockdir" || {
-    rm -f "$tmp"
-    return 1
-  }
+  _party_lock "$lockdir" || return 1
 
   jq --arg w "$worker" '.workers = ((.workers // []) - [$w])' "$file" > "$tmp" || {
-    rm -f "$tmp"
     _party_unlock "$lockdir"
     return 1
   }
@@ -387,6 +391,9 @@ tmux_send() {
   done
 
   # Timeout — message dropped (best-effort delivery)
+  local excerpt="${text:0:80}"
+  [[ ${#text} -gt 80 ]] && excerpt="${excerpt}…"
+  echo "tmux_send: timeout after ${timeout_s}s sending to '$target'${caller:+ (caller: $caller)} payload=${excerpt}" >&2
   return 75
 }
 
@@ -446,58 +453,11 @@ party_role_pane_target() {
   return 1
 }
 
-# Resolve pane target with legacy fallback for pre-change sessions.
-# Fallback only activates for exactly 2-pane sessions with no role metadata.
+# Resolve pane target by authoritative @party_role metadata only.
+# Legacy positional fallback has been removed — all panes must set @party_role.
+# Retained as a named entry point for callers (e.g. tmux-codex.sh).
 # Usage: party_role_pane_target_with_fallback SESSION ROLE
 # stdout: target pane | exit 0: resolved | exit 1: unresolved
 party_role_pane_target_with_fallback() {
-  local session="${1:?Usage: party_role_pane_target_with_fallback SESSION ROLE}"
-  local role="${2:?Missing role}"
-
-  # Capture both stdout (target) and stderr (diagnostics) to preserve error codes
-  local output rc=0
-  output=$(party_role_pane_target "$session" "$role" 2>&1) || rc=$?
-
-  if [[ $rc -eq 0 ]]; then
-    printf '%s\n' "$output"
-    return 0
-  fi
-
-  # Propagate ROLE_AMBIGUOUS — fallback cannot resolve duplicate roles
-  if [[ "$output" == *"ROLE_AMBIGUOUS"* ]]; then
-    echo "$output" >&2
-    return 1
-  fi
-
-  # Topology-guarded fallback: only for legacy 2-pane sessions without role metadata
-  local window
-  if [[ -n "${TMUX_PANE:-}" ]]; then
-    window="$(tmux display-message -t "$TMUX_PANE" -p '#{window_index}' 2>/dev/null || echo 0)"
-  else
-    window="$(tmux display-message -p '#{window_index}' 2>/dev/null || echo 0)"
-  fi
-
-  local pane_list
-  pane_list=$(tmux list-panes -t "$session:$window" -F '#{pane_index} #{@party_role}' 2>/dev/null) || {
-    echo "ROUTING_UNRESOLVED: Cannot list panes for session '$session:$window'" >&2
-    return 1
-  }
-
-  local pane_count=0 has_roles=0
-  local idx pane_role
-  while IFS=' ' read -r idx pane_role; do
-    [[ -n "$idx" ]] || continue
-    pane_count=$((pane_count + 1))
-    [[ -z "$pane_role" ]] || has_roles=1
-  done <<< "$pane_list"
-
-  if [[ "$pane_count" -eq 2 && "$has_roles" -eq 0 ]]; then
-    case "$role" in
-      claude) printf '%s:%s.0\n' "$session" "$window"; return 0 ;;
-      codex)  printf '%s:%s.1\n' "$session" "$window"; return 0 ;;
-    esac
-  fi
-
-  echo "ROUTING_UNRESOLVED: Cannot resolve role '$role' in session '$session:$window'" >&2
-  return 1
+  party_role_pane_target "$@"
 }

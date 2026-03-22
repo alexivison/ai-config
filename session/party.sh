@@ -80,7 +80,7 @@ party_set_cleanup_hook() {
   # On session close: deregister from parent (if worker), remove runtime.
   # Only delete manifest if not a master with active workers.
   tmux set-hook -t "$session" session-closed \
-    "run-shell 'source $lib_path 2>/dev/null && { p=\$(party_state_get_field $session parent_session 2>/dev/null); [ -n \"\$p\" ] && party_state_remove_worker \"\$p\" $session 2>/dev/null; }; rm -rf /tmp/$session; t=\$(party_state_get_field $session session_type 2>/dev/null); if [ \"\$t\" = master ]; then :; else rm -f $state_root/$session.json; fi'"
+    "run-shell 'source \"$lib_path\" 2>/dev/null && { p=\$(party_state_get_field $session parent_session 2>/dev/null); [ -n \"\$p\" ] && party_state_remove_worker \"\$p\" $session 2>/dev/null; }; rm -rf /tmp/$session; t=\$(party_state_get_field $session session_type 2>/dev/null); if [ \"\$t\" = master ]; then :; else rm -f $state_root/$session.json; fi'"
 }
 
 party_launch_agents() {
@@ -167,6 +167,11 @@ party_create_session() {
 }
 
 party_start() {
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "Error: jq is required for party sessions." >&2
+    return 1
+  fi
+
   local title="${1:-}"
   local resume_claude="${2:-}"
   local resume_codex="${3:-}"
@@ -226,11 +231,18 @@ party_continue() {
     return 1
   fi
 
+  # Fast path: reattach to already-running session (no manifest access needed)
   if tmux has-session -t "$session" 2>/dev/null; then
     ensure_party_state_dir "$session" >/dev/null
     echo "Party session '$session' is already running. Re-attaching."
     party_attach "$session"
     return
+  fi
+
+  # Resuming a stopped session requires manifest reads and writes
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "Error: jq is required to resume a stopped party session." >&2
+    return 1
   fi
 
   local manifest
