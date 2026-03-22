@@ -97,7 +97,7 @@ Test cases:
 
 ## Acceptance Criteria
 
-- [ ] `party-cli` has a shared Bubble Tea foundation inside `internal/tui`
-- [ ] Existing tracker styling and width behavior are reused
-- [ ] TUI mode selection between worker and master exists
-- [ ] TUI foundation tests pass
+- [x] `party-cli` has a shared Bubble Tea foundation inside `internal/tui`
+- [x] Existing tracker styling and width behavior are reused
+- [x] TUI mode selection between worker and master exists
+- [x] TUI foundation tests pass
