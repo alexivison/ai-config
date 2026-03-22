@@ -3,7 +3,9 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$REPO_ROOT/session"
 source "$REPO_ROOT/session/party-lib.sh"
+source "$REPO_ROOT/session/party-master.sh"
 
 PASS=0
 FAIL=0
@@ -184,6 +186,58 @@ result=$(party_resolve_cli_cmd "party-test-session" "/nonexistent" 2>/dev/null)
 assert "resolve_cli: non-strict returns placeholder" \
   '[[ "$result" == *"party-cli"* ]]'
 PATH="$_orig_path"
+
+# ===========================================================================
+# party_promote — sidebar guard
+# ===========================================================================
+
+echo ""
+echo "  === party_promote sidebar guard ==="
+
+# Mock tmux to simulate a sidebar session
+_promote_result=$(
+  tmux() {
+    case "$1" in
+      has-session) return 0 ;;
+      show-environment)
+        # Simulate PARTY_LAYOUT=sidebar in session env
+        echo "PARTY_LAYOUT=sidebar"
+        return 0 ;;
+      display-message) echo "party-promote-test"; return 0 ;;
+      *) return 0 ;;
+    esac
+  }
+  party_promote "party-promote-test" 2>&1
+  echo "EXIT:$?"
+)
+assert "promote: rejects sidebar mode" \
+  '[[ "$_promote_result" == *"not yet supported"* ]]'
+assert "promote: returns non-zero for sidebar" \
+  '[[ "$_promote_result" == *"EXIT:1"* ]]'
+
+# Mock tmux to simulate a classic session (PARTY_LAYOUT unset → guard passes)
+_promote_classic=$(
+  tmux() {
+    case "$1" in
+      has-session) return 0 ;;
+      show-environment) echo "-PARTY_LAYOUT"; return 0 ;;  # unset marker
+      display-message) echo "party-promote-test"; return 0 ;;
+      list-panes) echo "0 codex"; return 0 ;;
+      list-windows) echo "0"; return 0 ;;
+      # respawn-pane etc. will be called — just succeed
+      *) return 0 ;;
+    esac
+  }
+  export PARTY_STATE_ROOT="/tmp/party-state-promote-test-$$"
+  mkdir -p "$PARTY_STATE_ROOT"
+  # Create minimal manifest for party_is_master check
+  echo '{"party_id":"party-promote-test"}' > "$PARTY_STATE_ROOT/party-promote-test.json"
+  party_promote "party-promote-test" 2>&1
+  echo "EXIT:$?"
+  rm -rf "$PARTY_STATE_ROOT"
+)
+assert "promote: classic mode passes guard" \
+  '[[ "$_promote_classic" != *"not yet supported"* ]]'
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
