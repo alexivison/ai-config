@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -56,6 +57,49 @@ func TestModel_ModeSelection_Worker(t *testing.T) {
 
 	if model.Mode != ViewWorker {
 		t.Errorf("expected ViewWorker, got %v", model.Mode)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Error state
+// ---------------------------------------------------------------------------
+
+func TestModel_ErrorState_RendersMessage(t *testing.T) {
+	t.Parallel()
+
+	m := NewModelWithResolver(func() (string, ViewMode, error) {
+		return "", ViewWorker, fmt.Errorf("no party session found")
+	})
+	updated, _ := m.Update(sessionMsg{err: fmt.Errorf("no party session found")})
+	model := updated.(Model)
+
+	if model.Err == nil {
+		t.Fatal("expected error state")
+	}
+
+	model.Width = 80
+	model.Height = 24
+	view := model.View()
+	if !strings.Contains(view, "no party session found") {
+		t.Error("error view should contain the error message")
+	}
+	if !strings.Contains(view, "PARTY_SESSION") {
+		t.Error("error view should hint about PARTY_SESSION")
+	}
+}
+
+func TestModel_ErrorClears_OnSuccessfulResolve(t *testing.T) {
+	t.Parallel()
+
+	m := NewModelWithResolver(stubResolver("party-ok", ViewWorker))
+	// First set error state
+	m.Err = fmt.Errorf("temporary failure")
+	// Then successful resolve clears it
+	updated, _ := m.Update(sessionMsg{id: "party-ok", mode: ViewWorker})
+	model := updated.(Model)
+
+	if model.Err != nil {
+		t.Errorf("expected error to be cleared, got: %v", model.Err)
 	}
 }
 

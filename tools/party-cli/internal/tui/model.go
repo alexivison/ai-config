@@ -53,6 +53,7 @@ type Model struct {
 	Mode      ViewMode
 	Width     int
 	Height    int
+	Err       error
 
 	resolver SessionResolver
 }
@@ -85,6 +86,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case sessionMsg:
 		m.SessionID = msg.id
 		m.Mode = msg.mode
+		m.Err = msg.err
 		return m, nil
 
 	case tickMsg, refreshMsg:
@@ -106,6 +108,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View renders the current TUI state.
 func (m Model) View() string {
+	if m.Err != nil {
+		return m.viewError()
+	}
+
 	var b strings.Builder
 	inner := m.innerWidth()
 	compact := m.Width > 0 && m.Width < compactThreshold
@@ -143,6 +149,20 @@ func (m Model) View() string {
 	return b.String()
 }
 
+func (m Model) viewError() string {
+	var b strings.Builder
+	inner := m.innerWidth()
+
+	b.WriteString(titleStyle.Render("  party-cli") + "\n")
+	b.WriteString(headerRule.Render("  " + strings.Repeat("\u2500", inner)) + "\n\n")
+	b.WriteString(fmt.Sprintf("  %s\n\n", m.Err))
+	b.WriteString(dimStyle.Render("  Set PARTY_SESSION or run inside a party tmux session.") + "\n\n")
+	b.WriteString(headerRule.Render("  " + strings.Repeat("\u2500", inner)) + "\n")
+	b.WriteString(footerStyle.Render("  q:quit") + "\n")
+
+	return b.String()
+}
+
 // innerWidth returns usable content width after padding.
 func (m Model) innerWidth() int {
 	w := m.Width - 4 // 2 char padding each side
@@ -173,22 +193,20 @@ func tickCmd() tea.Cmd {
 type sessionMsg struct {
 	id   string
 	mode ViewMode
+	err  error
 }
 
 func (m Model) resolveSession() tea.Cmd {
 	resolver := m.resolver
 	return func() tea.Msg {
 		id, mode, err := resolver()
-		if err != nil {
-			return sessionMsg{id: "unknown", mode: ViewWorker}
-		}
-		return sessionMsg{id: id, mode: mode}
+		return sessionMsg{id: id, mode: mode, err: err}
 	}
 }
 
 // newAutoResolver builds a SessionResolver matching the shell's discover_session:
 // 1. PARTY_SESSION env override
-// 2. tmux display-message when TMUX env is set (inside tmux)
+// 2. tmux display-message when inside tmux (TMUX env set)
 // 3. Scan live tmux sessions for a unique party- match
 func newAutoResolver(store *state.Store, tc *tmux.Client) SessionResolver {
 	return func() (string, ViewMode, error) {
@@ -210,8 +228,8 @@ func newAutoResolver(store *state.Store, tc *tmux.Client) SessionResolver {
 }
 
 // discoverSessionID mirrors session/party-lib.sh:discover_session().
-// Priority: PARTY_SESSION env → scan live tmux sessions for unique party- match.
 func discoverSessionID(tc *tmux.Client) (string, error) {
+	// 1. Explicit override
 	if id := os.Getenv("PARTY_SESSION"); id != "" {
 		return id, nil
 	}
@@ -219,6 +237,15 @@ func discoverSessionID(tc *tmux.Client) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
+	// 2. Inside tmux — ask for the current session name
+	if os.Getenv("TMUX") != "" {
+		name, err := tc.CurrentSessionName(ctx)
+		if err == nil && strings.HasPrefix(name, "party-") {
+			return name, nil
+		}
+	}
+
+	// 3. Not inside tmux — scan for a unique party session
 	sessions, err := tc.ListSessions(ctx)
 	if err != nil {
 		return "", fmt.Errorf("session discovery failed: %w", err)
