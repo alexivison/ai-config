@@ -16,7 +16,7 @@ Finish the worker and standalone sidebar experience inside `party-cli`: Codex st
 - Implement the final worker/standalone sidebar rendering that reads `codex-status.json`
 - Summarize recent evidence state and session metadata
 - Add guarded Codex peek popup behavior
-- Handle offline or stale companion states without crashing or lying
+- Handle offline or stale Codex window states without crashing or lying
 
 **`codex-status.json` sub-scope (blocking — must land before sidebar read side):**
 - **Schema definition:** `{ "state": "idle"|"working"|"error", "target": "<file-or-description>", "mode": "review"|"plan-review"|"prompt"|null, "verdict": "APPROVE"|"REQUEST_CHANGES"|"NEEDS_DISCUSSION"|null, "started_at": "<ISO-8601>", "finished_at": "<ISO-8601>"|null, "error": "<message>"|null }`
@@ -75,12 +75,12 @@ Files to study before implementing:
 - Sidebar shows Codex state, target, last verdict summary, and session context
 - Sidebar reads a structured runtime status file instead of scraping raw pane output alone
 - Sidebar can open a guarded read-only peek popup for Codex
-- Offline or stale companion/session states render safely and clearly
+- Offline or stale Codex window/session states render safely and clearly
 - Evidence summaries remain faithful to the simplified evidence model
 
 **Key gotchas:**
 - Keep the status-file format small and explicit; this is a bridge contract, not a dumping ground
-- Do not let a missing status file or dead companion crash the TUI
+- Do not let a missing status file or unavailable Codex window crash the TUI
 - **Two-script status contract (blocking):** `tmux-codex.sh` only owns Claude→Codex dispatch (`tmux-codex.sh:30-40`, `:97-104`). Completion notifications come back through `tmux-claude.sh` (`codex/skills/claude-transport/scripts/tmux-claude.sh:6-28`). Both scripts must write to the same status file: dispatch writes `{state: "working", target: "...", started_at: "..."}`, completion writes `{state: "idle", verdict: "...", finished_at: "..."}`.
 
 ## Tests

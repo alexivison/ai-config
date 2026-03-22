@@ -67,12 +67,12 @@ Files to study before implementing:
 
 **Key gotchas:**
 - Preserve the current preview signal-to-noise ratio; a worse picker is not simplification
-- Do not let companion sessions appear as user-selectable rows
+- All sessions are user-facing under the hidden-window model — no companion filtering needed
 
 ## Tests
 
 Test cases:
-- Picker row generation and hidden-session filtering
+- Picker row generation from session discovery
 - Preview generation
 - Attach/continue/delete actions from picker selection
 - `fzf`-missing fallback or error behavior
@@ -80,6 +80,6 @@ Test cases:
 ## Acceptance Criteria
 
 - [ ] `party-cli picker` exists and is backed by shared services
-- [ ] Picker hides companion sessions and preserves preview usefulness
+- [ ] Picker shows all sessions (no companion filtering needed) and preserves preview usefulness
 - [ ] Selection actions call Go lifecycle services
 - [ ] Picker tests pass

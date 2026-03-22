@@ -6,7 +6,7 @@
 
 ## Goal
 
-Establish one typed tmux service for session queries, pane lookup, delivery-confirmed sends, capture, popup helpers, and deterministic companion-session helpers. CLI commands and TUI views should both depend on this layer instead of shelling out ad hoc.
+Establish one typed tmux service for session queries, pane lookup, delivery-confirmed sends, capture, popup helpers, and window-management helpers. CLI commands and TUI views should both depend on this layer instead of shelling out ad hoc.
 
 ## Scope Boundary (REQUIRED)
 
@@ -15,7 +15,7 @@ Establish one typed tmux service for session queries, pane lookup, delivery-conf
 - Port role-based pane resolution with strict `@party_role` semantics
 - Add delivery-confirmed send behavior with explicit results
 - Port pane capture and popup helpers
-- Add deterministic companion-session helpers used by sidebar mode
+- Add window-management helpers for the hidden-window model (window 0 = Codex, window 1 = workspace)
 
 **Out of scope (handled by other tasks):**
 - Session lifecycle orchestration
@@ -24,7 +24,7 @@ Establish one typed tmux service for session queries, pane lookup, delivery-conf
 
 **Cross-task consistency check:**
 - The send-result type created here becomes the shared contract for CLI messaging and TUI actions
-- Companion-session naming helpers must match discovery filtering from Task 5 and launch behavior from Task 9
+- Window-management helpers must match the hidden-window conventions from Task 9 (window 0 = Codex, window 1 = workspace)
 
 ## Reference
 
@@ -66,7 +66,7 @@ N/A (non-UI task)
 - Resolve pane targets through strict role metadata only
 - Return explicit delivery results instead of best-effort exit codes
 - Capture pane content and launch tmux popups through reusable helpers
-- Share deterministic companion-session helpers for launch, routing, and filtering
+- Share window-management helpers for targeting Codex (window 0) and workspace panes (window 1)
 
 **Key gotchas:**
 - Keep the tmux layer free of business logic that belongs in lifecycle or message services
@@ -79,12 +79,12 @@ Test cases:
 - Strict role lookup success, not-found, and ambiguous cases
 - Delivery success and timeout/error cases
 - Pane capture and popup command construction
-- Companion helper naming and lookup behavior
+- Window-management helper targeting (window 0 for Codex, window 1 for workspace)
 
 ## Acceptance Criteria
 
 - [ ] Shared tmux service exists with typed query, send, capture, and popup helpers
 - [ ] Role lookup is strict and explicit
 - [ ] Delivery results are no longer silent
-- [ ] Companion-session helpers match discovery assumptions
+- [ ] Window-management helpers correctly target window 0 (Codex) and window 1 (workspace)
 - [ ] tmux package tests pass

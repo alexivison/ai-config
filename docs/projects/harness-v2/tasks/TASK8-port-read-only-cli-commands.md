@@ -21,7 +21,7 @@ Port the safest operator commands first: `list`, `status`, and `prune`. These co
 - Picker integration
 
 **Cross-task consistency check:**
-- `list` and `status` must respect hidden-companion filtering from Task 5 before Task 9 begins creating companions
+- `list` and `status` show all party sessions (no companion filtering needed — hidden-window model means Codex lives within the session, not in a separate one)
 - Output and errors here become the basis for later picker and wrapper reuse
 
 ## Reference
@@ -60,25 +60,24 @@ N/A (non-UI task)
 **Functionality:**
 - `party-cli list` shows only visible user-facing sessions
 - `party-cli status` reports manifest and tmux state clearly
-- `party-cli prune` removes stale manifests with explicit output and exit behavior
-- Prune must enumerate `*-codex` tmux sessions and kill any whose parent session no longer exists, serving as the orphan sweep for companion sessions left behind by crashes or force-kills
+- `party-cli prune` removes stale manifests with explicit output and exit behavior (no companion orphan sweep needed — hidden-window model means session death kills all windows automatically)
 - Commands remain safe to run while the Bash harness still owns mutations
 
 **Key gotchas:**
-- Do not let companion sessions leak into `list`
+- No companion filtering needed — all sessions are user-facing under the hidden-window model
 - Keep output stable enough for downstream scripts or wrapper tests
 
 ## Tests
 
 Test cases:
-- Visible-session listing with and without reserved companion sessions present
+- Session listing shows all party sessions (no filtering needed)
 - Status output for active, stale, and missing sessions
 - Prune behavior across active and stale manifest sets
-- Prune cleans up orphaned `*-codex` companion sessions with no living parent
+- Prune removes stale manifests (no companion orphan sweep — hidden-window model auto-cleans)
 
 ## Acceptance Criteria
 
 - [ ] `party-cli list`, `status`, and `prune` exist and are buildable
 - [ ] Read-only commands use shared state and tmux packages
-- [ ] Companion sessions are hidden from user-facing output
+- [ ] All sessions shown are user-facing (no companion filtering needed)
 - [ ] Read-only command tests pass

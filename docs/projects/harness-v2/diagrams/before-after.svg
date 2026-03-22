@@ -52,8 +52,8 @@
   <rect x="240" y="315" width="185" height="120" fill="#1a1a4e" stroke="#7c4dff" stroke-width="1" rx="4"/>
   <text x="332" y="333" fill="#ce93d8" font-weight="bold" text-anchor="middle">3 Separate Tracks</text>
   <text x="250" y="358" fill="#b39ddb" font-size="10">1. sidebar-tui plan</text>
-  <text x="260" y="373" fill="#78909c" font-size="9">(6 tasks, companion</text>
-  <text x="260" y="386" fill="#78909c" font-size="9"> sessions, complex)</text>
+  <text x="260" y="373" fill="#78909c" font-size="9">(6 tasks, hidden</text>
+  <text x="260" y="386" fill="#78909c" font-size="9"> windows, complex)</text>
   <text x="250" y="406" fill="#b39ddb" font-size="10">2. Go CLI (separate)</text>
   <text x="250" y="421" fill="#b39ddb" font-size="10">3. Tracker (isolated)</text>
 

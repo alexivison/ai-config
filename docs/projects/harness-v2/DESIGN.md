@@ -10,8 +10,8 @@ The absorbed sidebar work is no longer a separate project track. Its surviving i
 
 - worker and standalone sessions show a sidebar in pane `0`
 - master sessions show a tracker in pane `0`
-- Codex leaves the visible layout and runs in a deterministic hidden companion tmux session, because `tmux-codex.sh` still needs a pane target and this plan does not port Codex transport
-- `PARTY_LAYOUT=classic` preserves the old visible-Codex layout
+- Codex leaves the visible layout and runs in a hidden window 0 within the same tmux session, because `tmux-codex.sh` still needs a pane target and this plan does not port Codex transport; window 1 holds the workspace panes (party-cli | Claude | Shell) and is the active window on launch
+- `PARTY_LAYOUT=classic` preserves the old visible-Codex layout (single window, no hidden Codex window)
 
 ### Diagram References
 
@@ -83,7 +83,7 @@ tools/party-cli/
 ├── internal/config/                       # New: env/config loading
 ├── internal/state/                        # New: manifest store, locking, discovery
 ├── internal/tmux/                         # New: session queries, pane lookup, capture, popup, send
-├── internal/session/                      # New: lifecycle orchestration and companion naming
+├── internal/session/                      # New: lifecycle orchestration and window management
 ├── internal/message/                      # New: relay, broadcast, read, report workflows
 ├── internal/picker/                       # New later: picker state and preview integration
 └── internal/tui/                          # New: Bubble Tea model, worker sidebar, master tracker
@@ -101,13 +101,13 @@ tools/party-tracker/
 | Entity | Pattern | Example |
 |--------|---------|---------|
 | Unified binary | `party-cli` | `party-cli list`, `party-cli stop`, `party-cli` |
-| Companion Codex session | `<party-id>-codex` | `party-1774102277-codex` |
+| Hidden Codex window | window 0 in the party session | `party-1774102277:0` (tmux target) |
 | TUI mode selection | derived from session context, with optional explicit flag | `party-cli --session party-1774102277` |
 | Layout modes | explicit lower-case strings | `sidebar`, `classic` |
 | Internal Go packages | single-responsibility nouns | `internal/state`, `internal/tmux`, `internal/tui` |
 | Task docs | `TASK<N>-<kebab-case-title>.md` | `TASK12-build-worker-sidebar-view.md` |
 
-Deterministic companion naming is deliberate. It avoids adding a new persisted manifest field merely to remember where Codex lives, while still letting routing, cleanup, and hidden-session filtering agree on one source of truth.
+The hidden-window model is deliberate. In sidebar mode, window 0 hosts Codex and window 1 hosts the workspace panes. Master sessions created directly (not via promotion) do not create window 0 — they have no Codex pane, matching current behavior. Sidebar-to-master promotion retains window 0 as-is (Codex remains available). This avoids a new manifest field, eliminates orphan sessions, and lets `tmux-codex.sh` target `${session}:0` for routing. Session death automatically destroys all windows — no cleanup hooks or orphan sweeps needed.
 
 ## Data Flow
 
@@ -127,7 +127,7 @@ sequenceDiagram
     CLI->>State: read/write manifest
     CLI->>Tmux: query sessions/panes, capture snippets, send messages
     Tmux-->>CLI: topology, pane targets, delivery results
-    Codex->>Tmux: send to Codex companion or classic pane
+    Codex->>Tmux: send to Codex window 0 or classic pane
     Codex->>TUI: write codex-status.json
     TUI->>State: read manifest and worker metadata
     TUI->>Tmux: capture pane snippets and open popup
@@ -141,10 +141,10 @@ Phase 1 improves the shell and hook path. Phase 2 rebuilds state, tmux, and TUI 
 | Layer Boundary | Code Path | Function | Input -> Output | Location |
 |----------------|-----------|----------|-----------------|----------|
 | argv -> mode selection | unified binary root | Cobra root `RunE` | `party-cli [args]` -> TUI launch or CLI subcommand | New in `tools/party-cli/cmd/root.go` |
-| Shell launch config -> pane layout | session launchers | wrapper env/args -> `party-cli` pane, companion session, or classic codex pane | `session/party.sh:86-158`, `session/party-master.sh:5-84` |
+| Shell launch config -> pane layout | session launchers | wrapper env/args -> `party-cli` pane (window 1), hidden Codex window (window 0), or classic codex pane | `session/party.sh:86-158`, `session/party-master.sh:5-84` |
 | Manifest JSON -> typed domain state | shared state layer | manifest bytes -> `SessionManifest` | replaces `party_state_*` in `session/party-lib.sh:67-213` |
-| tmux session list -> visible party sessions | discovery layer | tmux sessions + manifest presence -> visible sessions, excluding deterministic companions | replaces `discover_session()` in `session/party-lib.sh:295-332` |
-| role request -> pane target | tmux routing layer | `session,role` -> `session:window.pane` or companion target | replaces current role helpers in `session/party-lib.sh:397-503` |
+| tmux session list -> visible party sessions | discovery layer | tmux sessions + manifest presence -> visible sessions | replaces `discover_session()` in `session/party-lib.sh:295-332` |
+| role request -> pane target | tmux routing layer | `session,role` -> `session:window.pane` (window 0 for Codex, window 1 for workspace roles) | replaces current role helpers in `session/party-lib.sh:397-503` |
 | send request -> delivery result | tmux service | payload + target -> explicit success, timeout, or tmux error | replaces `tmux_send()` in `session/party-lib.sh:347-390` |
 | tracker/sidebar poll -> TUI view model | TUI layer | manifest state + worker list + pane snippets + status file + evidence summary -> render model | reuses patterns from `tools/party-tracker/main.go:81-358`, `tools/party-tracker/workers.go:65-153` |
 | dispatch/completion -> Codex runtime status | retained shell transport | tmux-codex action -> `codex-status.json` | new runtime file consumed by worker sidebar |
@@ -153,7 +153,7 @@ Phase 1 improves the shell and hook path. Phase 2 rebuilds state, tmux, and TUI 
 **New contracts must cross every affected seam.** In this revision that chiefly means:
 
 - no-arg TUI mode must use the same state and tmux services as CLI mode
-- companion-session naming must be shared by launch, routing, filtering, cleanup, and sidebar views
+- hidden-window conventions (window 0 = Codex, window 1 = workspace) must be shared by launch, routing, and sidebar views
 - `codex-status.json` must be written by retained shell transport and read by the Go sidebar
 
 ## Integration Points (REQUIRED)
@@ -161,11 +161,11 @@ Phase 1 improves the shell and hook path. Phase 2 rebuilds state, tmux, and TUI 
 | Point | Existing Code | New Code Interaction |
 |-------|---------------|----------------------|
 | Session launchers | `session/party.sh:169-303`, `session/party-master.sh:141-172` | Later tasks replace visible pane `0` processes with `party-cli`, while classic mode preserves current Codex layout |
-| Bash routing library | `session/party-lib.sh:67-503` | Shared shell dependency remains for `tmux-codex.sh`; companion resolution and strict role routing live here for Bash-owned transport |
+| Bash routing library | `session/party-lib.sh:67-503` | Shared shell dependency remains for `tmux-codex.sh`; window-based routing and strict role routing live here for Bash-owned transport |
 | Codex transport | `claude/skills/codex-transport/scripts/tmux-codex.sh:9-37` | Contract stays shell-owned; plan only adds clearer routing and runtime status writes needed by the sidebar |
 | Relay/report-back workflows | `session/party-relay.sh:45-218` | Go messaging service must absorb the full surface, including `report` and worker enumeration, before wrappers are retired |
 | Existing tracker module | `tools/party-tracker/main.go`, `tools/party-tracker/workers.go`, `tools/party-tracker/actions.go` | Reuse model/update/render structure, styling, and tmux action patterns inside `internal/tui` and shared packages |
-| Absorbed sidebar project | `docs/projects/sidebar-tui/PLAN.md`, `docs/projects/sidebar-tui/DESIGN.md`, `docs/projects/sidebar-tui/SPEC.md` | Keep only the needed ideas: pane-0 sidebar, hidden companion Codex session, status file, popup peek, and classic fallback |
+| Absorbed sidebar project | `docs/projects/sidebar-tui/PLAN.md`, `docs/projects/sidebar-tui/DESIGN.md`, `docs/projects/sidebar-tui/SPEC.md` | Keep only the needed ideas: pane-0 sidebar, hidden Codex window, status file, popup peek, and classic fallback |
 | Completed simplification baseline | `docs/projects/phase-simplification/PLAN.md` | Evidence model and phase simplification remain authoritative; Harness V2 only builds atop them |
 
 ## API Contracts
@@ -195,7 +195,7 @@ Layout contract:
   PARTY_LAYOUT=sidebar|classic             # default sidebar for standard/worker sessions
 
 Runtime artifacts:
-  hidden companion session: <party-id>-codex
+  hidden Codex window: <session>:0 (window 0 within the party session)
   status file: /tmp/<party-id>/codex-status.json
 ```
 
@@ -205,10 +205,10 @@ Runtime artifacts:
 |-----------|---------|---------|
 | `MISSING_DEPENDENCY` | stderr + exit 1 | Required tool such as `jq`, `tmux`, `go`, or `fzf` is absent for the chosen path |
 | `SESSION_NOT_FOUND` | stderr + exit 1 | No current or requested party session can be resolved |
-| `ROLE_NOT_FOUND` | stderr + exit 1 | No pane advertises the required `@party_role`, and no valid companion target exists |
+| `ROLE_NOT_FOUND` | stderr + exit 1 | No pane advertises the required `@party_role` in the target window |
 | `ROLE_AMBIGUOUS` | stderr + exit 1 | More than one pane advertises the same role in one session |
 | `DELIVERY_TIMEOUT` | stderr + non-zero exit | A tmux send did not complete within the configured timeout |
-| `offline` | TUI state | Companion Codex session or status file is unavailable on the latest poll |
+| `offline` | TUI state | Codex window 0 or status file is unavailable on the latest poll |
 
 ## Design Decisions
 
@@ -216,7 +216,7 @@ Runtime artifacts:
 |----------|-----------|-------------------------|
 | Use one binary for TUI and CLI | This converges the old tracker, sidebar, and CLI tracks into shared packages and one operator mental model | Separate tracker binary plus separate CLI (rejected: duplicates state/tmux logic) |
 | Keep Codex transport shell-owned for now | `tmux-codex.sh` already depends on `party-lib.sh`; forcing a transport rewrite into this plan would bloat scope and reopen prior risks | Port Codex transport into Go now (rejected: too much surface for one roadmap) |
-| Move Codex into a deterministic hidden companion session under sidebar mode | The sidebar needs pane `0`, yet `tmux-codex.sh` still needs a live target; deterministic naming avoids a new persisted manifest field | Keep visible Codex pane (rejected: defeats sidebar goal), add a manifest `codex_session` field (rejected: more state than needed) |
+| Move Codex into a hidden window 0 within the same tmux session | The sidebar needs pane `0` in the workspace window, yet `tmux-codex.sh` still needs a live target; using window 0 avoids orphan sessions (session death kills all windows), eliminates companion naming/filtering/cleanup complexity, and is extensible to future agent CLIs (e.g. Gemini in window 0 pane 1) | Deterministic companion session `<party-id>-codex` (rejected: orphan cleanup, discovery filtering, `party_canonical_session()` helper, prune sweep — all unnecessary complexity), keep visible Codex pane (rejected: defeats sidebar goal), add a manifest `codex_session` field (rejected: more state than needed) |
 | Preserve `PARTY_LAYOUT=classic` | It gives a clean operational fallback while the new sidebar path proves itself in real work | Remove the old layout entirely (rejected: poor rollback story) |
 | Port read paths before mutating paths | This establishes typed state, routing, and discovery with lower blast radius before lifecycle and messaging cutover | Port `start` first (rejected: too much risk before the shared services are trustworthy) |
 | Absorb tracker patterns rather than rewrite them | The existing tracker already solves polling cadence, width adaptation, and core interaction loops | Write a new TUI from scratch (rejected: needless novelty) |

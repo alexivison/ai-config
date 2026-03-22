@@ -22,7 +22,7 @@ Port the mutating session lifecycle to Go: create, continue, stop, delete, promo
 - Final wrapper retirement
 
 **Cross-task consistency check:**
-- Worker spawning here must produce session layouts and companion behavior compatible with Task 9
+- Worker spawning here must produce session layouts and hidden-window behavior compatible with Task 9
 - Later tracker actions in Task 13 should call the same lifecycle services defined here rather than invent local spawn logic
 
 ## Reference
@@ -74,15 +74,15 @@ Files to study before implementing:
 **Key gotchas:**
 - Promotion must correctly replace worker or standalone layout with master tracker layout
 - Resume/continue behavior should preserve existing Claude and Codex resume semantics
-- **Promotion with sidebar mode (blocking, deferred from Task 9):** The current shell promotion path (`session/party-master.sh:126-133`) resolves a visible `codex` role pane and respawns the tracker into it. In sidebar mode there is no visible Codex pane — only a hidden companion session. Promotion in sidebar mode MUST: (1) replace the sidebar pane (pane `0`) with the tracker view, (2) tear down the hidden `*-codex` companion session, (3) update the manifest `session_type` to `master`, (4) handle the case where classic-layout sessions are promoted (no companion to tear down). Both layout modes must produce identical post-promotion master state. Test both paths.
+- **Promotion with sidebar mode (blocking, deferred from Task 9):** The current shell promotion path (`session/party-master.sh:126-133`) resolves a visible `codex` role pane and respawns the tracker into it. In sidebar mode there is no visible Codex pane — Codex runs in hidden window 0. Promotion in sidebar mode MUST: (1) replace the sidebar pane (window 1, pane `0`) with the tracker view, (2) window 0 remains as-is (Codex stays available for the promoted master), (3) update the manifest `session_type` to `master`, (4) handle the case where classic-layout sessions are promoted (no hidden window to manage). Note: direct master launches have no window 0; promoted masters retain it from their worker/standalone origin. Both layout modes must produce functional post-promotion master state. Test both paths.
 
 ## Tests
 
 Test cases:
 - Start/continue flows for standalone, worker, and master sessions
-- Stop/delete cleanup with sidebar companions present
+- Stop/delete cleanup with sidebar hidden windows present
 - Promote flow from worker or standalone to master (classic layout)
-- Promote flow from worker or standalone to master (sidebar layout — companion teardown, pane replacement)
+- Promote flow from worker or standalone to master (sidebar layout — window 0 remains, pane replacement in window 1)
 - Promote idempotency: promoting an already-master session is a no-op
 - Worker spawn from a master session
 
@@ -91,6 +91,6 @@ Test cases:
 - [ ] `party-cli` owns lifecycle commands and worker spawn behavior
 - [ ] Session creation and teardown preserve current layout semantics
 - [ ] Promotion works in both classic and sidebar layout modes
-- [ ] Sidebar promotion tears down the companion session and replaces sidebar pane with tracker
+- [ ] Sidebar promotion replaces sidebar pane (window 1) with tracker; window 0 (Codex) remains
 - [ ] Shell entrypoints can coexist as wrappers without diverging behavior
 - [ ] Lifecycle tests pass

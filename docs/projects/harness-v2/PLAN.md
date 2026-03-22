@@ -2,7 +2,7 @@
 
 > **Goal:** Simplify the harness first, then converge the surviving session system into one Go binary that runs as a Bubble Tea TUI when invoked as `party-cli` and as a scriptable CLI when invoked as `party-cli <subcommand>`.
 >
-> **Architecture:** Phase 1 hardens the current shell and hook layer. Phase 2 introduces `tools/party-cli/` as the shared implementation surface for state, tmux, and TUI foundations, then launches it in pane `0` for sidebar and tracker layouts while preserving `PARTY_LAYOUT=classic`. Phase 3 ports lifecycle, messaging, worker/master TUI behavior, picker flows, and cutover, while explicitly retaining `session/party-lib.sh` as the routing dependency for `tmux-codex.sh`.
+> **Architecture:** Phase 1 hardens the current shell and hook layer. Phase 2 introduces `tools/party-cli/` as the shared implementation surface for state, tmux, and TUI foundations, then launches it in pane `0` (window 1) for sidebar and tracker layouts while Codex runs in a hidden window 0, preserving `PARTY_LAYOUT=classic` as a fallback. Phase 3 ports lifecycle, messaging, worker/master TUI behavior, picker flows, and cutover, while explicitly retaining `session/party-lib.sh` as the routing dependency for `tmux-codex.sh`.
 >
 > **Tech Stack:** Bash, tmux 3.6a, jq, Go 1.25.7, Cobra, Bubble Tea, Lip Gloss, Markdown
 >
@@ -32,11 +32,11 @@ The former standalone sidebar evaluation phase is removed. `docs/projects/sideba
 ### Phase 2: Unified Binary Foundation
 
 - [ ] [Task 4](./tasks/TASK4-scaffold-unified-party-cli.md) — Create `tools/party-cli/` with Cobra root/no-arg TUI behavior, shared config/logging, and package seams for state, tmux, session, and TUI code (deps: Task 2, Task 3)
-- [ ] [Task 5](./tasks/TASK5-port-state-store-and-discovery.md) — Port manifest CRUD, flock-based locking, session discovery, and visible-session filtering into typed Go state packages while preserving the current manifest schema (deps: Task 4)
-- [ ] [Task 6](./tasks/TASK6-port-tmux-service-and-pane-capture.md) — Port tmux session queries, role resolution, delivery-confirmed sends, pane capture, popup helpers, and companion-session helpers into shared Go packages (deps: Task 4, Task 5)
+- [ ] [Task 5](./tasks/TASK5-port-state-store-and-discovery.md) — Port manifest CRUD, flock-based locking, and session discovery into typed Go state packages while preserving the current manifest schema (deps: Task 4)
+- [ ] [Task 6](./tasks/TASK6-port-tmux-service-and-pane-capture.md) — Port tmux session queries, role resolution, delivery-confirmed sends, pane capture, popup helpers, and window-management helpers into shared Go packages (deps: Task 4, Task 5)
 - [ ] [Task 7](./tasks/TASK7-absorb-tracker-runtime-into-tui-foundation.md) — Reuse `party-tracker` Bubble Tea structure, Lip Gloss palette, and narrow-width behavior inside `party-cli`, with auto-selection between worker sidebar mode and master tracker mode (deps: Task 5, Task 6)
 - [ ] [Task 8](./tasks/TASK8-port-read-only-cli-commands.md) — Port `list`, `status`, and `prune` as safe read-only CLI commands backed by the shared state and tmux services (deps: Task 5, Task 6)
-- [ ] [Task 9](./tasks/TASK9-launch-party-cli-pane-and-sidebar-layouts.md) — Launch `party-cli` in pane `0`, keep master tracker layout, add sidebar layout as opt-in for standard and worker sessions (`PARTY_LAYOUT=classic` stays default), move Codex to a deterministic hidden companion session, and canonicalize parent-session resolution for companion contexts without porting Codex transport (deps: Task 6, Task 7, Task 8)
+- [ ] [Task 9](./tasks/TASK9-launch-party-cli-pane-and-sidebar-layouts.md) — Launch `party-cli` in window 1 (pane `0`), keep master tracker layout, add sidebar layout as opt-in for standard and worker sessions (`PARTY_LAYOUT=classic` stays default), move Codex to a hidden window 0 within the same tmux session, and configure the tmux status bar to visually distinguish agent windows from workspace windows (deps: Task 6, Task 7, Task 8)
 
 ### Phase 3: Feature Parity + TUI Views
 
@@ -56,8 +56,8 @@ The former standalone sidebar evaluation phase is removed. `docs/projects/sideba
 | Shared tmux service with delivery result | Task 6 | session queries, pane lookup, relay, popup, snippet capture, later TUI actions | Task 6 through Task 15 | replaces `tmux_send()` and direct `exec.Command("tmux", ...)` callers in `session/party-lib.sh:347-390`, `tools/party-tracker/actions.go:24-66`, `tools/party-tracker/workers.go:74-127` |
 | Shared TUI foundation with mode auto-selection | Task 7 | worker sidebar shell, master tracker shell, width-adaptive rendering | Task 7, Task 9, Task 12, Task 13, Task 15 | worker/master manifest -> TUI mode selection |
 | `party-cli list|status|prune` | Task 8 | operator inspection, cleanup flow, later picker/query reuse | Task 8, Task 10, Task 14, Task 15 | replaces `party_list()` and `party_prune_manifests()` in `session/party.sh:364-438` |
-| `PARTY_LAYOUT=sidebar|classic` launch contract | Task 9 | standard/worker launch, resume, companion filtering, docs, fallback semantics | Task 9 through Task 15 | env parse -> pane layout + companion-session creation |
-| Deterministic Codex companion session `<party-id>-codex` | Task 9 | shell launchers, routing helpers, cleanup, hidden-session filtering, worker sidebar | Task 9, Task 11, Task 12, Task 15 | session id -> companion session name helper; no manifest schema change |
+| `PARTY_LAYOUT=sidebar|classic` launch contract | Task 9 | standard/worker launch, resume, docs, fallback semantics | Task 9 through Task 15 | env parse -> pane layout + hidden-window creation |
+| Hidden Codex window (window 0) | Task 9 | shell launchers, routing helpers, worker sidebar, tmux status bar theming | Task 9, Task 11, Task 12, Task 15 | session window management; no manifest schema change, no separate session |
 | `party-cli start|continue|stop|delete|promote|spawn` | Task 10 | standard sessions, worker sessions, master promotion, teardown | Task 10, Task 13, Task 14, Task 15 | replaces `party_start()`, `party_continue()`, `party_launch_master()`, `party_promote()` and related shell flows |
 | `party-cli relay|broadcast|read|report|workers` | Task 11 | master/worker messaging, report-back workflows, tracker actions, shell wrapper cutover | Task 11, Task 12, Task 13, Task 15 | replaces `session/party-relay.sh:45-218` and current worker report-back usage in `claude/CLAUDE.md:88-92`, `claude/skills/party-dispatch/SKILL.md:103` |
 | Runtime status file `codex-status.json` | Task 12 | `tmux-codex.sh` writes dispatch/in-progress state, `tmux-claude.sh` writes completion/idle state; worker sidebar reads on poll | Task 12, Task 15 | two-script status JSON -> worker sidebar card view model |
@@ -65,7 +65,7 @@ The former standalone sidebar evaluation phase is removed. `docs/projects/sideba
 | `party-cli picker` | Task 14 | interactive attach/resume/delete flows and preview rendering | Task 14, Task 15 | replaces `session/party-picker.sh:21-181` and `session/party-preview.sh:21-64` |
 | Thin-wrapper cutover with `party-lib.sh` retained | Task 15 | shell entrypoints, docs, tests, tmux-codex dependency boundary | Task 15 | shell argv/env -> `party-cli` subcommands, except retained `party-lib.sh` routing helpers |
 
-**Validation:** The revised plan keeps persisted schema change to a minimum. The only new durable contract is the `sidebar|classic` layout behavior (classic default, sidebar opt-in until Task 10 proves promotion parity) plus the deterministic hidden Codex companion naming rule; `party-lib.sh` remains the library seam for `tmux-codex.sh`, so the plan no longer pretends Bash disappears entirely.
+**Validation:** The revised plan keeps persisted schema change to a minimum. The only new durable contract is the `sidebar|classic` layout behavior (classic default, sidebar opt-in until Task 10 proves promotion parity) plus the hidden-window architecture (window 0 = Codex, window 1 = workspace panes); `party-lib.sh` remains the library seam for `tmux-codex.sh`, so the plan no longer pretends Bash disappears entirely. Session death automatically destroys all windows — no orphan problem, no companion cleanup.
 
 **Open concern — manifest locking coexistence (Task 5):** Task 5 introduces flock-based locking in Go, but Bash writers (`party-lib.sh:44-63`, `party.sh:82-83`, `tmux-claude.sh:12-17`) still use the mkdir lock protocol. During the migration window both sides would mutate manifests under different locks. Task 5 must either keep the mkdir protocol in Go until Bash writers are retired, or convert both Bash and Go to a shared lock-file scheme in the same task.
 
@@ -91,10 +91,10 @@ Task 3 ───────────────────┘             
 | Task 3 | Oscillation logic is isolated and `worktree-guard.sh` has dedicated regression coverage |
 | Task 4 | `tools/party-cli/` builds, and the root command cleanly distinguishes no-arg TUI mode from subcommand CLI mode |
 | Task 5 | Manifest CRUD, locking, and visible-session discovery exist in typed Go without changing the manifest schema |
-| Task 6 | Shared tmux queries, delivery results, capture, popup, and companion helpers exist for both CLI and TUI surfaces |
+| Task 6 | Shared tmux queries, delivery results, capture, popup, and window-management helpers exist for both CLI and TUI surfaces |
 | Task 7 | `party-cli` can render a reusable TUI shell and choose master versus worker mode from live session context |
 | Task 8 | Read-only CLI parity exists for list/status/prune, backed by the shared Go services |
-| Task 9 | Real sessions can launch with `party-cli` in pane `0`, default to a sidebar layout, preserve classic fallback, and keep Codex alive in a hidden deterministic companion session |
+| Task 9 | Real sessions can launch with `party-cli` in window 1 (pane `0`), default to a sidebar layout, preserve classic fallback, keep Codex alive in a hidden window 0, and visually distinguish agent vs. workspace windows in the tmux status bar |
 | Task 10 | Lifecycle commands and worker spawning work through `party-cli`, with shell entrypoints still available as wrappers |
 | Task 11 | Relay, broadcast, read, report, and worker-enumeration flows run through `party-cli` with explicit delivery results |
 | Task 12 | Worker sidebar users see Codex status, evidence summaries, session context, and a guarded peek popup in the unified TUI |
@@ -130,7 +130,7 @@ Source reconciliation:
 - The new plan resolves the earlier architectural hole by keeping `tmux-codex.sh` on `session/party-lib.sh`. That dependency is explicit in `claude/skills/codex-transport/scripts/tmux-codex.sh:9`, `claude/skills/codex-transport/scripts/tmux-codex.sh:31`, and `claude/skills/codex-transport/scripts/tmux-codex.sh:37`.
 - The old tracker is not discarded; its reusable rendering and action patterns are plainly visible in `tools/party-tracker/main.go:81-358`, `tools/party-tracker/main.go:427`, `tools/party-tracker/workers.go:65-153`, and `tools/party-tracker/actions.go:24-66`.
 - Worker report-back remains in scope this time. It is part of the live relay surface at `session/party-relay.sh:7-8`, `session/party-relay.sh:45-51`, `session/party-relay.sh:215-218`, and it is documented as a current workflow in `claude/CLAUDE.md:88-92` and `claude/skills/party-dispatch/SKILL.md:103`.
-- The hidden-companion concern from `docs/projects/sidebar-tui/` is absorbed rather than evaluated separately. The revised plan keeps only the pieces still needed for the unified binary: sidebar layout, hidden Codex session, runtime status file, classic fallback, and popup peek.
+- The hidden-Codex concern from `docs/projects/sidebar-tui/` is absorbed rather than evaluated separately. The revised plan keeps only the pieces still needed for the unified binary: sidebar layout, hidden Codex window, runtime status file, classic fallback, and popup peek.
 - `docs/projects/phase-simplification/PLAN.md` remains the accepted evidence-model baseline; only the follow-on cleanup from research is carried forward here.
 
 ## Definition of Done
@@ -138,7 +138,7 @@ Source reconciliation:
 - [ ] All task checkboxes complete
 - [ ] Phase 1 removes the known dead-code and silent-failure paths from the research brief
 - [ ] `party-cli` runs as TUI with no args and as CLI with subcommands from the same binary
-- [ ] Standard and worker sessions default to a sidebar layout, with `PARTY_LAYOUT=classic` preserving the old visible-Codex path
+- [ ] Standard and worker sessions support sidebar layout with Codex in hidden window 0 (opt-in via `PARTY_LAYOUT=sidebar` until promotion + status parity are proven, then flipped to default), with `PARTY_LAYOUT=classic` preserving the old visible-Codex path
 - [ ] Master tracker behavior lives inside `party-cli`
 - [ ] Lifecycle, relay, report-back, picker, and tracker flows are owned by `party-cli`
 - [ ] `tmux-codex.sh` continues to function through retained `party-lib.sh` helpers

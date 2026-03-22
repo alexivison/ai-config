@@ -14,7 +14,7 @@ Move manifest CRUD, locking, and session discovery into typed Go code first. Thi
 - Port manifest read/write/update helpers into `internal/state`
 - Replace lock-directory behavior with flock-based locking
 - Port session discovery and visible-session filtering rules
-- Reserve deterministic companion naming rules in discovery so `*-codex` sessions are hidden once sidebar mode lands
+- Discovery returns all party sessions (no companion filtering needed — hidden-window model means Codex lives within the same session, not a separate one)
 
 **Out of scope (handled by other tasks):**
 - tmux pane lookup or tmux sends
@@ -22,7 +22,7 @@ Move manifest CRUD, locking, and session discovery into typed Go code first. Thi
 - TUI rendering logic
 
 **Cross-task consistency check:**
-- Discovery must exclude deterministic companion sessions before Task 9 starts creating them
+- Discovery returns all party sessions; no session-level filtering needed since Codex runs in a hidden window within each session
 - Manifest structs defined here must be reused by both CLI commands and TUI views; later tasks should not fork alternate state models
 
 ## Reference
@@ -60,7 +60,7 @@ N/A (non-UI task)
 **Functionality:**
 - Preserve the current manifest schema and field meanings
 - Use flock-based locking with explicit timeout/error behavior
-- Discovery returns only visible user-facing sessions, excluding reserved companion names
+- Discovery returns all party sessions (hidden-window model eliminates the need for session-level filtering)
 - Read/write behavior is testable without a live tmux server
 
 **Key gotchas:**
@@ -72,12 +72,12 @@ N/A (non-UI task)
 Test cases:
 - Manifest create/read/update/delete paths
 - Lock contention and timeout behavior
-- Discovery filtering for normal sessions versus reserved `-codex` companions
+- Discovery returns all party sessions without session-level filtering
 - Compatibility with older manifests missing optional fields
 
 ## Acceptance Criteria
 
 - [ ] Typed Go state store preserves existing manifest schema
 - [ ] Flock-based locking replaces directory-lock behavior
-- [ ] Visible-session discovery is implemented and hides reserved companion sessions
+- [ ] Session discovery is implemented (no companion filtering needed — hidden-window model)
 - [ ] State package tests pass

@@ -15,13 +15,13 @@ Reduce complexity first, then converge the surviving harness into one Go binary,
 - a Bubble Tea TUI when launched with no subcommand
 - a scriptable CLI when launched with a subcommand
 
-The same packages must power both modes. Standard and worker sessions should use a sidebar TUI in pane `0`; master sessions should use a tracker TUI in pane `0`; and `PARTY_LAYOUT=classic` must preserve the current visible-Codex layout for the folk who desire the old ways.
+The same packages must power both modes. Standard and worker sessions should support a sidebar TUI in pane `0` (opt-in via `PARTY_LAYOUT=sidebar` initially, flipped to default once promotion and Codex status parity are proven); master sessions should use a tracker TUI in pane `0`; and `PARTY_LAYOUT=classic` must preserve the current visible-Codex layout for the folk who desire the old ways.
 
 ## User Experience
 
 | Scenario | User Action | Expected Result |
 |----------|-------------|-----------------|
-| Default worker or standalone launch | Run `session/party.sh` without `PARTY_LAYOUT=classic` | Session opens as `party-cli sidebar | claude | shell`; Codex runs in a hidden deterministic companion session and is summarized by the sidebar instead of consuming a full pane |
+| Default worker or standalone launch | Run `session/party.sh` without `PARTY_LAYOUT=classic` | Session opens as `party-cli sidebar | claude | shell` in window 1; Codex runs in a hidden window 0 within the same tmux session and is summarized by the sidebar instead of consuming a full pane |
 | Default master launch | Run `session/party.sh --master` | Session opens as `party-cli tracker | claude | shell`; the tracker is part of the same binary as the CLI |
 | Classic escape hatch | Run `PARTY_LAYOUT=classic session/party.sh` | Existing visible Codex pane layout remains available |
 | Local operator TUI | Run `party-cli` inside a party tmux session | `party-cli` auto-detects the current session and opens the correct TUI mode, or fails clearly if no party session is discoverable |
@@ -35,7 +35,7 @@ The same packages must power both modes. Standard and worker sessions should use
 
 - [ ] Phase 1 removes the dead compatibility and cleanup paths called out in research and turns silent failures into explicit operator-visible errors.
 - [ ] `party-cli` launches Bubble Tea TUI mode when invoked with no subcommand and CLI mode when invoked with a subcommand.
-- [ ] Standard and worker sessions default to the TUI sidebar layout in pane `0`, while master sessions default to the TUI tracker layout in pane `0`.
+- [ ] Standard and worker sessions support the TUI sidebar layout in pane `0` (opt-in via `PARTY_LAYOUT=sidebar` until promotion and status parity are proven, then flipped to default), while master sessions default to the TUI tracker layout in pane `0`.
 - [ ] `PARTY_LAYOUT=classic` preserves the current visible-Codex layout for standard and worker sessions.
 - [ ] The sidebar-tui project is absorbed into Harness V2 rather than evaluated or built as a separate track.
 - [ ] `tools/party-tracker/` patterns are reused and migrated into `party-cli` rather than rewritten from scratch.
