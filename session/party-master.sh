@@ -120,11 +120,12 @@ party_promote() {
     return 1
   }
 
+  # Set master before respawn so party-cli reads correct mode on first render
+  party_state_set_field "$session" "session_type" "master" || true
+
   tmux respawn-pane -k -t "$codex_pane" "$cli_cmd"
   tmux set-option -p -t "$codex_pane" @party_role tracker
   tmux select-pane -t "$codex_pane" -T "Tracker"
-
-  party_state_set_field "$session" "session_type" "master" || true
 
   echo "Session '$session' promoted to master."
 }
