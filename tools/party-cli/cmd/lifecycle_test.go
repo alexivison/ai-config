@@ -55,7 +55,7 @@ func TestStartCmd_Basic(t *testing.T) {
 	t.Parallel()
 	store := setupStore(t)
 
-	out := runCmd(t, store, allPassRunner(), "start", "--detached", "--cwd", t.TempDir(), "test-title")
+	out := runCmd(t, store, allPassRunner(), "start", "--cwd", t.TempDir(), "test-title")
 	if !strings.Contains(out, "started") {
 		t.Fatalf("expected 'started' in output, got: %s", out)
 	}

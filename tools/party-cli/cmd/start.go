@@ -19,7 +19,6 @@ func newStartCmd(store *state.Store, client *tmux.Client, repoRoot string) *cobr
 		resumeClaude string
 		resumeCodex  string
 		prompt       string
-		detached     bool
 	}
 
 	cmd := &cobra.Command{
@@ -41,7 +40,7 @@ func newStartCmd(store *state.Store, client *tmux.Client, repoRoot string) *cobr
 				ClaudeResumeID: opts.resumeClaude,
 				CodexResumeID:  opts.resumeCodex,
 				Prompt:         opts.prompt,
-				Detached:       opts.detached,
+				Detached:       true, // shell wrappers handle attach
 			})
 			if err != nil {
 				return err
@@ -65,7 +64,8 @@ func newStartCmd(store *state.Store, client *tmux.Client, repoRoot string) *cobr
 	cmd.Flags().StringVar(&opts.resumeClaude, "resume-claude", "", "Claude session ID to resume")
 	cmd.Flags().StringVar(&opts.resumeCodex, "resume-codex", "", "Codex thread ID to resume")
 	cmd.Flags().StringVar(&opts.prompt, "prompt", "", "initial prompt for Claude")
-	cmd.Flags().BoolVar(&opts.detached, "detached", false, "launch without attaching")
+	// Note: attach behavior is handled by shell wrappers (party.sh),
+	// not by party-cli. All sessions are created detached.
 
 	return cmd
 }
