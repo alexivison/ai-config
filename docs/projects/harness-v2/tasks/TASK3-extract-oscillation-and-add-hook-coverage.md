@@ -71,7 +71,7 @@ Test cases:
 
 ## Acceptance Criteria
 
-- [ ] `claude/hooks/lib/oscillation.sh` exists and owns the extracted logic
-- [ ] `agent-trace-stop.sh` is smaller and delegates to the new library
-- [ ] `worktree-guard.sh` has a dedicated test file
-- [ ] Hook regression suite passes
+- [x] `claude/hooks/lib/oscillation.sh` exists and owns the extracted logic
+- [x] `agent-trace-stop.sh` is smaller and delegates to the new library
+- [x] `worktree-guard.sh` has a dedicated test file
+- [x] Hook regression suite passes
