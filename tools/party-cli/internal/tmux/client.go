@@ -2,6 +2,7 @@ package tmux
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -48,11 +49,27 @@ type ExecRunner struct{}
 
 var _ Runner = ExecRunner{}
 
+// ExitError indicates a tmux command ran but exited with a non-zero status.
+// This distinguishes "tmux ran but failed" from "tmux binary not found".
+type ExitError struct {
+	Code int
+}
+
+func (e *ExitError) Error() string { return fmt.Sprintf("tmux exited with status %d", e.Code) }
+
 // Run executes a tmux command and returns its trimmed stdout.
+// Wraps non-zero exits as *ExitError so callers can distinguish from missing-binary errors.
 func (ExecRunner) Run(ctx context.Context, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "tmux", args...)
 	out, err := cmd.Output()
-	return strings.TrimRight(string(out), "\n"), err
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return "", &ExitError{Code: exitErr.ExitCode()}
+		}
+		return "", err
+	}
+	return strings.TrimRight(string(out), "\n"), nil
 }
 
 // Client provides typed tmux operations.

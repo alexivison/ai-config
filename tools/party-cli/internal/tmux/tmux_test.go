@@ -106,9 +106,9 @@ func TestListSessions_Empty(t *testing.T) {
 func TestListSessions_NoServer(t *testing.T) {
 	t.Parallel()
 
-	// When tmux isn't running, treat as empty (matching shell `tmux ls || true`)
+	// tmux ran but exited non-zero (no server) → treat as empty
 	m := newMock(func(_ context.Context, _ ...string) (string, error) {
-		return "", errors.New("error connecting to /tmp/tmux-501/default (No such file or directory)")
+		return "", &ExitError{Code: 1}
 	})
 	c := NewClient(m)
 
@@ -121,11 +121,26 @@ func TestListSessions_NoServer(t *testing.T) {
 	}
 }
 
+func TestListSessions_MissingBinary(t *testing.T) {
+	t.Parallel()
+
+	// tmux binary not found → propagate error
+	m := newMock(func(_ context.Context, _ ...string) (string, error) {
+		return "", errors.New("exec: \"tmux\": executable file not found in $PATH")
+	})
+	c := NewClient(m)
+
+	_, err := c.ListSessions(t.Context())
+	if err == nil {
+		t.Fatal("expected error for missing binary, got nil")
+	}
+}
+
 func TestListSessions_ContextCanceled(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(t.Context())
-	cancel() // cancel immediately
+	cancel()
 
 	m := newMock(func(_ context.Context, _ ...string) (string, error) {
 		return "", context.Canceled
