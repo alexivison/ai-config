@@ -6,12 +6,6 @@ import (
 	"fmt"
 )
 
-// Run executes a raw tmux command through the client's runner.
-// Prefer typed methods when available; use Run for one-off operations.
-func (c *Client) Run(ctx context.Context, args ...string) (string, error) {
-	return c.runner.Run(ctx, args...)
-}
-
 // HasSession returns true if the named tmux session exists.
 func (c *Client) HasSession(ctx context.Context, sessionID string) (bool, error) {
 	_, err := c.runner.Run(ctx, "has-session", "-t", sessionID)
