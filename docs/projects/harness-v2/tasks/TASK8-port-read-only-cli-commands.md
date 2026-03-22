@@ -77,7 +77,7 @@ Test cases:
 
 ## Acceptance Criteria
 
-- [ ] `party-cli list`, `status`, and `prune` exist and are buildable
-- [ ] Read-only commands use shared state and tmux packages
-- [ ] All sessions shown are user-facing (no companion filtering needed)
-- [ ] Read-only command tests pass
+- [x] `party-cli list`, `status`, and `prune` exist and are buildable
+- [x] Read-only commands use shared state and tmux packages
+- [x] All sessions shown are user-facing (no companion filtering needed)
+- [x] Read-only command tests pass
