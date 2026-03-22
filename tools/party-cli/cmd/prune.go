@@ -124,7 +124,7 @@ func runPruneArtifacts(w io.Writer, maxDays int, dryRun bool) error {
 	if projectsDays < 30 {
 		projectsDays = 30 // minimum 30 days for project history
 	}
-	pruned, err := pruneOldDirs(filepath.Join(home, ".claude", "projects"), projectsDays, dryRun, w)
+	pruned, err := pruneOldEntries(filepath.Join(home, ".claude", "projects"), projectsDays, true, dryRun, w)
 	if err != nil {
 		fmt.Fprintf(w, "Warning: projects prune: %v\n", err)
 	}
@@ -132,7 +132,7 @@ func runPruneArtifacts(w io.Writer, maxDays int, dryRun bool) error {
 
 	// 2. Codex shell snapshots (older than 60 days)
 	snapshotDays := 60
-	pruned, err = pruneOldFiles(filepath.Join(home, "codex", "shell_snapshots"), snapshotDays, dryRun, w)
+	pruned, err = pruneOldEntries(filepath.Join(home, "codex", "shell_snapshots"), snapshotDays, false, dryRun, w)
 	if err != nil {
 		fmt.Fprintf(w, "Warning: shell_snapshots prune: %v\n", err)
 	}
@@ -157,8 +157,9 @@ func runPruneArtifacts(w io.Writer, maxDays int, dryRun bool) error {
 	return nil
 }
 
-// pruneOldDirs removes directories older than maxDays from root.
-func pruneOldDirs(root string, maxDays int, dryRun bool, w io.Writer) (int64, error) {
+// pruneOldEntries removes entries older than maxDays from root.
+// If dirsOnly is true, only directories are pruned; otherwise only files.
+func pruneOldEntries(root string, maxDays int, dirsOnly bool, dryRun bool, w io.Writer) (int64, error) {
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -171,45 +172,7 @@ func pruneOldDirs(root string, maxDays int, dryRun bool, w io.Writer) (int64, er
 	var count int64
 
 	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		info, err := e.Info()
-		if err != nil {
-			continue
-		}
-		if info.ModTime().After(cutoff) {
-			continue
-		}
-
-		path := filepath.Join(root, e.Name())
-		if dryRun {
-			fmt.Fprintf(w, "  [dry-run] rm -rf %s\n", path)
-		} else {
-			if err := os.RemoveAll(path); err != nil {
-				continue
-			}
-		}
-		count++
-	}
-	return count, nil
-}
-
-// pruneOldFiles removes files older than maxDays from root.
-func pruneOldFiles(root string, maxDays int, dryRun bool, w io.Writer) (int64, error) {
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return 0, nil
-		}
-		return 0, err
-	}
-
-	cutoff := time.Now().Add(-time.Duration(maxDays) * 24 * time.Hour)
-	var count int64
-
-	for _, e := range entries {
-		if e.IsDir() {
+		if dirsOnly != e.IsDir() {
 			continue
 		}
 		info, err := e.Info()
@@ -224,7 +187,11 @@ func pruneOldFiles(root string, maxDays int, dryRun bool, w io.Writer) (int64, e
 		if dryRun {
 			fmt.Fprintf(w, "  [dry-run] rm %s\n", path)
 		} else {
-			if err := os.Remove(path); err != nil {
+			rmFn := os.Remove
+			if dirsOnly {
+				rmFn = os.RemoveAll
+			}
+			if err := rmFn(path); err != nil {
 				continue
 			}
 		}
