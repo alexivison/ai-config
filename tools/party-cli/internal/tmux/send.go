@@ -7,12 +7,8 @@ import (
 	"time"
 )
 
-var (
-	// ErrSendTimeout is returned when the pane does not become idle within the send timeout.
-	ErrSendTimeout = errors.New("send timeout: pane not idle")
-	// ErrPaneNotIdle is returned when the pane is in copy/choice mode.
-	ErrPaneNotIdle = errors.New("pane not idle")
-)
+// ErrSendTimeout is returned when the pane does not become idle within the send timeout.
+var ErrSendTimeout = errors.New("send timeout: pane not idle")
 
 // Send delivers text to a tmux pane with idle-check retry.
 // Mirrors party-lib.sh tmux_send: retries until the pane leaves copy mode or timeout.

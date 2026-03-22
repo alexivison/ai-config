@@ -318,7 +318,7 @@ func TestResolveRole_AmbiguousWindowBlocksLaterMatch(t *testing.T) {
 func TestResolveRole_AmbiguousWithinWindow(t *testing.T) {
 	t.Parallel()
 
-	// Two panes with same role in the SAME window — ambiguous
+	// Exercises resolveInWindow path (preferredWindow=0 hits the preferred-window shortcut).
 	m := newMock(func(_ context.Context, _ ...string) (string, error) {
 		return "0 0 claude\n0 1 claude", nil
 	})
@@ -336,7 +336,7 @@ func TestResolveRole_AmbiguousWithinWindow(t *testing.T) {
 func TestResolveRole_AmbiguousWithinWindow_NoPreference(t *testing.T) {
 	t.Parallel()
 
-	// Two panes with same role in same window, no preferred window
+	// Exercises groupByWindow fallback path (preferredWindow=-1 skips preferred-window shortcut).
 	m := newMock(func(_ context.Context, _ ...string) (string, error) {
 		return "0 0 claude\n0 1 claude", nil
 	})

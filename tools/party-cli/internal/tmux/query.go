@@ -81,16 +81,14 @@ func (c *Client) ResolveRole(ctx context.Context, sessionID, role string, prefer
 	if len(windowMatches) == 0 {
 		return "", fmt.Errorf("%w: %q in session %s", ErrRoleNotFound, role, sessionID)
 	}
-	windows := sortedKeys(windowMatches)
-	for _, winIdx := range windows {
-		matches := windowMatches[winIdx]
-		if len(matches) == 1 {
-			return matches[0].Target(), nil
-		}
-		return "", fmt.Errorf("%w: %q found %d times in window %d of session %s",
-			ErrRoleAmbiguous, role, len(matches), winIdx, sessionID)
+	// First window in sorted order decides: unique match returns, ambiguity aborts.
+	winIdx := sortedKeys(windowMatches)[0]
+	matches := windowMatches[winIdx]
+	if len(matches) == 1 {
+		return matches[0].Target(), nil
 	}
-	return "", fmt.Errorf("%w: %q in session %s", ErrRoleNotFound, role, sessionID)
+	return "", fmt.Errorf("%w: %q found %d times in window %d of session %s",
+		ErrRoleAmbiguous, role, len(matches), winIdx, sessionID)
 }
 
 // resolveInWindow searches for a role within a single window.
