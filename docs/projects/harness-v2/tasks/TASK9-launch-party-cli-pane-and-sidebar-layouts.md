@@ -98,11 +98,11 @@ Test cases:
 
 ## Acceptance Criteria
 
-- [ ] Window 0 (Codex, hidden) and window 1 (workspace, active) are created in sidebar mode
-- [ ] Pane `0` in window 1 launches `party-cli` in new sessions
-- [ ] Sidebar and classic layouts both work as designed
-- [ ] `tmux-codex.sh` targets window 0 in sidebar mode and classic Codex pane in classic mode
-- [ ] tmux status bar visually distinguishes agent windows (dimmed) from workspace windows (bright)
-- [ ] Shell promotion (`party.sh --promote`) continues to work in classic mode (sidebar promotion deferred to Task 10)
-- [ ] Session death destroys all windows — no orphan cleanup needed
-- [ ] Layout and routing tests pass
+- [x] Window 0 (Codex, hidden) and window 1 (workspace, active) are created in sidebar mode
+- [x] Pane `0` in window 1 launches `party-cli` in new sessions
+- [x] Sidebar and classic layouts both work as designed
+- [x] `tmux-codex.sh` targets window 0 in sidebar mode and classic Codex pane in classic mode
+- [x] tmux status bar visually distinguishes agent windows (dimmed) from workspace windows (bright)
+- [x] Shell promotion (`party.sh --promote`) continues to work in classic mode (sidebar promotion deferred to Task 10)
+- [x] Session death destroys all windows — no orphan cleanup needed
+- [x] Layout and routing tests pass

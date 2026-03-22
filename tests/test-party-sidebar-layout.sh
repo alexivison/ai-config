@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+# Tests for sidebar layout helpers: layout mode detection, Codex routing, CLI resolution.
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$REPO_ROOT/session/party-lib.sh"
+
+PASS=0
+FAIL=0
+
+assert() {
+  local desc="$1"
+  if eval "$2"; then
+    PASS=$((PASS + 1))
+    echo "  [PASS] $desc"
+  else
+    FAIL=$((FAIL + 1))
+    echo "  [FAIL] $desc"
+  fi
+}
+
+# Mock tmux for routing tests
+MOCK_PANE_DATA=""
+MOCK_WINDOW_LIST=""
+MOCK_CURRENT_WINDOW="0"
+tmux() {
+  if [[ "$1" == "list-panes" ]]; then
+    # Extract window from target (e.g., "session:0" -> return window 0 data, "session:1" -> window 1 data)
+    local target_win=""
+    if [[ "$*" == *"-t"* ]]; then
+      local t_arg=""
+      local prev=""
+      for arg in "$@"; do
+        if [[ "$prev" == "-t" ]]; then
+          t_arg="$arg"
+          break
+        fi
+        prev="$arg"
+      done
+      target_win="${t_arg##*:}"
+    fi
+    local var_name="MOCK_PANE_DATA_WIN${target_win}"
+    local data="${!var_name:-$MOCK_PANE_DATA}"
+    if [[ -n "$data" ]]; then
+      printf '%s\n' "$data"
+      return 0
+    fi
+    return 1
+  fi
+  if [[ "$1" == "list-windows" ]]; then
+    if [[ -n "$MOCK_WINDOW_LIST" ]]; then
+      printf '%s\n' "$MOCK_WINDOW_LIST"
+      return 0
+    fi
+    return 1
+  fi
+  if [[ "$1" == "display-message" ]] && [[ "$*" == *'#{window_index}'* ]]; then
+    echo "$MOCK_CURRENT_WINDOW"
+    return 0
+  fi
+  command tmux "$@"
+}
+
+echo "--- test-party-sidebar-layout.sh ---"
+
+# ===========================================================================
+# party_layout_mode
+# ===========================================================================
+
+echo ""
+echo "  === party_layout_mode ==="
+
+# Default (no env var) → classic
+unset PARTY_LAYOUT
+result=$(party_layout_mode)
+assert "layout_mode: default is classic" \
+  '[ "$result" = "classic" ]'
+
+# Explicit classic
+PARTY_LAYOUT=classic
+result=$(party_layout_mode)
+assert "layout_mode: PARTY_LAYOUT=classic returns classic" \
+  '[ "$result" = "classic" ]'
+
+# Sidebar opt-in
+PARTY_LAYOUT=sidebar
+result=$(party_layout_mode)
+assert "layout_mode: PARTY_LAYOUT=sidebar returns sidebar" \
+  '[ "$result" = "sidebar" ]'
+
+# Unknown value → classic (safe default)
+PARTY_LAYOUT=unknown
+result=$(party_layout_mode)
+assert "layout_mode: unknown value falls back to classic" \
+  '[ "$result" = "classic" ]'
+
+unset PARTY_LAYOUT
+
+# ===========================================================================
+# party_codex_pane_target — sidebar mode routes to window 0
+# ===========================================================================
+
+echo ""
+echo "  === party_codex_pane_target ==="
+
+# Sidebar mode: Codex is in window 0 pane 0 (hidden window)
+PARTY_LAYOUT=sidebar
+result=$(party_codex_pane_target "party-test")
+assert "codex_target: sidebar mode resolves to session:0.0" \
+  '[ "$result" = "party-test:0.0" ]'
+
+# Classic mode: uses role-based resolution (Codex in window 0 pane 0 in the classic 3-pane layout)
+PARTY_LAYOUT=classic
+MOCK_PANE_DATA=$'0 codex\n1 claude\n2 shell'
+MOCK_WINDOW_LIST="0"
+result=$(party_codex_pane_target "party-test")
+assert "codex_target: classic mode uses role resolution" \
+  '[ "$result" = "party-test:0.0" ]'
+
+# Classic mode with Codex in different pane position → resolves correctly
+MOCK_PANE_DATA=$'0 claude\n1 codex\n2 shell'
+result=$(party_codex_pane_target "party-test")
+assert "codex_target: classic mode resolves codex at pane 1" \
+  '[ "$result" = "party-test:0.1" ]'
+
+# Sidebar mode ignores pane data — always window 0 pane 0
+PARTY_LAYOUT=sidebar
+MOCK_PANE_DATA=$'0 claude\n1 shell'
+result=$(party_codex_pane_target "party-test")
+assert "codex_target: sidebar always returns 0.0 regardless of pane data" \
+  '[ "$result" = "party-test:0.0" ]'
+
+unset PARTY_LAYOUT
+
+# ===========================================================================
+# party_resolve_cli_cmd — party-cli binary resolution
+# ===========================================================================
+
+echo ""
+echo "  === party_resolve_cli_cmd ==="
+
+# When party-cli is on PATH, uses it directly
+_orig_path="$PATH"
+MOCK_CLI_BIN="/tmp/test-party-cli-$$"
+echo '#!/bin/sh' > "$MOCK_CLI_BIN" && chmod +x "$MOCK_CLI_BIN"
+PATH="$(dirname "$MOCK_CLI_BIN"):$PATH"
+
+result=$(party_resolve_cli_cmd "party-test-session" "$REPO_ROOT")
+assert "resolve_cli: finds binary on PATH" \
+  '[[ "$result" == *"party-cli"* ]]'
+assert "resolve_cli: includes session arg" \
+  '[[ "$result" == *"party-test-session"* ]]'
+
+rm -f "$MOCK_CLI_BIN"
+PATH="$_orig_path"
+
+# When no binary but Go + source available, uses go run
+_go_bin="$(command -v go 2>/dev/null || true)"
+if [[ -n "$_go_bin" ]] && [[ -f "$REPO_ROOT/tools/party-cli/main.go" ]]; then
+  # Temporarily hide party-cli but keep Go accessible
+  PATH="$(dirname "$_go_bin"):/usr/bin:/bin"
+  result=$(party_resolve_cli_cmd "party-test-session" "$REPO_ROOT")
+  assert "resolve_cli: falls back to go run" \
+    '[[ "$result" == *"go run"* ]]'
+  assert "resolve_cli: go run targets tools/party-cli" \
+    '[[ "$result" == *"tools/party-cli"* ]]'
+  PATH="$_orig_path"
+fi
+
+echo ""
+echo "Results: $PASS passed, $FAIL failed"
+[[ $FAIL -eq 0 ]]

@@ -135,6 +135,25 @@ party_launch_agents() {
     tmux set-environment -t "$session" CODEX_THREAD_ID "$codex_resume_id" 2>/dev/null || true
   fi
 
+  local layout
+  layout="$(party_layout_mode)"
+
+  # Persist layout mode so tmux-codex.sh can resolve Codex from any pane
+  tmux set-environment -t "$session" PARTY_LAYOUT "$layout" 2>/dev/null || true
+
+  if [[ "$layout" == "sidebar" ]]; then
+    _party_launch_sidebar "$session" "$session_cwd" "$codex_cmd" "$claude_cmd" "$title"
+  else
+    _party_launch_classic "$session" "$session_cwd" "$codex_cmd" "$claude_cmd"
+  fi
+
+  party_set_cleanup_hook "$session"
+}
+
+# Classic layout: single window with Codex | Claude | Shell
+_party_launch_classic() {
+  local session="$1" session_cwd="$2" codex_cmd="$3" claude_cmd="$4"
+
   # Pane 0: Codex (The Wizard)
   tmux respawn-pane -k -t "$session:0.0" -c "$session_cwd" "$codex_cmd"
   tmux set-option -p -t "$session:0.0" @party_role codex
@@ -153,8 +172,51 @@ party_launch_agents() {
   tmux select-pane -t "$session:0.1" -T "The Paladin"
   tmux select-pane -t "$session:0.2" -T "Shell"
   configure_party_theme "$session"
-  party_set_cleanup_hook "$session"
   tmux select-pane -t "$session:0.1"
+}
+
+# Sidebar layout: window 0 (Codex, hidden) + window 1 (party-cli | Claude | Shell)
+_party_launch_sidebar() {
+  local session="$1" session_cwd="$2" codex_cmd="$3" claude_cmd="$4" title="${5:-}"
+  local repo_root
+  repo_root="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+  # Window 0 (initial window from new-session): Codex — hidden, background
+  tmux rename-window -t "$session:0" "codex"
+  tmux respawn-pane -k -t "$session:0.0" -c "$session_cwd" "$codex_cmd"
+  tmux set-option -p -t "$session:0.0" @party_role codex
+  tmux set-option -p -t "$session:0.0" remain-on-exit on
+  # Dim agent window in status bar
+  tmux set-option -w -t "$session:0" window-status-style "fg=#444444"
+
+  # Window 1: workspace (party-cli | Claude | Shell)
+  local window_name
+  window_name="$(party_window_name "$title")"
+  tmux new-window -t "$session" -n "$window_name" -c "$session_cwd"
+
+  # Pane 0: party-cli TUI (sidebar shell)
+  local cli_cmd
+  cli_cmd="$(party_resolve_cli_cmd "$session" "$repo_root")"
+  tmux respawn-pane -k -t "$session:1.0" -c "$session_cwd" "$cli_cmd"
+  tmux set-option -p -t "$session:1.0" @party_role sidebar
+
+  # Pane 1: Claude (The Paladin)
+  tmux split-window -h -t "$session:1.0" -c "$session_cwd" "$claude_cmd"
+  tmux set-option -p -t "$session:1.1" @party_role claude
+  tmux set-option -p -t "$session:1.1" remain-on-exit on
+
+  # Pane 2: Shell (operator terminal)
+  tmux split-window -h -t "$session:1.1" -c "$session_cwd"
+  tmux set-option -p -t "$session:1.2" @party_role shell
+
+  tmux select-pane -t "$session:1.0" -T "Sidebar"
+  tmux select-pane -t "$session:1.1" -T "The Paladin"
+  tmux select-pane -t "$session:1.2" -T "Shell"
+  configure_party_theme "$session:1"
+
+  # Set window 1 as active (user sees workspace, not Codex)
+  tmux select-window -t "$session:1"
+  tmux select-pane -t "$session:1.1"
 }
 
 party_create_session() {
