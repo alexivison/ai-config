@@ -61,7 +61,6 @@
       "Read(**/pnpm-lock.yaml)"
     ],
     "ask": [
-      "Bash(gh pr merge:*)",
       "Bash(gh pr close:*)"
     ]
   },

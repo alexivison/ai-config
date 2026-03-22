@@ -59,9 +59,11 @@ Use the canonical sequence in [execution-core.md](~/.claude/rules/execution-core
    - **Blocking in-scope findings:** fix code → commit → re-run critics → dispatch new `--review` → `--review-complete`.
    - **Out-of-scope / NEEDS_DISCUSSION:** follow [execution-core.md § Dispute Resolution](~/.claude/rules/execution-core.md#dispute-resolution).
    - Non-blocking / approved: `--review-complete` reads the verdict from the findings file. Do NOT call `--approve` directly.
-10. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)
-   - **If you edit ANY implementation file after this step passes → re-run `/pre-pr-verification` before commit.** Even a JSDoc fix invalidates prior evidence.
-11. **Commit & PR** — Create commit and draft PR
+10. **Commit** — Create the commit first. The PR gate checks evidence against the committed diff_hash, so all evidence must be recorded after the commit exists.
+11. **PR Verification** — Invoke `/pre-pr-verification` (runs test-runner + check-runner internally)
+   - **If you edit ANY implementation file after this step passes → re-run `/pre-pr-verification` before PR.** Even a JSDoc fix invalidates prior evidence.
+   - Critics and Codex evidence must also be fresh at the committed hash. If the commit changed the hash (it always does), re-run the cascade: critics → codex → `/pre-pr-verification`.
+12. **PR** — Create draft PR
 
 **Note:** Step 4 (Checkboxes) MUST include PLAN.md. Forgetting PLAN.md is a common violation.
 
