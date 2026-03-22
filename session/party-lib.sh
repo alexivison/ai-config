@@ -528,6 +528,28 @@ party_codex_pane_target() {
   party_role_pane_target "$session" "codex"
 }
 
+# Resolve party-cli as an array-safe command for CLI delegation.
+# Populates the global array PARTY_CLI_CMD with the command tokens.
+# Usage: party_resolve_cli_bin && "${PARTY_CLI_CMD[@]}" subcommand args...
+party_resolve_cli_bin() {
+  PARTY_CLI_CMD=()
+  if command -v party-cli &>/dev/null; then
+    PARTY_CLI_CMD=(party-cli)
+    return 0
+  fi
+
+  local _repo_root
+  _repo_root="${PARTY_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)}"
+  if command -v go &>/dev/null && [[ -f "$_repo_root/tools/party-cli/main.go" ]]; then
+    # go -C changes to the module directory before running (Go 1.21+).
+    PARTY_CLI_CMD=(env "PARTY_REPO_ROOT=$_repo_root" go -C "$_repo_root/tools/party-cli" run .)
+    return 0
+  fi
+
+  echo "Error: party-cli not found. Build with: cd tools/party-cli && go install ." >&2
+  return 1
+}
+
 # Resolve the party-cli command string for launching in a pane.
 # Tries: installed binary on PATH > go run from source.
 # --strict: return 1 instead of fallback placeholder (for promotion)
