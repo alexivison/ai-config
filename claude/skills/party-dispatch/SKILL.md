@@ -1,20 +1,24 @@
 ---
 name: party-dispatch
 description: >-
-  Dispatch multiple tickets or tasks to parallel party sessions, each running a
-  specified skill. Takes the first item in the current session and spawns
-  detached party sessions for the rest via party.sh. Use when the user wants to
-  fix multiple bugs at once, work on several tickets in parallel, spawn parties
-  for a batch of issues, or says things like "fix these tickets", "party
-  bugfix", "spawn parties for these", "work on all of these", "dispatch these
-  tasks". Supports Linear URLs/IDs and local file paths (e.g., TASK*.md).
+  Batch-dispatch multiple tickets or tasks to parallel party sessions, each
+  running a specified skill. Requires 2+ items — for dispatching a single
+  freeform task use /party-spawn instead. Takes the first item in the current
+  session and spawns detached party sessions for the rest via party.sh. Use when
+  the user wants to fix multiple bugs at once, work on several tickets in
+  parallel, spawn parties for a batch of issues, or says things like "fix these
+  tickets", "party bugfix", "spawn parties for these", "work on all of these",
+  "dispatch these tasks". Supports Linear URLs/IDs and local file paths (e.g.,
+  TASK*.md).
 user-invocable: true
 ---
 
 # Party Dispatch
 
-Dispatch multiple work items to parallel party sessions. Each session gets its
-own Paladin + Wizard pair running the specified skill autonomously.
+Batch-dispatch multiple work items to parallel party sessions. Each session gets
+its own Paladin + Wizard pair running the specified skill autonomously.
+
+For spawning a single worker with a freeform prompt, use `/party-spawn`.
 
 ## Usage
 
