@@ -22,7 +22,7 @@ This plan covers `tools/party-cli/internal/tui/` and the picker formatting seam 
 - [x] [Task 1](./tasks/TASK1-add-scry-theme-tokens-and-pane-chrome.md) — Add scry-aligned theme tokens, shared TUI styles, a local bordered-pane helper, height-aware footer/status primitives, and ANSI-aware helper tests in `tools/party-cli/internal/tui/` (deps: none)
 - [ ] [Task 2](./tasks/TASK2-restyle-worker-sidebar-shell.md) — Apply the new chrome and flat-list interior layout to the worker sidebar and error shell, including short-pane footer fallback, bright section headers, muted detail lines, and tall-pane transient status behavior (deps: Task 1)
 - [ ] [Task 3](./tasks/TASK3-restyle-master-tracker-manifest-and-composer.md) — Apply the new chrome to the master tracker, manifest viewer, and relay/broadcast/spawn composer, including reverse-row selection, readable inactive titles, ANSI-aware selection tests, and compact height fallback rules (deps: Task 1)
-- [ ] [Task 4](./tasks/TASK4-align-party-picker-ansi-theme.md) — Replace the picker's hardcoded RGB escape strings with scry-aligned ANSI color usage in `tools/party-cli/internal/picker/`, while preserving the existing fixed-width `fzf` formatting model (deps: Task 1)
+- [x] [Task 4](./tasks/TASK4-align-party-picker-ansi-theme.md) — Replace the picker's hardcoded RGB escape strings with scry-aligned ANSI color usage in `tools/party-cli/internal/picker/`, while preserving the existing fixed-width `fzf` formatting model (deps: Task 1)
 
 ## Coverage Matrix
 

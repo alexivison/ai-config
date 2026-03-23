@@ -86,8 +86,8 @@ Test cases:
 
 ## Acceptance Criteria
 
-- [ ] `fzf.go` no longer contains hardcoded RGB ANSI escape strings for list or preview colors
-- [ ] Picker ANSI colors align to Accent/Clean/Muted/DividerFg token meanings
-- [ ] `picker.go` remains unchanged unless a tiny constant/helper extraction is materially cleaner
-- [ ] Picker format tests assert the ANSI token-aligned output
-- [ ] Existing picker behavior and fixed-width formatting remain intact
+- [x] `fzf.go` no longer contains hardcoded RGB ANSI escape strings for list or preview colors
+- [x] Picker ANSI colors align to Accent/Clean/Muted/DividerFg token meanings
+- [x] `picker.go` remains unchanged unless a tiny constant/helper extraction is materially cleaner
+- [x] Picker format tests assert the ANSI token-aligned output
+- [x] Existing picker behavior and fixed-width formatting remain intact
