@@ -74,7 +74,7 @@ func RenderSidebar(cs CodexStatus, width int) string {
 // verdictString renders a verdict with the appropriate semantic style.
 func verdictString(verdict string) string {
 	switch verdict {
-	case "APPROVE":
+	case "APPROVE", "APPROVED":
 		return activeTextStyle.Render(verdict)
 	case "REQUEST_CHANGES", "NEEDS_DISCUSSION":
 		return warnTextStyle.Render(verdict)
@@ -100,9 +100,13 @@ func RenderEvidence(entries []EvidenceEntry, width int) string {
 	b.WriteString(sidebarLabelStyle.Render("Evidence") + "\n")
 
 	for _, e := range entries {
-		result := verdictString(e.Result)
-		line := fmt.Sprintf("  %s %s", e.Type, result)
-		b.WriteString(truncate(line, inner) + "\n")
+		// Truncate plain text before styling to avoid slicing ANSI sequences.
+		maxType := inner - 2 - len(e.Result) - 1 // indent + result + space
+		typeName := e.Type
+		if maxType > 0 && len(typeName) > maxType {
+			typeName = truncate(typeName, maxType)
+		}
+		b.WriteString(fmt.Sprintf("  %s %s", typeName, verdictString(e.Result)) + "\n")
 	}
 
 	return b.String()
