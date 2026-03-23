@@ -46,5 +46,5 @@ IFS=$'\t' read -r model pct < "$cache_file"
 [[ -z "$pct" ]] && exit 0
 
 c=$(color_for_pct "$pct")
-printf '#[fg=#539bf5,bold]Paladin: #[fg=#768390,nobold]%s #[fg=%s,bold]%s%%#[fg=#636e7b,nobold] ' \
+printf '#[fg=#539bf5,bold]Paladin: #[fg=#768390,nobold]%s #[fg=%s,bold]%s%%#[fg=#444c56,nobold] | ' \
     "$model" "$c" "$pct"
