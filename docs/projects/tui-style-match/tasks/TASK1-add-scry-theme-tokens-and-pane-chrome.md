@@ -102,9 +102,9 @@ Test cases:
 
 ## Acceptance Criteria
 
-- [ ] `style.go` uses the scry semantic token set and keeps only `gold` as a local exception
-- [ ] `style.go` defines `compactHeightThreshold = 14`, a readable inactive worker-title style, and explicit sidebar label/value/help styles
-- [ ] A local pane helper exists for bordered panes with optional scroll indicator
-- [ ] Shared chrome helpers define footer-only vs pane+status-bar body budgets
-- [ ] A shared transient-only status-bar/key-badge helper exists
-- [ ] Helper tests cover border/title/footer/scroll/status-bar behavior, styled-title width, ANSI-aware title truncation, and shared semantic style tiers
+- [x] `style.go` uses the scry semantic token set and keeps only `gold` as a local exception
+- [x] `style.go` defines `compactHeightThreshold = 14`, a readable inactive worker-title style, and explicit sidebar label/value/help styles
+- [x] A local pane helper exists for bordered panes with optional scroll indicator
+- [x] Shared chrome helpers define footer-only vs pane+status-bar body budgets
+- [x] A shared transient-only status-bar/key-badge helper exists
+- [x] Helper tests cover border/title/footer/scroll/status-bar behavior, styled-title width, ANSI-aware title truncation, and shared semantic style tiers
