@@ -5,7 +5,6 @@ package message
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -124,7 +123,7 @@ func (s *Service) Report(ctx context.Context, sessionID, message string) error {
 		return fmt.Errorf("read manifest: %w", err)
 	}
 
-	parent := getExtraField(&m, "parent_session")
+	parent := m.ExtraString("parent_session")
 	if parent == "" {
 		return fmt.Errorf("session %q has no parent_session — not a worker", sessionID)
 	}
@@ -217,15 +216,3 @@ func prepareMessage(msg string) (string, error) {
 	return relayPointer(path), nil
 }
 
-// getExtraField reads a string from the manifest's Extra map.
-func getExtraField(m *state.Manifest, key string) string {
-	raw, ok := m.Extra[key]
-	if !ok {
-		return ""
-	}
-	var s string
-	if err := json.Unmarshal(raw, &s); err != nil {
-		return ""
-	}
-	return s
-}

@@ -695,32 +695,32 @@ func TestWindowName(t *testing.T) {
 	}
 }
 
-func TestSetExtraField_NewMap(t *testing.T) {
+func TestManifest_SetExtra_NewMap(t *testing.T) {
 	t.Parallel()
 
 	m := state.Manifest{}
-	setExtraField(&m, "key", "value")
+	m.SetExtra("key", "value")
 
 	if m.Extra == nil {
 		t.Fatal("Extra should be initialized")
 	}
-	got := getExtraField(&m, "key")
+	got := m.ExtraString("key")
 	if got != "value" {
-		t.Errorf("getExtraField: got %q, want %q", got, "value")
+		t.Errorf("ExtraString: got %q, want %q", got, "value")
 	}
 }
 
-func TestGetExtraField_Missing(t *testing.T) {
+func TestManifest_ExtraString_Missing(t *testing.T) {
 	t.Parallel()
 
 	m := state.Manifest{}
-	got := getExtraField(&m, "nonexistent")
+	got := m.ExtraString("nonexistent")
 	if got != "" {
 		t.Errorf("expected empty, got %q", got)
 	}
 }
 
-func TestGetExtraField_InvalidJSON(t *testing.T) {
+func TestManifest_ExtraString_InvalidJSON(t *testing.T) {
 	t.Parallel()
 
 	m := state.Manifest{
@@ -728,7 +728,7 @@ func TestGetExtraField_InvalidJSON(t *testing.T) {
 			"bad": json.RawMessage(`not-json`),
 		},
 	}
-	got := getExtraField(&m, "bad")
+	got := m.ExtraString("bad")
 	if got != "" {
 		t.Errorf("expected empty for invalid JSON, got %q", got)
 	}
@@ -783,7 +783,7 @@ func TestDelete_DeregistersFromParent(t *testing.T) {
 
 	// Set parent reference and register worker
 	if err := svc.Store.Update("party-child", func(m *state.Manifest) {
-		setExtraField(m, "parent_session", "party-parent")
+		m.SetExtra("parent_session", "party-parent")
 	}); err != nil {
 		t.Fatalf("set parent: %v", err)
 	}
@@ -908,7 +908,7 @@ func TestContinue_ReRegistersWithParent(t *testing.T) {
 
 	// Set parent reference
 	if err := svc.Store.Update("party-worker2", func(m *state.Manifest) {
-		setExtraField(m, "parent_session", "party-master2")
+		m.SetExtra("parent_session", "party-master2")
 	}); err != nil {
 		t.Fatalf("set parent: %v", err)
 	}
@@ -1124,13 +1124,13 @@ func TestStart_WithResumeAndPrompt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read manifest: %v", err)
 	}
-	if got := getExtraField(&m, "claude_session_id"); got != "claude-sess-1" {
+	if got := m.ExtraString("claude_session_id"); got != "claude-sess-1" {
 		t.Errorf("claude_session_id: got %q", got)
 	}
-	if got := getExtraField(&m, "codex_thread_id"); got != "codex-thread-1" {
+	if got := m.ExtraString("codex_thread_id"); got != "codex-thread-1" {
 		t.Errorf("codex_thread_id: got %q", got)
 	}
-	if got := getExtraField(&m, "initial_prompt"); got != "fix the bug" {
+	if got := m.ExtraString("initial_prompt"); got != "fix the bug" {
 		t.Errorf("initial_prompt: got %q", got)
 	}
 }
@@ -1208,10 +1208,10 @@ func TestContinue_BadCwd(t *testing.T) {
 	}
 }
 
-// Test nowUTC returns a timestamp
+// Test NowUTC returns a timestamp
 func TestNowUTC(t *testing.T) {
 	t.Parallel()
-	ts := nowUTC()
+	ts := state.NowUTC()
 	if len(ts) < 20 {
 		t.Errorf("nowUTC too short: %q", ts)
 	}
@@ -1445,9 +1445,9 @@ func TestSetCleanupHook(t *testing.T) {
 	}
 }
 
-// TestCleanupHook_VariableVisibility verifies the generated hook command
-// passes SR and W to the inner bash -c via exported env vars.
-func TestCleanupHook_VariableVisibility(t *testing.T) {
+// TestCleanupHook_DelegatesToScript verifies the generated hook command
+// calls cleanup-hook.sh with the correct state root and session ID args.
+func TestCleanupHook_DelegatesToScript(t *testing.T) {
 	t.Parallel()
 	svc, runner := setupService(t)
 	runner.sessions["party-vis"] = true
@@ -1468,26 +1468,14 @@ func TestCleanupHook_VariableVisibility(t *testing.T) {
 		t.Fatal("set-hook call not found")
 	}
 
-	// Verify the hook exports SR and W so inner bash -c can see them
-	if !strings.Contains(hookCmd, "export SR=") {
-		t.Error("hook must export SR")
+	if !strings.Contains(hookCmd, "cleanup-hook.sh") {
+		t.Error("hook must delegate to cleanup-hook.sh")
 	}
-	if !strings.Contains(hookCmd, "W=party-vis") {
-		t.Error("hook must set W to session ID")
+	if !strings.Contains(hookCmd, svc.Store.Root()) {
+		t.Error("hook must pass state root as argument")
 	}
-	// Verify inner bash -c references $W and $SR (not hardcoded session IDs)
-	if !strings.Contains(hookCmd, "$W") {
-		t.Error("inner command should reference $W")
-	}
-	if !strings.Contains(hookCmd, "$SR/$p.json") {
-		t.Error("inner command should reference $SR/$p.json")
-	}
-	// Verify Perl uses system() not exec() — exec drops the flock before bash runs
-	if strings.Contains(hookCmd, "exec @ARGV") {
-		t.Error("hook must use system() not exec() to hold flock during rewrite")
-	}
-	if !strings.Contains(hookCmd, "system(@ARGV") {
-		t.Error("hook must use system() to hold flock while bash -c runs")
+	if !strings.Contains(hookCmd, "party-vis") {
+		t.Error("hook must pass session ID as argument")
 	}
 }
 
