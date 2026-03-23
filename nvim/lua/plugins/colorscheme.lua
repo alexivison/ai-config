@@ -5,6 +5,7 @@ return {
     config = function()
       require("github-theme").setup({
         options = {
+          transparent = true,
           darken = {
             floats = false,
             sidebars = { enable = false },
