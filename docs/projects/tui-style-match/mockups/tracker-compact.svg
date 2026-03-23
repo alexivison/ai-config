@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="430" height="250" viewBox="0 0 430 250" role="img" aria-labelledby="title desc">
+  <title id="title">party-cli master tracker compact mockup</title>
+  <desc id="desc">Compact bordered master tracker in short-height mode with footer-folded hints and brighter inactive titles.</desc>
+  <rect width="430" height="250" fill="#111111"/>
+  <rect x="22" y="24" width="386" height="174" rx="12" ry="12" fill="none" stroke="#4c78ff" stroke-width="2"/>
+  <text x="40" y="50" font-family="Menlo, Monaco, monospace" font-size="15" fill="#ffd700">╭─ Master</text>
+  <text x="130" y="50" font-family="Menlo, Monaco, monospace" font-size="15" fill="#4c78ff">: party-master-1 ─────────────────╮</text>
+  <rect x="38" y="76" width="340" height="26" fill="#d0d0d0" opacity="0.18"/>
+  <text x="44" y="94" font-family="Menlo, Monaco, monospace" font-size="15" fill="#f2f2f2">▸ task-a                           ●     </text>
+  <text x="44" y="126" font-family="Menlo, Monaco, monospace" font-size="15" fill="#d0d0d0">  task-b                           ○     </text>
+  <text x="44" y="158" font-family="Menlo, Monaco, monospace" font-size="15" fill="#d0d0d0">  task-c                           ●     </text>
+  <text x="40" y="184" font-family="Menlo, Monaco, monospace" font-size="15" fill="#d0d0d0">╰─ 3 workers · j/k · ↵ · r · b · s · m · q ╯</text>
+</svg>

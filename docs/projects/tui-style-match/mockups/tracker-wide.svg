@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="340" viewBox="0 0 920 340" role="img" aria-labelledby="title desc">
+  <title id="title">party-cli master tracker wide mockup</title>
+  <desc id="desc">Wide bordered master tracker with reverse-selected row, readable inactive titles, and footer-first hints.</desc>
+  <rect width="920" height="340" fill="#111111"/>
+  <rect x="28" y="28" width="864" height="274" rx="12" ry="12" fill="none" stroke="#4c78ff" stroke-width="2"/>
+  <text x="52" y="56" font-family="Menlo, Monaco, monospace" font-size="18" fill="#ffd700">╭─ Master</text>
+  <text x="168" y="56" font-family="Menlo, Monaco, monospace" font-size="18" fill="#4c78ff">: party-master-1 ──────────────────────────────────────────────────────╮</text>
+  <rect x="50" y="78" width="820" height="28" fill="#d0d0d0" opacity="0.18"/>
+  <text x="58" y="97" font-family="Menlo, Monaco, monospace" font-size="17" fill="#f2f2f2">▸ worker-a                               ● active</text>
+  <text x="58" y="128" font-family="Menlo, Monaco, monospace" font-size="17" fill="#9a9a9a">  ⏺ reviewing tui/style.go</text>
+  <text x="58" y="170" font-family="Menlo, Monaco, monospace" font-size="17" fill="#d0d0d0">  worker-b                               ○ stopped</text>
+  <text x="58" y="198" font-family="Menlo, Monaco, monospace" font-size="17" fill="#9a9a9a">  · last verdict: REQUEST_CHANGES</text>
+  <text x="58" y="236" font-family="Menlo, Monaco, monospace" font-size="17" fill="#d0d0d0">  worker-c                               ● active</text>
+  <text x="58" y="264" font-family="Menlo, Monaco, monospace" font-size="17" fill="#9a9a9a">  · running go test ./tools/party-cli/internal/tui/...</text>
+  <text x="52" y="290" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">╰─ 3 workers · j/k nav · enter attach · r relay · s spawn · m manifest ╯</text>
+</svg>

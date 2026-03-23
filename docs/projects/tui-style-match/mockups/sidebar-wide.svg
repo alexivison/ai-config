@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="320" viewBox="0 0 900 320" role="img" aria-labelledby="title desc">
+  <title id="title">party-cli worker sidebar wide mockup</title>
+  <desc id="desc">Wide bordered worker sidebar with bright labels, muted values, semantic status colors, and footer-first hints.</desc>
+  <rect width="900" height="320" fill="#111111"/>
+  <rect x="28" y="28" width="844" height="262" rx="12" ry="12" fill="none" stroke="#4c78ff" stroke-width="2"/>
+  <text x="52" y="56" font-family="Menlo, Monaco, monospace" font-size="18" fill="#4c78ff">╭─ Worker: party-worker-17 ───────────────────────────────────────────────╮</text>
+
+  <text x="52" y="86" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">│</text>
+  <text x="72" y="86" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">title</text>
+  <text x="152" y="86" font-family="Menlo, Monaco, monospace" font-size="18" fill="#9a9a9a">tui style match</text>
+  <text x="848" y="86" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">│</text>
+
+  <text x="52" y="112" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">│</text>
+  <text x="72" y="112" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">cwd</text>
+  <text x="152" y="112" font-family="Menlo, Monaco, monospace" font-size="18" fill="#9a9a9a">~/Code/ai-config</text>
+  <text x="848" y="112" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">│</text>
+
+  <text x="52" y="146" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">│</text>
+  <text x="72" y="146" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">Codex</text>
+  <text x="152" y="146" font-family="Menlo, Monaco, monospace" font-size="18" fill="#4c78ff">⠋ working</text>
+  <text x="848" y="146" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">│</text>
+
+  <text x="52" y="172" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">│</text>
+  <text x="72" y="172" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">mode</text>
+  <text x="152" y="172" font-family="Menlo, Monaco, monospace" font-size="18" fill="#9a9a9a">review</text>
+  <text x="848" y="172" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">│</text>
+
+  <text x="52" y="198" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">│</text>
+  <text x="72" y="198" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">target</text>
+  <text x="152" y="198" font-family="Menlo, Monaco, monospace" font-size="18" fill="#9a9a9a">docs/projects/tui-style-match/DESIGN.md</text>
+  <text x="848" y="198" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">│</text>
+
+  <text x="52" y="224" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">│</text>
+  <text x="72" y="224" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">Evidence</text>
+  <text x="848" y="224" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">│</text>
+
+  <text x="52" y="250" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">│</text>
+  <text x="72" y="250" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">review</text>
+  <text x="168" y="250" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d9b44a">REQUEST_CHANGES</text>
+  <text x="848" y="250" font-family="Menlo, Monaco, monospace" font-size="18" fill="#d0d0d0">│</text>
+
+  <text x="52" y="276" font-family="Menlo, Monaco, monospace" font-size="18" fill="#9a9a9a">╰─ 2 evidence items · q quit · p peek codex ──────────────────────────────╯</text>
+</svg>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="260" viewBox="0 0 420 260" role="img" aria-labelledby="title desc">
+  <title id="title">party-cli worker sidebar compact mockup</title>
+  <desc id="desc">Compact bordered worker sidebar in short-height mode with bright labels, muted values, and footer-folded hints.</desc>
+  <rect width="420" height="260" fill="#111111"/>
+  <rect x="22" y="24" width="376" height="182" rx="12" ry="12" fill="none" stroke="#4c78ff" stroke-width="2"/>
+  <text x="40" y="52" font-family="Menlo, Monaco, monospace" font-size="15" fill="#4c78ff">╭─ party-worker-17 / worker ─────────────────╮</text>
+
+  <text x="40" y="86" font-family="Menlo, Monaco, monospace" font-size="15" fill="#d0d0d0">│</text>
+  <text x="56" y="86" font-family="Menlo, Monaco, monospace" font-size="15" fill="#d0d0d0">title</text>
+  <text x="112" y="86" font-family="Menlo, Monaco, monospace" font-size="15" fill="#9a9a9a">tui style match</text>
+  <text x="382" y="86" font-family="Menlo, Monaco, monospace" font-size="15" fill="#d0d0d0">│</text>
+
+  <text x="40" y="112" font-family="Menlo, Monaco, monospace" font-size="15" fill="#d0d0d0">│</text>
+  <text x="56" y="112" font-family="Menlo, Monaco, monospace" font-size="15" fill="#d0d0d0">Codex</text>
+  <text x="120" y="112" font-family="Menlo, Monaco, monospace" font-size="15" fill="#9a9a9a">idle</text>
+  <text x="382" y="112" font-family="Menlo, Monaco, monospace" font-size="15" fill="#d0d0d0">│</text>
+
+  <text x="40" y="138" font-family="Menlo, Monaco, monospace" font-size="15" fill="#d0d0d0">│</text>
+  <text x="56" y="138" font-family="Menlo, Monaco, monospace" font-size="15" fill="#d0d0d0">verdict</text>
+  <text x="136" y="138" font-family="Menlo, Monaco, monospace" font-size="15" fill="#58c06d">APPROVE</text>
+  <text x="382" y="138" font-family="Menlo, Monaco, monospace" font-size="15" fill="#d0d0d0">│</text>
+
+  <text x="40" y="164" font-family="Menlo, Monaco, monospace" font-size="15" fill="#d0d0d0">│</text>
+  <text x="56" y="164" font-family="Menlo, Monaco, monospace" font-size="15" fill="#d0d0d0">ago</text>
+  <text x="112" y="164" font-family="Menlo, Monaco, monospace" font-size="15" fill="#9a9a9a">12s</text>
+  <text x="382" y="164" font-family="Menlo, Monaco, monospace" font-size="15" fill="#d0d0d0">│</text>
+
+  <text x="40" y="190" font-family="Menlo, Monaco, monospace" font-size="15" fill="#9a9a9a">╰─ 2 evidence · q quit · p peek ─────────────╯</text>
+</svg>
