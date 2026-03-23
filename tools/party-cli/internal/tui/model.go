@@ -282,7 +282,11 @@ func (m Model) View() string {
 	}
 	footer := sidebarHelpStyle.Render(strings.Join(footerParts, " · "))
 
-	result := borderedPane(body.String(), title, footer, w, h, true)
+	paneH := h
+	if showStatus {
+		paneH = h - 1 // reserve one row for the status bar
+	}
+	result := borderedPane(body.String(), title, footer, w, paneH, true)
 	if showStatus && m.PeekMsg != "" {
 		result += "\n" + renderStatusBar(w, nil, m.PeekMsg, nil)
 	}
