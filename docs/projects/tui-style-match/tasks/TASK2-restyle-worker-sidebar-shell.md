@@ -101,11 +101,11 @@ Test cases:
 
 ## Acceptance Criteria
 
-- [ ] Worker mode uses bordered pane chrome instead of flat rules
-- [ ] Worker steady-state hints render in the pane footer
-- [ ] Worker body uses the same flat-list interior feel as the tracker instead of a rigid form layout
-- [ ] Title and cwd render as direct value lines, not label:value rows
-- [ ] `Codex` and `Evidence` render as bright section headers with indented detail content beneath them
-- [ ] Short worker panes render without a separate status bar line
-- [ ] Tall transient worker errors may use the shared status bar without violating the height budget
-- [ ] Wide and compact worker tests cover the new chrome and flat-list layout contract
+- [x] Worker mode uses bordered pane chrome instead of flat rules
+- [x] Worker steady-state hints render in the pane footer
+- [x] Worker body uses the same flat-list interior feel as the tracker instead of a rigid form layout
+- [x] Title and cwd render as direct value lines, not label:value rows
+- [x] `Codex` and `Evidence` render as bright section headers with indented detail content beneath them
+- [x] Short worker panes render without a separate status bar line
+- [x] Tall transient worker errors may use the shared status bar without violating the height budget
+- [x] Wide and compact worker tests cover the new chrome and flat-list layout contract
