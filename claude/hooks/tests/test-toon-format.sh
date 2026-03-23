@@ -2,6 +2,11 @@
 # Lightweight TOON findings-format sanity checks.
 set -euo pipefail
 
+if ! command -v toon &>/dev/null; then
+  echo "SKIP: toon CLI not available"
+  exit 0
+fi
+
 PASS=0
 FAIL=0
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
