@@ -1,20 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="420" height="260" viewBox="0 0 420 260" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="220" viewBox="0 0 420 220" role="img" aria-labelledby="title desc">
   <title id="title">party-cli worker sidebar compact mockup</title>
-  <desc id="desc">Compact bordered worker sidebar in short-height mode with a flat-list interior and footer-folded hints.</desc>
-  <rect width="420" height="260" fill="#111111"/>
-  <rect x="22" y="24" width="376" height="198" rx="12" ry="12" fill="none" stroke="#4c78ff" stroke-width="2"/>
-  <text x="40" y="52" font-family="Menlo, Monaco, monospace" font-size="15" fill="#4c78ff">╭─ party-worker-17 / worker ─────────────────╮</text>
-
-  <text x="40" y="84" font-family="Menlo, Monaco, monospace" font-size="15" fill="#9a9a9a">│ tui style match                            │</text>
-  <text x="40" y="108" font-family="Menlo, Monaco, monospace" font-size="15" fill="#9a9a9a">│ ~/Code/ai-config                           │</text>
-
-  <text x="40" y="136" font-family="Menlo, Monaco, monospace" font-size="15" fill="#d0d0d0">│ Codex </text>
-  <text x="94" y="136" font-family="Menlo, Monaco, monospace" font-size="15" fill="#9a9a9a">idle</text>
-  <text x="382" y="136" font-family="Menlo, Monaco, monospace" font-size="15" fill="#d0d0d0">│</text>
-
-  <text x="40" y="160" font-family="Menlo, Monaco, monospace" font-size="15" fill="#9a9a9a">│   APPROVE · 12s ago                        │</text>
-  <text x="40" y="184" font-family="Menlo, Monaco, monospace" font-size="15" fill="#d0d0d0">│ Evidence                                   │</text>
-  <text x="40" y="208" font-family="Menlo, Monaco, monospace" font-size="15" fill="#9a9a9a">│   review REQUEST_CHANGES                   │</text>
-
-  <text x="40" y="232" font-family="Menlo, Monaco, monospace" font-size="15" fill="#9a9a9a">╰─ 2 evidence · q quit · p peek ─────────────╯</text>
+  <desc id="desc">Compact bordered worker sidebar in short-height mode with flat-list interior and footer-folded hints.</desc>
+  <style>
+    text { font-family: "JetBrains Mono", "Menlo", monospace; font-size: 14px; }
+    .border { fill: #6688cc; }
+    .muted { fill: #686868; }
+    .label { fill: #d0d0d0; }
+    .green { fill: #5faf5f; }
+    .dim { fill: #585858; }
+  </style>
+  <rect width="420" height="220" rx="6" fill="#1a1a2e"/>
+  <!-- top border -->
+  <text x="16" y="30" class="border">╭─ party-worker-17 / worker ──────────────╮</text>
+  <!-- body -->
+  <text x="16" y="54" class="border">│</text><text x="32" y="54" class="muted">tui style match</text><text x="396" y="54" class="border">│</text>
+  <text x="16" y="78" class="border">│</text><text x="32" y="78" class="muted">~/Code/ai-config</text><text x="396" y="78" class="border">│</text>
+  <text x="16" y="102" class="border">│</text><text x="396" y="102" class="border">│</text>
+  <text x="16" y="126" class="border">│</text><text x="32" y="126" class="label">Codex</text><text x="80" y="126" class="muted"> idle</text><text x="396" y="126" class="border">│</text>
+  <text x="16" y="150" class="border">│</text><text x="48" y="150" class="green">APPROVE</text><text x="130" y="150" class="muted"> · 12s ago</text><text x="396" y="150" class="border">│</text>
+  <text x="16" y="174" class="border">│</text><text x="32" y="174" class="label">Evidence</text><text x="396" y="174" class="border">│</text>
+  <!-- bottom border -->
+  <text x="16" y="198" class="border">╰─ 2 evidence · q quit · p peek ──────────╯</text>
 </svg>
