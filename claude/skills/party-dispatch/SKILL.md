@@ -2,21 +2,21 @@
 name: party-dispatch
 description: >-
   Batch-dispatch multiple tickets or tasks to parallel party sessions, each
-  running a specified skill. Requires 2+ items — for dispatching a single
-  freeform task use /party-spawn instead. Takes the first item in the current
-  session and spawns detached party sessions for the rest via party.sh. Use when
-  the user wants to fix multiple bugs at once, work on several tickets in
-  parallel, spawn parties for a batch of issues, or says things like "fix these
-  tickets", "party bugfix", "spawn parties for these", "work on all of these",
-  "dispatch these tasks". Supports Linear URLs/IDs and local file paths (e.g.,
-  TASK*.md).
+  running a specified skill. Promotes to master and dispatches ALL items to
+  workers — the master orchestrates but never implements. Requires 2+ items; for
+  a single freeform task use /party-spawn instead. Use when the user wants to fix
+  multiple bugs at once, work on several tickets in parallel, spawn parties for a
+  batch of issues, or says things like "fix these tickets", "party bugfix",
+  "spawn parties for these", "work on all of these", "dispatch these tasks".
+  Supports Linear URLs/IDs and local file paths (e.g., TASK*.md).
 user-invocable: true
 ---
 
 # Party Dispatch
 
-Batch-dispatch multiple work items to parallel party sessions. Each session gets
-its own Paladin + Wizard pair running the specified skill autonomously.
+Batch-dispatch multiple work items to parallel party sessions. The master
+promotes itself to orchestrator mode and delegates ALL items to workers — it
+never takes an item for itself.
 
 For spawning a single worker with a freeform prompt, use `/party-spawn`.
 
@@ -48,35 +48,26 @@ Separate arguments into the skill name and work items. Classify each item:
 
 Fetch all Linear tickets in parallel (multiple tool calls in one turn).
 
-### Step 3 — Take the first item yourself
+### Step 3 — Promote to master
 
-Invoke the specified skill directly in the current session. Pass the gathered
-context as arguments. For example:
-
-- `/bugfix-workflow` with the Linear ticket context pasted
-- `/task-workflow` with the file path
-
-### Step 4 — Spawn workers for remaining items
-
-First, discover the current tmux session name:
+Discover the current tmux session name:
 
 ```bash
 tmux display-message -p '#{session_name}'
 ```
 
-Check if this is a **master session** (`session_type == "master"` in manifest).
-
-**If not a master**, promote it first so workers register back:
+Always promote to master so workers register back and the tracker pane activates:
 
 ```bash
 ~/Code/ai-config/session/party.sh --promote <session-name>
 ```
 
 This replaces the Codex pane with the tracker and sets `session_type=master`.
+If already a master, this is a no-op.
 
-**Master session mode**: Dispatch ALL items to workers (keep none for self).
+### Step 4 — Spawn workers for ALL items
 
-Spawn each remaining item as a **detached worker session** registered with the master:
+Spawn each item as a **detached worker session** registered with the master:
 
 ```bash
 ~/Code/ai-config/session/party.sh --detached --master-id <session-name> --prompt "<prompt>" "<title>"
@@ -84,6 +75,9 @@ Spawn each remaining item as a **detached worker session** registered with the m
 
 The `<title>` becomes the worker session's window name (e.g., the ticket ID).
 Each worker is an independent tmux session with its own manifest, resumable via `--continue`.
+
+Spawn workers **sequentially** (one Bash call at a time, not parallel).
+Wait for each spawn to complete before starting the next.
 
 #### Prompt construction
 
@@ -118,23 +112,94 @@ When done, report completion to the master:
 ~/Code/ai-config/session/party-relay.sh --report "done: <one-line summary of what was completed>"
 ```
 
-Spawn workers **sequentially** (one Bash call at a time, not parallel).
-Wait for each spawn to complete before starting the next.
+### Step 5 — Create tracker and report
 
-### Step 5 — Report
+After spawning all workers, create a task list to track each worker's progress
+using `TaskCreate`. Each task should include the worker session name, item ID,
+and current status:
 
-After spawning, report to the user:
+```
+- [ ] party-1234 | ENG-123 — Fix auth bug | dispatched
+- [ ] party-1235 | ENG-124 — Update config | dispatched
+- [ ] party-1236 | TASK-01.md — Add retry logic | dispatched
+```
 
-- Which item you are handling in this window
-- Which items were dispatched to worker sessions (with session names)
+Then report to the user:
+
+- All dispatched workers (session names and items)
+- How to check on workers: `party-relay.sh --read <worker-id>`
 - How to switch between them: `party.sh --switch` or `prefix + s` (tmux session picker)
+- Point to the task list for live tracking
 
-Then proceed with your own item's workflow — do not wait.
+Do not wait for workers — proceed to orchestration immediately.
 
 ## Ongoing Orchestration
 
-After dispatch the master session stays active to coordinate workers. During
-this phase:
+After dispatch the master session stays active to coordinate workers through
+their entire lifecycle. The master is an orchestrator, never an implementor.
+
+### Monitoring workers
+
+- **Check status**: `party-relay.sh --list` to see all workers and their state
+- **Read scrollback**: `party-relay.sh --read <worker-id>` (default 50 lines)
+  or `--read <worker-id> --lines 200` for deeper history
+- **Watch tracker pane**: the left pane shows real-time worker status
+
+### Handling worker reports
+
+Workers report back via `[WORKER:<session-id>]` prefixed messages. When a
+report arrives:
+
+1. Read the report content
+2. Update the corresponding task via `TaskUpdate` (mark completed, add summary)
+3. If the worker opened a PR, note the PR URL in the task
+4. Check if all workers are done — if so, proceed to final summary
+
+### Relaying follow-up instructions
+
+When a worker needs guidance or additional work:
+
+```bash
+~/Code/ai-config/session/party-relay.sh <worker-id> "instruction text"
+```
+
+Always include investigation context (file paths, line numbers, root cause
+analysis) so the worker can act immediately without re-investigating.
+
+For broadcasts to all workers:
+
+```bash
+~/Code/ai-config/session/party-relay.sh --broadcast "message"
+```
+
+### Reviewing worker PRs
+
+When a worker completes and opens a PR:
+
+1. Read the PR: `gh pr view <number>` and `gh pr diff <number>`
+2. Check CI status: `gh pr checks <number>`
+3. If CI fails, read the scrollback and relay fix instructions to the worker
+4. If CI passes and changes look good, note it in the task list
+
+### Handling worker failures
+
+If a worker appears stuck or reports an error:
+
+1. Read scrollback: `party-relay.sh --read <worker-id> --lines 200`
+2. Diagnose the issue from the output
+3. Relay fix instructions with context: `party-relay.sh <worker-id> "..."`
+4. If the worker is unrecoverable, note it in the task list and consider
+   spawning a replacement via `/party-spawn`
+
+### Final summary
+
+When all workers have reported back (all tasks completed):
+
+1. Summarize results: which items succeeded, which failed, PR URLs
+2. List any follow-up items that need attention
+3. Report the final status to the user
+
+### Rules
 
 - **Investigate freely** — Read, Grep, Glob, Bash (read-only commands), and
   MCP queries are all fine. Gathering context to relay to workers is core
