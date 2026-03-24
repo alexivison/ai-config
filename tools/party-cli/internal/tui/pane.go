@@ -98,6 +98,20 @@ func padOrTruncate(s string, width int) string {
 	return s + strings.Repeat(" ", width-w)
 }
 
+// clampDimensions ensures outer dimensions are large enough for borderedPane
+// to render borders (width ≥ 4, height ≥ 3). Fallback values (20×10) match
+// Model.View's convention and provide a usable pane until the first
+// WindowSizeMsg arrives or a rapid resize settles.
+func clampDimensions(w, h int) (int, int) {
+	if w < 4 {
+		w = 20
+	}
+	if h < 3 {
+		h = 10
+	}
+	return w, h
+}
+
 // contentDimensions returns the inner width and height available for content
 // inside a bordered pane. Values are clamped to ≥0.
 func contentDimensions(outerWidth, outerHeight int) (int, int) {
