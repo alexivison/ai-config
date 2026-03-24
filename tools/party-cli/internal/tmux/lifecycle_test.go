@@ -297,6 +297,53 @@ func TestNewWindow_Error(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// KillWindow
+// ---------------------------------------------------------------------------
+
+func TestKillWindow_Success(t *testing.T) {
+	t.Parallel()
+
+	m := newMock(func(_ context.Context, args ...string) (string, error) {
+		if args[0] != "kill-window" {
+			t.Errorf("expected kill-window, got %s", args[0])
+		}
+		return "", nil
+	})
+	c := NewClient(m)
+
+	if err := c.KillWindow(t.Context(), "party-s:0"); err != nil {
+		t.Fatalf("KillWindow: %v", err)
+	}
+}
+
+func TestKillWindow_NotFound(t *testing.T) {
+	t.Parallel()
+
+	m := newMock(func(_ context.Context, _ ...string) (string, error) {
+		return "", &ExitError{Code: 1}
+	})
+	c := NewClient(m)
+
+	// Should return nil when window doesn't exist
+	if err := c.KillWindow(t.Context(), "party-gone:0"); err != nil {
+		t.Fatalf("KillWindow of absent window: %v", err)
+	}
+}
+
+func TestKillWindow_Error(t *testing.T) {
+	t.Parallel()
+
+	m := newMock(func(_ context.Context, _ ...string) (string, error) {
+		return "", errors.New("server crashed")
+	})
+	c := NewClient(m)
+
+	if err := c.KillWindow(t.Context(), "party-x:0"); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+// ---------------------------------------------------------------------------
 // RenameWindow
 // ---------------------------------------------------------------------------
 
