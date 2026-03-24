@@ -19,6 +19,26 @@ import (
 // Mock tmux runner — records all tmux commands
 // ---------------------------------------------------------------------------
 
+// splitBatchArgs splits args on ";" separators into individual command slices.
+func splitBatchArgs(args []string) [][]string {
+	var cmds [][]string
+	var cur []string
+	for _, a := range args {
+		if a == ";" {
+			if len(cur) > 0 {
+				cmds = append(cmds, cur)
+				cur = nil
+			}
+			continue
+		}
+		cur = append(cur, a)
+	}
+	if len(cur) > 0 {
+		cmds = append(cmds, cur)
+	}
+	return cmds
+}
+
 type callRecord struct {
 	args []string
 }
@@ -46,8 +66,17 @@ func (m *mockRunner) Run(ctx context.Context, args ...string) (string, error) {
 	return m.fn(ctx, args...)
 }
 
-func (m *mockRunner) defaultHandler(_ context.Context, args ...string) (string, error) {
+func (m *mockRunner) defaultHandler(ctx context.Context, args ...string) (string, error) {
 	if len(args) == 0 {
+		return "", nil
+	}
+	// Handle batched commands separated by ";".
+	if cmds := splitBatchArgs(args); len(cmds) > 1 {
+		for _, cmd := range cmds {
+			if _, err := m.defaultHandler(ctx, cmd...); err != nil {
+				return "", err
+			}
+		}
 		return "", nil
 	}
 	switch args[0] {
@@ -1159,42 +1188,8 @@ func TestDelete_NotRunning(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// configureTheme
+// themeCmd (package-level helper, tested via layout integration)
 // ---------------------------------------------------------------------------
-
-func TestConfigureTheme(t *testing.T) {
-	t.Parallel()
-	svc, runner := setupService(t)
-
-	if err := svc.configureTheme(t.Context(), "party-s:0"); err != nil {
-		t.Fatalf("configureTheme: %v", err)
-	}
-
-	// Should call set-option -w for pane-border-status and pane-border-format
-	if !runner.hasCall("set-option", "-w") {
-		t.Error("expected set-option -w call")
-	}
-}
-
-func TestConfigureTheme_Error(t *testing.T) {
-	t.Parallel()
-	svc, runner := setupService(t)
-
-	setOptionCalls := 0
-	runner.fn = func(ctx context.Context, args ...string) (string, error) {
-		if len(args) > 0 && args[0] == "set-option" {
-			setOptionCalls++
-			if setOptionCalls == 1 {
-				return "", &tmux.ExitError{Code: 1}
-			}
-		}
-		return runner.defaultHandler(ctx, args...)
-	}
-
-	if err := svc.configureTheme(t.Context(), "party-s:0"); err == nil {
-		t.Fatal("expected error from configureTheme")
-	}
-}
 
 // Test Continue with bad cwd (falls back to getwd)
 func TestContinue_BadCwd(t *testing.T) {
