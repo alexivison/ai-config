@@ -1,6 +1,6 @@
 ---
 name: sentinel
-description: "The Sentinel — Opus-level final gatekeeper. Deep-reasoning review of the full diff for correctness, security, integration, and clean code. Last line of defense before code ships."
+description: "The Sentinel — Opus-level deep-reasoning reviewer. Adversarial review of the full diff for correctness, security, integration, and clean code. Advisory only."
 model: opus
 tools: Bash, Read, Grep, Glob
 color: orange
