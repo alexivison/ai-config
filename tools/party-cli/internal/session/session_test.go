@@ -44,18 +44,20 @@ type callRecord struct {
 }
 
 type mockRunner struct {
-	calls     []callRecord
-	fn        func(ctx context.Context, args ...string) (string, error)
-	sessions  map[string]bool
-	paneRoles map[string]string // target → role
-	envVars   map[string]string // session:key → value
+	calls       []callRecord
+	fn          func(ctx context.Context, args ...string) (string, error)
+	sessions    map[string]bool
+	paneRoles   map[string]string // target → role
+	envVars     map[string]string // session:key → value
+	windowNames map[string]string // target → name
 }
 
 func newMockRunner() *mockRunner {
 	r := &mockRunner{
-		sessions:  make(map[string]bool),
-		paneRoles: make(map[string]string),
-		envVars:   make(map[string]string),
+		sessions:    make(map[string]bool),
+		paneRoles:   make(map[string]string),
+		envVars:     make(map[string]string),
+		windowNames: make(map[string]string),
 	}
 	r.fn = r.defaultHandler
 	return r
@@ -95,6 +97,13 @@ func (m *mockRunner) defaultHandler(ctx context.Context, args ...string) (string
 	case "kill-session":
 		session := flagVal(args, "-t")
 		delete(m.sessions, session)
+		return "", nil
+
+	case "rename-window":
+		target := flagVal(args, "-t")
+		if len(args) > 0 {
+			m.windowNames[target] = args[len(args)-1]
+		}
 		return "", nil
 
 	case "kill-window":
@@ -749,6 +758,11 @@ func TestPromote_Classic(t *testing.T) {
 	if runner.paneRoles["party-worker:0.0"] != "tracker" {
 		t.Fatalf("expected tracker role in pane 0.0, got %q", runner.paneRoles["party-worker:0.0"])
 	}
+
+	// Verify window renamed with [master] indicator
+	if got := runner.windowNames["party-worker:0"]; got != "party (worker) [master]" {
+		t.Errorf("expected window renamed to %q, got %q", "party (worker) [master]", got)
+	}
 }
 
 func TestPromote_Sidebar(t *testing.T) {
@@ -806,6 +820,11 @@ func TestPromote_Sidebar(t *testing.T) {
 	// CODEX_THREAD_ID env var should be unset.
 	if _, exists := runner.envVars["party-side:CODEX_THREAD_ID"]; exists {
 		t.Fatalf("expected CODEX_THREAD_ID unset")
+	}
+
+	// Verify window renamed with [master] indicator (sidebar: window 1)
+	if got := runner.windowNames["party-side:1"]; got != "party (sidebar-worker) [master]" {
+		t.Errorf("expected window renamed to %q, got %q", "party (sidebar-worker) [master]", got)
 	}
 }
 
