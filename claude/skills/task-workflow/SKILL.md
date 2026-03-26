@@ -54,7 +54,7 @@ Use the canonical sequence in [execution-core.md](~/.claude/rules/execution-core
       `work_dir` is required — pass the worktree/repo path. Codex notifies via `[CODEX]` message when done.
 8. **Sentinel review** — Immediately after dispatching Codex, launch the `sentinel` sub-agent in the background. Pass the merge-base diff, scope boundaries from TASK, and a short PR goal context.
       - **BARRIER:** no code edits until both Codex AND Sentinel return.
-      - `[must]` findings are **gating** — fix before proceeding. `[should]` findings are advisory.
+      - Sentinel findings are advisory (no gating markers). Paladin triages.
 9. **Triage findings** — When `[CODEX] Review complete` arrives: read findings, triage by severity. Triage the UNION of Codex + Sentinel findings.
    - **Blocking in-scope findings:** fix code → commit → re-run critics → dispatch new `--review` → `--review-complete`.
    - **Out-of-scope / NEEDS_DISCUSSION:** follow [execution-core.md § Dispute Resolution](~/.claude/rules/execution-core.md#dispute-resolution).
