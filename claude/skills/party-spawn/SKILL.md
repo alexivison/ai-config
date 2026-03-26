@@ -66,7 +66,7 @@ prompt is everything it knows.
 
 ```
 When done, report completion to the master:
-~/Code/ai-config/session/party-relay.sh --report "done: <one-line summary>"
+~/Code/ai-config/session/party-relay.sh --report "done: <one-line summary> | PR: <url or 'none'>"
 ```
 
 **Short prompts** (under 400 characters total): pass inline via `--prompt`.
@@ -101,6 +101,17 @@ Tell the user:
 - That the worker will report back via `[WORKER:<id>]` when done
 
 Then continue with whatever the master was doing — do not wait for the worker.
+
+## Handling Worker Completion
+
+When the worker reports back via `[WORKER:<id>]` with a PR URL:
+
+1. Read the PR: `gh pr view <number>` and `gh pr diff <number>`
+2. Check CI status: `gh pr checks <number>`
+3. If CI fails, relay fix instructions to the worker via `party-relay.sh`
+4. Run `/code-review` on the PR diff for a structured quality review
+5. If blocking issues found, relay findings with file:line context to the worker
+6. If review passes and CI is green, approve and merge the PR
 
 ## Important
 

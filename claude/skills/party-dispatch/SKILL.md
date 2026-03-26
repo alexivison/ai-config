@@ -98,7 +98,7 @@ Run /<skill> on this issue.
 Work in the repo at <absolute-cwd>.
 
 When done, report completion to the master:
-~/Code/ai-config/session/party-relay.sh --report "done: <one-line summary of what was completed>"
+~/Code/ai-config/session/party-relay.sh --report "done: <one-line summary> | PR: <url or 'none'>"
 ```
 
 For file-based items:
@@ -109,7 +109,7 @@ Run /task-workflow on the task file at: <absolute-path>
 Read the file first to understand the scope, then execute the workflow.
 
 When done, report completion to the master:
-~/Code/ai-config/session/party-relay.sh --report "done: <one-line summary of what was completed>"
+~/Code/ai-config/session/party-relay.sh --report "done: <one-line summary> | PR: <url or 'none'>"
 ```
 
 ### Step 5 — Create tracker and report
@@ -179,7 +179,11 @@ When a worker completes and opens a PR:
 1. Read the PR: `gh pr view <number>` and `gh pr diff <number>`
 2. Check CI status: `gh pr checks <number>`
 3. If CI fails, read the scrollback and relay fix instructions to the worker
-4. If CI passes and changes look good, note it in the task list
+4. Run `/code-review` on the PR diff to get a structured quality review
+5. If the review finds blocking issues, relay the findings to the worker with
+   file paths and line numbers so they can fix without re-investigating
+6. If the review passes and CI is green, approve and merge the PR
+7. Update the task list with the final status
 
 ### Handling worker failures
 

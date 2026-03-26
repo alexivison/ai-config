@@ -100,9 +100,11 @@ When running in a master session (`session_type == "master"` in manifest):
 **CRITICAL — Worker report-back:** Every worker prompt you write MUST end with:
 ```
 When done, report completion to the master:
-~/Code/ai-config/session/party-relay.sh --report "done: <one-line summary>"
+~/Code/ai-config/session/party-relay.sh --report "done: <one-line summary> | PR: <url or 'none'>"
 ```
 Workers that don't receive this instruction will silently finish without notifying the master.
+
+**PR review obligation:** When a worker reports a PR, the master MUST review it before approving. Run `/code-review` on the diff. Relay blocking findings to the worker. Only approve+merge after CI green + review pass.
 
 ## Verification Principle
 
