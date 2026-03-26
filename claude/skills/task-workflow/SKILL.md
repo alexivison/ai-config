@@ -42,9 +42,10 @@ Use the canonical sequence in [execution-core.md](~/.claude/rules/execution-core
    - Compare `git diff --name-only` against TASK "In Scope".
    - Any out-of-scope file touch requires explicit justification; otherwise stop with `NEEDS_DISCUSSION`.
    - Remove single-use abstractions, speculative code (YAGNI), and unjustified new dependencies.
-6. **code-critic + minimizer** — Run in parallel with scope context and diff focus (see [Review Governance](#review-governance)).
-   - Round 1: collect findings, fix only `[must]` in one batch.
-   - **After fixing blocking items → re-run BOTH critics (one pass).** Do NOT proceed to codex without this re-run. Only when both return APPROVE (or only non-blocking findings remain) may you proceed.
+6. **code-critic + minimizer + scribe** — Run all three in parallel with scope context and diff focus (see [Review Governance](#review-governance)).
+   - **scribe** gets the TASK file path, diff command, and test file paths. It verifies every requirement is implemented and tested.
+   - Round 1: collect findings from all three, fix only `[must]` in one batch.
+   - **After fixing blocking items → re-run all three (one pass).** Do NOT proceed to codex without this re-run. Only when all return APPROVE (or only non-blocking findings remain) may you proceed.
    - Stop critic loop at 2 rounds. If blocking findings still remain, escalate `NEEDS_DISCUSSION`.
    - `[q]`/`[nit]` are opt-in only (explicit polish request) and should not trigger another critic round.
 7. **Dispatch Codex review** (non-blocking):
