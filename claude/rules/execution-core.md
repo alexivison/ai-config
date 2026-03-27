@@ -53,7 +53,7 @@ Evidence is stored in a per-session JSONL log (`/tmp/claude-evidence-{session_id
 
 ## Tiered Execution
 
-- **Full tier** (default): current sequence unchanged (`/write-tests → implement → ... → PR`). Required evidence: pr-verified, code-critic, minimizer, codex, test-runner, check-runner. Scribe evidence is additionally required when a TASK file drives the workflow (task-workflow only — not bugfix-workflow).
+- **Full tier** (default): current sequence unchanged (`/write-tests → implement → ... → PR`). Gate-enforced evidence: pr-verified, code-critic, minimizer, codex, test-runner, check-runner. Scribe is workflow-enforced by task-workflow (not gate-enforced) — it runs when a TASK file exists but bugfix-workflow has no TASK file, so scribe cannot be a universal gate requirement.
 - **Quick tier**: requires explicit `quick-tier` evidence from the quick-fix-workflow skill (size alone is insufficient). For non-behavioral changes only (config, deps, typos, CI). Sequence: `implement → code-critic → test-runner → check-runner → PR`. Required evidence: quick-tier, code-critic, test-runner, check-runner. Size limit: ≤30 changed lines (additions + deletions), ≤3 files, 0 new files. Explicitly forbidden for: new features, bug fixes, logic changes, API changes, security-relevant changes.
 
 ## Review Governance

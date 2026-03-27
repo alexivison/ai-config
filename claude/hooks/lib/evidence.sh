@@ -214,8 +214,8 @@ append_triage_override() {
 
   # Guard: only critic types can be overridden
   case "$type" in
-    code-critic|minimizer) ;;
-    *) echo "ERROR: triage override not allowed for type '$type' (only: code-critic, minimizer)" >&2; return 1 ;;
+    code-critic|minimizer|scribe) ;;
+    *) echo "ERROR: triage override not allowed for type '$type' (only: code-critic, minimizer, scribe)" >&2; return 1 ;;
   esac
 
   if [ -z "$rationale" ]; then
