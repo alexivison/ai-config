@@ -115,6 +115,18 @@ while [[ $# -gt 0 ]]; do
       party_resolve_cli_bin || exit 1
       exec "${PARTY_CLI_CMD[@]}" promote "$_promote_target"
       ;;
+    --resize)
+      _resize_target="${2:-}"
+      if [[ -z "$_resize_target" && -n "${TMUX:-}" ]]; then
+        _resize_target="$(tmux display-message -p '#{session_name}' 2>/dev/null)"
+      fi
+      if [[ -z "$_resize_target" ]]; then
+        echo "Error: --resize requires a session ID or must be run inside tmux." >&2
+        exit 1
+      fi
+      party_resolve_cli_bin || exit 1
+      exec "${PARTY_CLI_CMD[@]}" resize "$_resize_target"
+      ;;
     --pick-entries)
       party_resolve_cli_bin || exit 1
       exec "${PARTY_CLI_CMD[@]}" picker entries
