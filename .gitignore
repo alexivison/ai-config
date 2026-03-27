@@ -3,6 +3,11 @@
 blog/
 tmux-capture-*.txt
 
+# Codex CLI runtime artifacts
+codex/.tmp/
+codex/cache/
+codex/plugins/
+
 # Go build artifacts
 tools/party-tracker/party-tracker
 tools/party-cli/party-cli
