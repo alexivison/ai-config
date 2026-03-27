@@ -51,6 +51,47 @@ Evidence is stored in a per-session JSONL log (`/tmp/claude-evidence-{session_id
 - **Same-hash alternation** (all critics including scribe): when 3 alternating verdicts are detected at the same hash (e.g., RC→A→RC), an auto-triage-override is recorded.
 - **Cross-hash repeated findings** (minimizer only): when the same normalized REQUEST_CHANGES body appears across 3+ distinct hashes, an auto-triage-override is recorded. Code-critic is exempt — correctness bugs legitimately persist across fix attempts.
 
+## Review Metrics
+
+Review effectiveness metrics are tracked in a per-session JSONL log (`/tmp/claude-review-metrics-{session_id}.jsonl`). The metrics capture the full lifecycle of review findings for post-hoc analysis of reviewer quality and Claude's triage accuracy.
+
+**Events tracked:**
+- `finding_raised` — A reviewer produced a finding (source, severity, category, file, line, description)
+- `findings_summary` — Aggregate counts per reviewer pass (total, blocking, non-blocking, verdict)
+- `triage` — Claude classified a finding (blocking/non-blocking/out-of-scope → fix/noted/dismissed/debate)
+- `resolved` — A finding reached its final state (fixed/dismissed/debated/overridden/accepted/escalated)
+- `review_cycle` — End-of-cycle summary with cumulative stats
+
+**Automatic recording** (via hooks):
+- `agent-trace-stop.sh` records `findings_summary` for code-critic, minimizer, scribe, and sentinel by parsing `[must]`/`[should]`/`[nit]` tags and `**BLOCKING**`/`**NON-BLOCKING**` markers from agent responses.
+- `codex-trace.sh` records individual `finding_raised` entries and a `findings_summary` by parsing the TOON findings file when `--review-complete` runs.
+
+**Manual recording** (via CLI during triage):
+```bash
+# Record triage decision
+~/.claude/hooks/scripts/review-metrics.sh --triage <session> <finding_id> <source> <classification> <action> [rationale]
+
+# Record resolution
+~/.claude/hooks/scripts/review-metrics.sh --resolved <session> <finding_id> <source> <resolution> [cwd] [detail]
+
+# Record end of review cycle
+~/.claude/hooks/scripts/review-metrics.sh --cycle <session> <cycle_number> [cwd]
+```
+
+**Querying:**
+```bash
+# Human-readable report for a session
+~/.claude/hooks/scripts/review-metrics.sh --report <session>
+
+# JSON export for programmatic analysis
+~/.claude/hooks/scripts/review-metrics.sh --export <session>
+
+# Report across all sessions
+~/.claude/hooks/scripts/review-metrics.sh --report-all
+```
+
+**Key metrics derived:** fix rate, dismiss rate, override rate, per-source finding counts, triage classification breakdown, resolution distribution. Use these to assess: how often reviewers catch real bugs, how often Claude ignores findings, and which reviewers produce the most actionable feedback.
+
 ## Tiered Execution
 
 - **Full tier** (default): current sequence unchanged (`/write-tests → implement → ... → PR`). Gate-enforced evidence: pr-verified, code-critic, minimizer, codex, test-runner, check-runner. Scribe is workflow-enforced by task-workflow (not gate-enforced) — it runs when a TASK file exists but bugfix-workflow has no TASK file, so scribe cannot be a universal gate requirement.

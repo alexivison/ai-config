@@ -14,6 +14,7 @@ mkdir -p "$(dirname "$TRACE_FILE")"
 
 source "$(dirname "$0")/lib/evidence.sh"
 source "$(dirname "$0")/lib/oscillation.sh"
+source "$(dirname "$0")/lib/review-metrics.sh"
 
 hook_input=$(cat)
 
@@ -125,5 +126,31 @@ fi
 if [ "$agent_type" = "code-critic" ] || [ "$agent_type" = "minimizer" ] || [ "$agent_type" = "scribe" ]; then
   detect_oscillation "$session_id" "$agent_type" "$verdict" "$response" "$cwd"
 fi
+
+# ── Review metrics: extract finding counts from reviewer responses ──
+# Only for reviewer agents with APPROVED/REQUEST_CHANGES/NEEDS_DISCUSSION verdicts
+case "$agent_type" in
+  code-critic|minimizer|scribe|sentinel)
+    if [ -n "$response" ]; then
+      diff_hash=$(compute_diff_hash "$cwd")
+      # Count findings by scanning for common patterns in structured agent output:
+      #   - [must] / [should] / [nit] tags
+      #   - Numbered findings (1. / 2. / - **Finding**)
+      #   - **BLOCKING** / **NON-BLOCKING** markers
+      blocking_count=$(echo "$response" | grep -ciE '\[must\]|\*\*blocking\*\*|\bblocking:' || echo 0)
+      non_blocking_count=$(echo "$response" | grep -ciE '\[should\]|\[nit\]|\*\*non-blocking\*\*|\bnon-blocking:' || echo 0)
+      total_count=$((blocking_count + non_blocking_count))
+      # If no structured tags found, estimate from numbered list items in REQUEST_CHANGES
+      if [ "$total_count" -eq 0 ] && [ "$verdict" = "REQUEST_CHANGES" ]; then
+        total_count=$(echo "$response" | grep -cE '^\s*[0-9]+\.\s' || echo 0)
+        blocking_count="$total_count"
+      fi
+      # Capture a short excerpt (first 200 chars of the response tail) for context
+      excerpt=$(echo "$response" | tail -c 500 | head -c 200 | tr '\n' ' ')
+      record_findings_summary "$session_id" "$agent_type" "$diff_hash" "$verdict" \
+        "$total_count" "$blocking_count" "$non_blocking_count" "$excerpt"
+    fi
+    ;;
+esac
 
 exit 0
