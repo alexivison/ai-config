@@ -78,7 +78,8 @@ See [execution-core.md](~/.claude/rules/execution-core.md#review-governance) for
 - Out-of-scope file touches are blocking unless explicitly justified
 - Triage findings as **blocking** (fix + re-run), **non-blocking** (note only), or **out-of-scope** (reject)
 - Only blocking findings continue the review loop
-- Max 3 critic iterations and max 3 codex iterations for blocking, then dispute resolution (2 rounds) before escalating to user
+- Max 3 critic iterations for blocking, then dispute resolution (2 rounds) before escalating to user
+- **Codex has NO iteration cap** — continue the fix/dispute loop until Codex writes `VERDICT: APPROVED`. Do not decide the review phase is done prematurely.
 
 ## Plan Conformance (Checkbox Enforcement)
 
@@ -100,7 +101,7 @@ Key points for task workflow:
 - Invoke after critics have no remaining blocking findings
 - Non-blocking — continue with non-edit work while Codex reviews
 - **Timing constraint:** Do not dispatch Codex review while critic fixes are still pending. If you edit implementation files after dispatching Codex but before Codex returns, the review is stale — discard it, re-run critics, and dispatch a fresh `--review`.
-- Max 3 iterations for blocking findings, then dispute resolution (2 rounds) before escalating to user
+- **No iteration cap for Codex** — keep fixing and re-reviewing until `VERDICT: APPROVED`. Dispute with evidence if you disagree, but never bypass.
 - Approval flows through `--review-complete`, which reads the `VERDICT:` line Codex wrote in the findings file. Do NOT call `--approve` directly.
 
 ## Core Reference

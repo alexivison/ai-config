@@ -74,7 +74,7 @@ Classify every finding before acting:
 - `[q]` and `[nit]` are opt-in (only when explicitly requested). By default, suppress them.
 - Critics should return `APPROVE` when only non-blocking findings remain.
 
-**Caps:** Blocking: max 3 critic iterations + 3 codex iterations. When cap is reached, enter dispute resolution (2 rounds) before escalating to user. Non-blocking: max 1 round → accept or drop.
+**Caps:** Blocking critics: max 3 critic iterations, then dispute resolution (2 rounds) before escalating to user. **Codex has NO iteration cap** — you MUST continue the review loop (fix → re-review, or dispute via `--prompt`) until Codex writes `VERDICT: APPROVED`. You may NOT decide the Codex review phase is "done" while the verdict is still `REQUEST_CHANGES` or `NEEDS_DISCUSSION`. If you believe Codex is wrong, dispute with evidence — do not bypass. Escalate to user only when both agents explicitly agree they need human input, or a security-critical finding is disputed. Non-blocking: max 1 round → accept or drop.
 
 **Tiered re-review:** One-symbol swap → test-runner only. Logic change → test-runner + critics. New export/signature/security path → full cascade.
 
@@ -94,10 +94,10 @@ Classify every finding before acting:
 | code-critic, minimizer, or scribe | NEEDS_DISCUSSION / oscillation / cap | Dispute resolution: re-run with context explaining dismissed findings (2 rounds) → escalate to user if unresolved | NO (until dispute cap) |
 | All three critics done, no blocking | — | Run codex | NO |
 | codex | APPROVE | /pre-pr-verification | NO |
-| codex | REQUEST_CHANGES (blocking) | Fix in one batch + commit + re-run critics + new `--review` → `--review-complete` | NO |
+| codex | REQUEST_CHANGES (blocking) | Fix in one batch + commit + re-run critics + new `--review` → `--review-complete`. **Repeat until APPROVED.** | NO |
 | codex | REQUEST_CHANGES (non-blocking) | Record and proceed to /pre-pr-verification | NO |
-| codex | REQUEST_CHANGES with out-of-scope findings | Dismiss with rationale in dispute context file → re-review (2 dispute rounds) → escalate if unresolved | NO (until dispute cap) |
-| codex | NEEDS_DISCUSSION | Debate via `--prompt` (2 rounds) → escalate to user if unresolved | NO (until dispute cap) |
+| codex | REQUEST_CHANGES with out-of-scope findings | Dismiss with rationale in dispute context file → re-review. If Codex still disagrees, debate via `--prompt` with evidence. **Continue until Codex concedes or approves.** Escalate to user only if both agents agree human input is needed. | NO |
+| codex | NEEDS_DISCUSSION | Debate via `--prompt` with evidence-based reasoning. Codex may concede, counter-argue, or propose compromise. **Continue discussion until resolved** (one agent concedes or compromise reached). Escalate to user only if both agents agree human input is needed. | NO |
 | sentinel | Any findings | Paladin triages (advisory, no gating markers) | NO |
 | sentinel | Timeout | Proceed with Codex findings only | NO |
 | /pre-pr-verification | Pass/Fail | PR / fix | NO |
@@ -109,24 +109,24 @@ When critics or Codex return NEEDS_DISCUSSION or raise out-of-scope findings, ag
 
 **Critic disputes:** Re-run the critic with updated prompt context explaining which findings are out-of-scope and why. The critic sees the rationale and either accepts (APPROVE) or raises new evidence. Max 2 dispute rounds per critic.
 
-**Codex out-of-scope disputes:** Write a dispute context file listing dismissed finding IDs and rationales. Pass via `--dispute <file>` to `--review`. Codex reads the file, accepts valid dismissals, challenges invalid ones with file:line evidence. Max 2 dispute rounds.
+**Codex out-of-scope disputes:** Write a dispute context file listing dismissed finding IDs and rationales. Pass via `--dispute <file>` to `--review`. Codex reads the file, accepts valid dismissals, challenges invalid ones with file:line evidence. **No round cap** — continue disputing until Codex accepts the dismissals or you concede and fix the findings. If Codex provides compelling file:line evidence against a dismissal, concede that finding and fix it.
 
-**Codex NEEDS_DISCUSSION:** Formulate a position (concede, counter-argue, or propose compromise) and send via `--prompt`. Codex responds with evidence-based reasoning. Max 2 prompt exchanges.
+**Codex NEEDS_DISCUSSION:** Formulate a position (concede, counter-argue, or propose compromise) and send via `--prompt`. Codex responds with evidence-based reasoning. **Continue the discussion** — do not abandon it after a fixed number of rounds. Each exchange should make progress: concede valid points, counter with evidence, or propose concrete compromises. The goal is genuine agreement, not attrition.
 
 **After successful dispute resolution:** If the dispute concludes that the work should proceed, dispatch a fresh `--review` → `--review-complete` to satisfy the gate evidence requirements.
 
 **Escalation criteria (user involvement):**
-- 2 dispute rounds fail to resolve
 - Security-critical finding is disputed
 - Both agents explicitly agree they need human input
+- Discussion is genuinely circular (same arguments repeated verbatim 3+ times with no new evidence from either side)
 
 ## Valid Pause Conditions
 
-Investigation findings, dispute cap reached (2 rounds unresolved), security-critical disagreement, oscillation, explicit blockers.
+Investigation findings, critic dispute cap reached (2 rounds unresolved), security-critical disagreement, oscillation, explicit blockers. **Codex review is NOT a valid pause condition** — continue until `VERDICT: APPROVED` or mutual escalation.
 
 ## Sub-Agent Behavior
 
-Investigation (codex debug): always pause, show full findings. Verification (test/check): never pause, summary only. Iterative (critics, codex): enter dispute resolution on NEEDS_DISCUSSION/cap; pause only on dispute cap reached, oscillation, or security-critical disagreement.
+Investigation (codex debug): always pause, show full findings. Verification (test/check): never pause, summary only. Iterative critics: enter dispute resolution on NEEDS_DISCUSSION/cap; pause only on dispute cap reached, oscillation, or security-critical disagreement. **Iterative codex: no cap — continue fix/dispute loop until `VERDICT: APPROVED`.** Pause only on security-critical disagreement or mutual agreement that human input is needed.
 
 ## Verification Principle
 
@@ -155,7 +155,9 @@ Code PRs require all evidence at the current diff_hash. The PR gate (`pr-gate.sh
 | Approve without --review-complete | Gate blocks — run review first |
 | Edit after approval, then PR | Evidence stale (diff_hash changed) — re-run |
 | Create evidence outside authorized paths | Forbidden — only hooks and workflow skills write evidence via `append_evidence` |
-| Fourth critic or codex round on same diff | Enter dispute resolution (2 rounds) → escalate to user if unresolved |
+| Fourth critic round on same diff | Enter dispute resolution (2 rounds) → escalate to user if unresolved |
+| Deciding Codex review is "done" without APPROVED | FORBIDDEN — continue fix/dispute loop until Codex writes `VERDICT: APPROVED` |
+| Bypassing Codex after N iterations | FORBIDDEN — there is no iteration cap for Codex. Keep engaging. |
 | Run lint/typecheck via Bash instead of check-runner | Always delegate to sub-agents — they run the full suite |
 | Push without running check-runner | Run check-runner before every push, no exceptions |
 | Add dependency without committing lockfile | Stage lockfile in same commit as package.json change |
