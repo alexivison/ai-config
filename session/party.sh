@@ -159,14 +159,7 @@ while [[ $# -gt 0 ]]; do
       if [[ -z "$session" ]]; then
         exec "${PARTY_CLI_CMD[@]}" picker
       fi
-      "${PARTY_CLI_CMD[@]}" continue "$session" || exit 1
-      # Attach handled by party-cli start --attach in future; for now inline.
-      if [[ -n "${TMUX:-}" ]]; then
-        tmux switch-client -t "$session"
-      else
-        tmux attach -t "$session"
-      fi
-      exit
+      exec "${PARTY_CLI_CMD[@]}" continue --attach "$session"
       ;;
 
     # Accumulate flags for start

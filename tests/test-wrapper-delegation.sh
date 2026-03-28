@@ -86,6 +86,12 @@ bash "$REPO_ROOT/session/party.sh" --promote party-test-123 2>/dev/null || true
 assert "party.sh --promote delegates to party-cli" \
   'grep -q "^promote party-test-123" "$MOCK_LOG"'
 
+# ---- party.sh --continue delegates to party-cli continue --attach ----
+> "$MOCK_LOG"
+bash "$REPO_ROOT/session/party.sh" --continue party-test-123 2>/dev/null || true
+assert "party.sh --continue delegates to party-cli with --attach" \
+  'grep -q "^continue --attach party-test-123" "$MOCK_LOG"'
+
 # ---- party.sh start delegates with --attach ----
 > "$MOCK_LOG"
 bash "$REPO_ROOT/session/party.sh" test-title 2>/dev/null || true
