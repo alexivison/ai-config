@@ -16,19 +16,20 @@ Review the current changes for quality, bugs, and best practices. Identify issue
 
 ## Reference Documentation
 
-- **General**: `~/.claude/skills/code-review/reference/general.md` — Four core principles (SRP, YAGNI, DRY, KISS), quality standards, thresholds
+- **General**: `~/.claude/skills/code-review/reference/general.md` — Five core principles (LoB, SRP, YAGNI, DRY, KISS), quality standards, thresholds
 - **Frontend**: `~/.claude/skills/code-review/reference/frontend.md` — React, TypeScript, CSS, testing patterns
 
 Load relevant reference docs based on what's being reviewed.
 
 ## Core Principles
 
-Every review evaluates changes against four architectural principles. See `reference/general.md` for detection patterns, feedback templates, and severity mappings.
+Every review evaluates changes against five architectural principles. **LoB is the primary principle** — when other principles conflict with it, LoB wins. See `reference/general.md` for detection patterns, feedback templates, and severity mappings.
 
-1. **SRP** — Single Responsibility: one reason to change per unit
-2. **YAGNI** — You Ain't Gonna Need It: no code for hypothetical futures
-3. **DRY** — Don't Repeat Yourself: single source of truth for every piece of knowledge
-4. **KISS** — Keep It Simple: readable beats clever
+1. **LoB** — Locality of Behavior: behavior should be obvious by looking at that unit of code alone *(primary)*
+2. **SRP** — Single Responsibility: one reason to change per unit
+3. **YAGNI** — You Ain't Gonna Need It: no code for hypothetical futures
+4. **DRY** — Don't Repeat Yourself: single source of truth *(subordinate to LoB — prefer locality over cross-file extraction)*
+5. **KISS** — Keep It Simple: readable beats clever
 
 ## Severity Levels
 
@@ -39,11 +40,12 @@ Every review evaluates changes against four architectural principles. See `refer
 ## Process
 
 1. Use `git diff` to see staged/unstaged changes
-2. Systematically check each of the four principles against the diff
-3. Review against language-specific guidelines in reference documentation
-4. Be specific with file:line references
-5. Tag each finding with the violated principle (e.g., `[SRP]`, `[DRY]`)
-6. Explain WHY something is an issue (not just what's wrong)
+2. **First check LoB**: does this change scatter behavior that should be local?
+3. Then check SRP, YAGNI, DRY, KISS against the diff
+4. Review against language-specific guidelines in reference documentation
+5. Be specific with file:line references
+6. Tag each finding with the violated principle (e.g., `[LoB]`, `[SRP]`, `[DRY]`)
+7. Explain WHY something is an issue (not just what's wrong)
 
 ## Output Format
 
@@ -80,7 +82,7 @@ The changes improve error handling and logging. File organization is clean. Need
 
 ### Must Fix
 - **api.ts:34-45** - [SRP] Missing null check on response.data before accessing properties
-- **logger.ts:12** - [KISS] Hardcoded log level should be configurable
+- **utils/format.ts:1-20** - [LoB] This formatter is only used in api.ts — inline it there instead of creating a separate file
 
 ### Questions
 - **auth.ts:78** - [DRY] Why duplicate validation here instead of reusing middleware?
@@ -90,5 +92,5 @@ The changes improve error handling and logging. File organization is clean. Need
 - **logger.ts:20** - [KISS] Verbose error object serialization; consider structured format
 
 ### Verdict
-**REQUEST_CHANGES** - Must fix the null check and log level; clarify auth validation approach.
+**REQUEST_CHANGES** - Must fix the null check; inline the single-use formatter to preserve locality.
 ```
