@@ -6,7 +6,24 @@ MODE="${1:?Usage: tmux-codex.sh --review|--plan-review|--prompt|--review-complet
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_DIR="$SCRIPT_DIR/../templates"
-source "$SCRIPT_DIR/../../../../session/party-lib.sh"
+
+# ---------------------------------------------------------------------------
+# Resolve party-cli (on PATH, or via go run as fallback)
+# ---------------------------------------------------------------------------
+_party_cli() {
+  if command -v party-cli &>/dev/null; then
+    party-cli "$@"
+    return
+  fi
+  local repo_root
+  repo_root="${PARTY_REPO_ROOT:-$(cd "$SCRIPT_DIR/../../../.." 2>/dev/null && pwd)}"
+  if command -v go &>/dev/null && [[ -f "$repo_root/tools/party-cli/main.go" ]]; then
+    env "PARTY_REPO_ROOT=$repo_root" go -C "$repo_root/tools/party-cli" run . "$@"
+    return
+  fi
+  echo "Error: party-cli not found." >&2
+  return 1
+}
 
 # Render a template file by replacing {{VAR}} placeholders.
 # Args: template_file [VAR=value ...]
@@ -24,35 +41,27 @@ _render_template() {
   echo "$content" | grep -v '^{{.*}}$'
 }
 
-# Session discovery only for modes that need tmux (--review, --prompt).
-# Evidence/escalation modes (--review-complete, --needs-discussion)
-# only emit sentinel strings and work without a party session.
+# Session discovery — sets SESSION_NAME, STATE_DIR, RUNTIME_DIR via party-cli
 _require_session() {
-  discover_session
-  # Master sessions have no Codex pane — guard early
-  if party_is_master "$SESSION_NAME" 2>/dev/null; then
-    echo "CODEX_NOT_AVAILABLE: Master sessions have no Wizard pane. Route review work through a worker session." >&2
-    exit 1
+  eval "$(_party_cli session-env)"
+  # Master sessions have no Codex pane — guard early.
+  # send --role codex also checks this, but we want a clean error before building the message.
+  local manifest="$STATE_FILE"
+  if [[ -f "$manifest" ]] && command -v jq >/dev/null 2>&1; then
+    local st
+    st="$(jq -r '.session_type // empty' "$manifest" 2>/dev/null || true)"
+    if [[ "$st" == "master" ]]; then
+      echo "CODEX_NOT_AVAILABLE: Master sessions have no Wizard pane. Route review work through a worker session." >&2
+      exit 1
+    fi
   fi
-  CODEX_PANE=$(party_codex_pane_target "$SESSION_NAME") || {
-    echo "Error: Cannot resolve Codex pane in session '$SESSION_NAME'" >&2
-    exit 1
-  }
 }
 
-# Delivery-confirmed send. Exit 76 (keys sent but buffer check failed)
-# is treated as success — the keys were delivered, capture-pane just
-# couldn't confirm. Retrying would cause duplicate dispatch.
-# Returns 0 on success/unconfirmed, 75 on pane busy (dropped).
+# Delivery-confirmed send via party-cli. Returns 0 on success, 75 on pane busy.
 _send_with_retry() {
-  local target="$1" text="$2" caller="$3"
+  local message="$1" caller="$2"
   local rc=0
-  tmux_send "$target" "$text" "$caller" || rc=$?
-  if [[ $rc -eq 76 ]]; then
-    # Keys were sent, buffer verification failed — treat as delivered
-    echo "tmux_send: delivery unconfirmed for '$caller' (capture-pane miss)" >&2
-    return 0
-  fi
+  _party_cli send --role codex --session "$SESSION_NAME" --caller "$caller" "$message" || rc=$?
   return $rc
 }
 
@@ -106,13 +115,12 @@ case "$MODE" in
       "DISPUTE_SECTION=$DISPUTE_SECTION" \
       "REREVEW_SECTION=$REREVEW_SECTION")
 
-    RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
-    if _send_with_retry "$CODEX_PANE" "$MSG" "tmux-codex.sh:review"; then
-      write_codex_status "$RUNTIME_DIR" "working" "$BASE" "review"
+    if _send_with_retry "$MSG" "tmux-codex.sh:review"; then
+      _party_cli codex-status write --session "$SESSION_NAME" --target "$BASE" --mode "review" "working"
       echo "CODEX_REVIEW_REQUESTED"
       echo "Claude is NOT blocked. Codex will notify via tmux when complete."
     else
-      write_codex_status "$RUNTIME_DIR" "error" "" "" "" "review dispatch failed: pane busy"
+      _party_cli codex-status write --session "$SESSION_NAME" --error "review dispatch failed: pane busy" "error"
       echo "CODEX_REVIEW_DROPPED"
       echo "Codex pane is busy. Message dropped (best-effort delivery)."
     fi
@@ -135,13 +143,12 @@ case "$MODE" in
       "FINDINGS_FILE=$FINDINGS_FILE" \
       "NOTIFY_CMD=$NOTIFY_CMD")
 
-    RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
-    if _send_with_retry "$CODEX_PANE" "$MSG" "tmux-codex.sh:plan-review"; then
-      write_codex_status "$RUNTIME_DIR" "working" "$PLAN_PATH" "plan-review"
+    if _send_with_retry "$MSG" "tmux-codex.sh:plan-review"; then
+      _party_cli codex-status write --session "$SESSION_NAME" --target "$PLAN_PATH" --mode "plan-review" "working"
       echo "CODEX_PLAN_REVIEW_REQUESTED"
       echo "Claude is NOT blocked. Codex will notify via tmux when complete."
     else
-      write_codex_status "$RUNTIME_DIR" "error" "" "" "" "plan-review dispatch failed: pane busy"
+      _party_cli codex-status write --session "$SESSION_NAME" --error "plan-review dispatch failed: pane busy" "error"
       echo "CODEX_PLAN_REVIEW_DROPPED"
       echo "Codex pane is busy. Message dropped (best-effort delivery)."
     fi
@@ -158,13 +165,12 @@ case "$MODE" in
     NOTIFY_SCRIPT="$(cd "$SCRIPT_DIR/../../../../codex/skills/claude-transport/scripts" && pwd)/tmux-claude.sh"
 
     MSG="[CLAUDE] cd '$WORK_DIR' && $PROMPT_TEXT — Write response to: $RESPONSE_FILE — When done, run: $NOTIFY_SCRIPT \"Task complete. Response at: $RESPONSE_FILE\""
-    RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
-    if _send_with_retry "$CODEX_PANE" "$MSG" "tmux-codex.sh:prompt"; then
-      write_codex_status "$RUNTIME_DIR" "working" "$PROMPT_TEXT" "prompt"
+    if _send_with_retry "$MSG" "tmux-codex.sh:prompt"; then
+      _party_cli codex-status write --session "$SESSION_NAME" --target "$PROMPT_TEXT" --mode "prompt" "working"
       echo "CODEX_TASK_REQUESTED"
       echo "Codex will notify via tmux when complete."
     else
-      write_codex_status "$RUNTIME_DIR" "error" "" "" "" "prompt dispatch failed: pane busy"
+      _party_cli codex-status write --session "$SESSION_NAME" --error "prompt dispatch failed: pane busy" "error"
       echo "CODEX_TASK_DROPPED"
       echo "Codex pane is busy. Message dropped (best-effort delivery)."
     fi

@@ -157,6 +157,16 @@ assert "party.sh does not source party-lib.sh" \
 assert "party-relay.sh does not source party-lib.sh" \
   '! grep -q "source.*party-lib.sh" "$REPO_ROOT/session/party-relay.sh"'
 
+# ---- Verify transport scripts no longer source party-lib.sh ----
+assert "tmux-codex.sh does not source party-lib.sh" \
+  '! grep -q "source.*party-lib.sh" "$REPO_ROOT/claude/skills/codex-transport/scripts/tmux-codex.sh"'
+
+assert "tmux-claude.sh does not source party-lib.sh" \
+  '! grep -q "source.*party-lib.sh" "$REPO_ROOT/codex/skills/claude-transport/scripts/tmux-claude.sh"'
+
+assert "register-agent-id.sh does not source party-lib.sh" \
+  '! grep -q "source.*party-lib.sh" "$REPO_ROOT/claude/hooks/register-agent-id.sh"'
+
 # ---- Verify vestigial scripts are deleted ----
 assert "party-picker.sh is deleted" \
   '[ ! -f "$REPO_ROOT/session/party-picker.sh" ]'

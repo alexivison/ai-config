@@ -6,8 +6,27 @@ set -euo pipefail
 MESSAGE="${1:?Usage: tmux-claude.sh \"message for Claude\"}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../../../../session/party-lib.sh"
-discover_session
+
+# ---------------------------------------------------------------------------
+# Resolve party-cli (on PATH, or via go run as fallback)
+# ---------------------------------------------------------------------------
+_party_cli() {
+  if command -v party-cli &>/dev/null; then
+    party-cli "$@"
+    return
+  fi
+  local repo_root
+  repo_root="${PARTY_REPO_ROOT:-$(cd "$SCRIPT_DIR/../../../.." 2>/dev/null && pwd)}"
+  if command -v go &>/dev/null && [[ -f "$repo_root/tools/party-cli/main.go" ]]; then
+    env "PARTY_REPO_ROOT=$repo_root" go -C "$repo_root/tools/party-cli" run . "$@"
+    return
+  fi
+  echo "Error: party-cli not found." >&2
+  return 1
+}
+
+# Discover session
+eval "$(_party_cli session-env)"
 
 # Register Codex's thread ID with the party session (write-once)
 if [[ -n "${CODEX_THREAD_ID:-}" && ! -s "$STATE_DIR/codex-thread-id" ]]; then
@@ -15,7 +34,7 @@ if [[ -n "${CODEX_THREAD_ID:-}" && ! -s "$STATE_DIR/codex-thread-id" ]]; then
   tmux set-environment -t "$SESSION_NAME" CODEX_THREAD_ID "$CODEX_THREAD_ID" 2>/dev/null || true
 
   # Persist to manifest for resume path (continue.go reads codex_thread_id)
-  manifest="$(party_state_file "$SESSION_NAME")"
+  manifest="$STATE_FILE"
   if [[ -f "$manifest" ]] && command -v jq >/dev/null 2>&1; then
     tmp="$(mktemp "${TMPDIR:-/tmp}/party-state.XXXXXX")"
     if jq --arg v "$CODEX_THREAD_ID" '.codex_thread_id = $v' "$manifest" > "$tmp" 2>/dev/null; then
@@ -26,11 +45,6 @@ if [[ -n "${CODEX_THREAD_ID:-}" && ! -s "$STATE_DIR/codex-thread-id" ]]; then
   fi
 fi
 
-CLAUDE_PANE=$(party_role_pane_target "$SESSION_NAME" "claude") || {
-  echo "Error: Cannot resolve Claude pane in session '$SESSION_NAME'" >&2
-  exit 1
-}
-
 # Detect completion messages by prefix-anchored patterns matching actual call sites.
 # Mid-task traffic (questions, status) does not match and leaves status unchanged.
 _is_completion=false
@@ -40,16 +54,15 @@ case "$MESSAGE" in
   "Task complete. Response at: "*)         _is_completion=true ;;
 esac
 
-# Send with exit-76 handling: keys sent but buffer check failed → treat as delivered
+# Send via party-cli (role=claude, auto-discovers session)
 _send_rc=0
-tmux_send "$CLAUDE_PANE" "[CODEX] $MESSAGE" "tmux-claude.sh" || _send_rc=$?
+_party_cli send --role claude --session "$SESSION_NAME" "[CODEX] $MESSAGE" || _send_rc=$?
 
 if [[ $_send_rc -eq 0 || $_send_rc -eq 76 ]]; then
   if [[ $_send_rc -eq 76 ]]; then
-    echo "tmux_send: delivery unconfirmed (capture-pane miss)" >&2
+    echo "send: delivery unconfirmed (capture-pane miss)" >&2
   fi
   if $_is_completion; then
-    RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
     _verdict=""
     _findings_file=""
     if [[ "$MESSAGE" =~ Findings\ at:\ ([^[:space:]]+) ]]; then
@@ -66,13 +79,15 @@ if [[ $_send_rc -eq 0 || $_send_rc -eq 76 ]]; then
         _verdict="NEEDS_DISCUSSION"
       fi
     fi
-    write_codex_status "$RUNTIME_DIR" "idle" "" "" "$_verdict"
+    _status_args=(codex-status write --session "$SESSION_NAME")
+    [[ -n "$_verdict" ]] && _status_args+=(--verdict "$_verdict")
+    _status_args+=("idle")
+    _party_cli "${_status_args[@]}"
   fi
   echo "CLAUDE_MESSAGE_SENT"
 else
   if $_is_completion; then
-    RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
-    write_codex_status "$RUNTIME_DIR" "error" "" "" "" "completion delivery failed: Claude pane busy"
+    _party_cli codex-status write --session "$SESSION_NAME" --error "completion delivery failed: Claude pane busy" "error"
   fi
   echo "CLAUDE_MESSAGE_DROPPED"
 fi
