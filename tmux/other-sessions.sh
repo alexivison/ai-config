@@ -20,7 +20,7 @@ while IFS= read -r sid; do
 
     manifest="$state_root/$sid.json"
     if [[ -f "$manifest" ]] && command -v jq >/dev/null 2>&1; then
-        read -r title stype < <(jq -r '[(.title // ""), (.session_type // "")] | @tsv' "$manifest" 2>/dev/null)
+        IFS=$'\t' read -r title stype < <(jq -r '[(.title // ""), (.session_type // "")] | @tsv' "$manifest" 2>/dev/null)
         [[ -n "$title" ]] && label="$title"
         [[ "$stype" == "master" ]] && label="$label*"
     fi
