@@ -202,7 +202,7 @@ record_review_cycle() {
   local raised triaged fixed dismissed noted debated overridden
   raised=$(jq -s --arg hash "$diff_hash" \
     '[.[] | select(.event == "finding_raised" and .diff_hash == $hash)] | length' "$file" 2>/dev/null || echo 0)
-  triaged=$(jq -s --arg hash "$diff_hash" \
+  triaged=$(jq -s \
     '[.[] | select(.event == "triage")] | length' "$file" 2>/dev/null || echo 0)
   fixed=$(jq -s \
     '[.[] | select(.event == "resolved" and .resolution == "fixed")] | length' "$file" 2>/dev/null || echo 0)
@@ -260,7 +260,7 @@ generate_report() {
   echo "── Findings by Source ──"
   echo ""
   local sources
-  sources=$(jq -r 'select(.event == "finding_raised" or .event == "findings_summary") | .source' "$file" 2>/dev/null | sort -u)
+  sources=$(jq -r 'select(.event == "finding_raised") | .source' "$file" 2>/dev/null | sort -u)
 
   if [ -z "$sources" ]; then
     echo "  (no individual findings recorded — check summaries below)"
@@ -269,7 +269,7 @@ generate_report() {
     for src in $sources; do
       local count
       count=$(jq -s --arg src "$src" \
-        '[.[] | select((.event == "finding_raised" or .event == "findings_summary") and .source == $src)] | length' "$file" 2>/dev/null)
+        '[.[] | select(.event == "finding_raised" and .source == $src)] | length' "$file" 2>/dev/null)
       echo "  $src: $count"
     done
     echo ""

@@ -63,7 +63,7 @@ case "$MODE" in
     ACTION="${6:?Missing action (fix|noted|dismissed|debate)}"
     RATIONALE="${7:-}"
     record_triage "$SESSION" "$FINDING_ID" "$SOURCE" "$CLASSIFICATION" "$ACTION" "$RATIONALE"
-    echo "METRIC_RECORDED: triage $FINDING_ID $CLASSIFICATION→$ACTION"
+    echo "METRIC_RECORDED: triage $FINDING_ID ${CLASSIFICATION}->${ACTION}"
     ;;
 
   --resolved)
