@@ -108,7 +108,7 @@ Claude sends a structured position on a disputed finding — either from your re
    - If Claude's position has gaps → **counter** with your own file:line evidence showing why the finding stands
    - If both positions have merit → **propose compromise** (e.g., "fix X but defer Y")
 3. Responses must be evidence-based — "I still think this is wrong" without a file:line reference is not a valid counter
-4. **Cap: 2 exchanges.** If unresolved after 2 rounds, state your final position clearly so Claude can escalate to the user with both sides summarized
+4. **No fixed exchange cap.** Continue the discussion — each round should make progress (concede valid points, counter with new evidence, or propose concrete compromises). If the discussion becomes genuinely circular (same arguments repeated 3+ times with no new evidence from either side), state your final position clearly so Claude can escalate to the user with both sides summarized
 5. Write response to the specified path
 6. Notify Claude: `tmux-claude.sh "Task complete. Response at: <path>"`
 

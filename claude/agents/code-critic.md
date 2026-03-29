@@ -53,11 +53,12 @@ Report as `[must]` when violated:
 
 ## Iteration Protocol
 
-**Parameters:** `files`, `context`, `iteration` (1-2), `previous_feedback`
+**Parameters:** `files`, `context`, `iteration` (1-3), `previous_feedback`
 
 - **Iteration 1:** Report `[must]` findings by default. Include `[q]`/`[nit]` only when explicitly requested.
 - **Iteration 2:** Verify previous `[must]` fixes first. Then only flag NEW `[must]` issues introduced by the fix.
-- **Max 2:** If blocking issues still remain after iteration 2, return NEEDS_DISCUSSION.
+- **Iteration 3:** Same as iteration 2 — verify prior fixes, flag only new `[must]` issues.
+- **Max 3:** If blocking issues still remain after iteration 3, return NEEDS_DISCUSSION.
 
 ## Output Format
 
@@ -84,7 +85,7 @@ Report as `[must]` when violated:
 
 - **APPROVE**: no `[must]` findings.
 - **REQUEST_CHANGES**: one or more `[must]` findings.
-- **NEEDS_DISCUSSION**: blocking findings persist at iteration 2.
+- **NEEDS_DISCUSSION**: blocking findings persist at iteration 3.
 
 CRITICAL: The verdict line MUST be the absolute last line of your response. No text after it.
 

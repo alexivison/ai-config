@@ -91,7 +91,7 @@ Only critic types (`code-critic`, `minimizer`) can be overridden — codex and P
 
 ### Signal escalation
 ```bash
-# Unresolvable after max iterations
+# Genuine mutual escalation (circular discussion, security-critical dispute, or both agents agree human input is needed)
 ~/.claude/skills/codex-transport/scripts/tmux-codex.sh --needs-discussion "reason"
 ```
 

@@ -81,7 +81,8 @@ Simple code is easier to read, maintain, and test than "clever" code.
 
 - **Iteration 1:** Flag `[must]` findings only. Include `[q]`/`[nit]` only if explicitly requested.
 - **Iteration 2:** Verify prior `[must]` fixes first. Then flag only new `[must]` issues introduced by the fix.
-- **Max 2:** If `[must]` still remains, return NEEDS_DISCUSSION.
+- **Iteration 3:** Same as iteration 2 — verify prior fixes, flag only new `[must]` issues.
+- **Max 3:** If `[must]` still remains, return NEEDS_DISCUSSION.
 
 ## Output Format
 
@@ -110,7 +111,7 @@ One sentence assessment.
 
 - **APPROVE**: no `[must]` findings remain.
 - **REQUEST_CHANGES**: one or more `[must]` findings.
-- **NEEDS_DISCUSSION**: iteration 2 still has unresolved `[must]`.
+- **NEEDS_DISCUSSION**: iteration 3 still has unresolved `[must]`.
 
 CRITICAL: The verdict line MUST be the absolute last line of your response. No text after it.
 
