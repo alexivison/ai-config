@@ -70,7 +70,7 @@ Classify every finding before acting:
 
 **Lean loop default:**
 - Critics run in two-pass mode: initial pass, then one re-review pass after fixing blocking items.
-- Codex runs in two-pass mode: initial pass, then one re-review pass after fixing blocking items.
+- Codex happy-path is two passes (initial + one re-review), but this is NOT a stopping rule — continue until `VERDICT: APPROVED` regardless of pass count.
 - `[q]` and `[nit]` are opt-in (only when explicitly requested). By default, suppress them.
 - Critics should return `APPROVE` when only non-blocking findings remain.
 
