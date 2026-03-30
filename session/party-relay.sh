@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # party-relay.sh — Thin wrapper for master/worker communication via party-cli.
+# Does not depend on party-lib.sh — master validation is handled by party-cli.
+#
 # Usage:
 #   party-relay.sh <worker-id> "message"          # relay to one worker
 #   party-relay.sh --broadcast "message"           # broadcast to all workers
@@ -12,8 +14,27 @@
 #   party-relay.sh --wizard <worker-id> "message"    # send raw text to worker's Wizard pane
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/party-lib.sh"
+# ---------------------------------------------------------------------------
+# Resolve party-cli binary (on PATH, or via go run as fallback)
+# ---------------------------------------------------------------------------
+_resolve_party_cli() {
+  if command -v party-cli &>/dev/null; then
+    PARTY_CLI_CMD=(party-cli)
+    return 0
+  fi
+
+  local repo_root
+  repo_root="${PARTY_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)}"
+  if command -v go &>/dev/null && [[ -f "$repo_root/tools/party-cli/main.go" ]]; then
+    PARTY_CLI_CMD=(env "PARTY_REPO_ROOT=$repo_root" go -C "$repo_root/tools/party-cli" run .)
+    return 0
+  fi
+
+  echo "Error: party-cli not found. Build with: cd tools/party-cli && go install ." >&2
+  return 1
+}
+
+PARTY_CLI_CMD=()
 
 relay_usage() {
   cat <<'EOF'
@@ -30,18 +51,6 @@ Usage:
 EOF
 }
 
-# Discover master session for commands that require it.
-relay_discover_master() {
-  discover_session || {
-    echo "Error: party-relay.sh must be run inside a party session or with PARTY_SESSION set." >&2
-    return 1
-  }
-  if ! party_is_master "$SESSION_NAME"; then
-    echo "Error: session '$SESSION_NAME' is not a master session." >&2
-    return 1
-  fi
-}
-
 # --- Main ---
 
 if [[ $# -eq 0 ]]; then
@@ -49,12 +58,12 @@ if [[ $# -eq 0 ]]; then
   exit 1
 fi
 
-party_resolve_cli_bin || exit 1
+_resolve_party_cli || exit 1
 
 case "$1" in
   --broadcast)
-    relay_discover_master
-    exec "${PARTY_CLI_CMD[@]}" broadcast "$SESSION_NAME" "${2:?--broadcast requires a message}"
+    # party-cli broadcast auto-discovers master session when master-id is omitted
+    exec "${PARTY_CLI_CMD[@]}" broadcast "${2:?--broadcast requires a message}"
     ;;
   --read)
     shift
@@ -68,21 +77,20 @@ case "$1" in
     exec "${PARTY_CLI_CMD[@]}" read "$_read_worker" --lines "$_read_lines"
     ;;
   --report)
-    discover_session || { echo "Error: must be run inside a party session." >&2; exit 1; }
-    exec "${PARTY_CLI_CMD[@]}" report "$SESSION_NAME" "${2:?--report requires a message}"
+    # party-cli report auto-discovers session when session-id is omitted
+    exec "${PARTY_CLI_CMD[@]}" report "${2:?--report requires a message}"
     ;;
   --list)
-    relay_discover_master
-    exec "${PARTY_CLI_CMD[@]}" workers "$SESSION_NAME"
+    # party-cli workers auto-discovers master session when master-id is omitted
+    exec "${PARTY_CLI_CMD[@]}" workers
     ;;
   --stop)
-    relay_discover_master
     exec "${PARTY_CLI_CMD[@]}" stop "${2:?--stop requires a worker ID}"
     ;;
   --spawn)
-    relay_discover_master
     shift
-    _spawn_args=("$SESSION_NAME")
+    # party-cli spawn auto-discovers master session when master-id is omitted
+    _spawn_args=()
     while [[ $# -gt 0 ]]; do
       case "$1" in
         --prompt) _spawn_args+=(--prompt "${2:?--prompt requires a message}"); shift 2 ;;

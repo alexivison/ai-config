@@ -1,16 +1,32 @@
 #!/usr/bin/env bash
 # party.sh — Thin wrapper that delegates to party-cli for all operations.
-# Session creation, lifecycle, messaging, and picker are handled by party-cli.
-# party-lib.sh is retained for tmux-codex.sh and classic routing helpers.
+# party-lib.sh is retained only for transport layer (tmux-codex.sh, tmux-claude.sh).
 #
 # Usage: party.sh [--detached] [--prompt "text"] [--resume-claude ID] [--resume-codex ID] [TITLE]
 #        party.sh --switch | --continue <party-id> | --stop [name] | --list | --install-tpm
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/party-lib.sh"
+# ---------------------------------------------------------------------------
+# Resolve party-cli binary (on PATH, or via go run as fallback)
+# ---------------------------------------------------------------------------
+_resolve_party_cli() {
+  if command -v party-cli &>/dev/null; then
+    PARTY_CLI_CMD=(party-cli)
+    return 0
+  fi
 
-# party_attach is provided by party-lib.sh (sourced above)
+  local repo_root
+  repo_root="${PARTY_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)}"
+  if command -v go &>/dev/null && [[ -f "$repo_root/tools/party-cli/main.go" ]]; then
+    PARTY_CLI_CMD=(env "PARTY_REPO_ROOT=$repo_root" go -C "$repo_root/tools/party-cli" run .)
+    return 0
+  fi
+
+  echo "Error: party-cli not found. Build with: cd tools/party-cli && go install ." >&2
+  return 1
+}
+
+PARTY_CLI_CMD=()
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -78,11 +94,11 @@ while [[ $# -gt 0 ]]; do
 
     # Commands that delegate directly to party-cli (no attach needed)
     --list)
-      party_resolve_cli_bin || exit 1
+      _resolve_party_cli || exit 1
       exec "${PARTY_CLI_CMD[@]}" list
       ;;
     --stop)
-      party_resolve_cli_bin || exit 1
+      _resolve_party_cli || exit 1
       if [[ -n "${2:-}" ]]; then
         exec "${PARTY_CLI_CMD[@]}" stop "$2"
       elif [[ -n "${TMUX:-}" ]]; then
@@ -100,7 +116,7 @@ while [[ $# -gt 0 ]]; do
       fi
       ;;
     --delete)
-      party_resolve_cli_bin || exit 1
+      _resolve_party_cli || exit 1
       exec "${PARTY_CLI_CMD[@]}" delete "${2:?--delete requires a session ID}"
       ;;
     --promote)
@@ -112,7 +128,7 @@ while [[ $# -gt 0 ]]; do
         echo "Error: --promote requires a session ID or must be run inside tmux." >&2
         exit 1
       fi
-      party_resolve_cli_bin || exit 1
+      _resolve_party_cli || exit 1
       exec "${PARTY_CLI_CMD[@]}" promote "$_promote_target"
       ;;
     --resize)
@@ -124,28 +140,26 @@ while [[ $# -gt 0 ]]; do
         echo "Error: --resize requires a session ID or must be run inside tmux." >&2
         exit 1
       fi
-      party_resolve_cli_bin || exit 1
+      _resolve_party_cli || exit 1
       exec "${PARTY_CLI_CMD[@]}" resize "$_resize_target"
       ;;
     --pick-entries)
-      party_resolve_cli_bin || exit 1
+      _resolve_party_cli || exit 1
       exec "${PARTY_CLI_CMD[@]}" picker entries
       ;;
 
     # Commands that delegate to party-cli then attach
     --switch|switch)
-      party_resolve_cli_bin || exit 1
+      _resolve_party_cli || exit 1
       exec "${PARTY_CLI_CMD[@]}" picker
       ;;
     --continue|continue)
       session="${2:-}"
-      party_resolve_cli_bin || exit 1
+      _resolve_party_cli || exit 1
       if [[ -z "$session" ]]; then
         exec "${PARTY_CLI_CMD[@]}" picker
       fi
-      "${PARTY_CLI_CMD[@]}" continue "$session" || exit 1
-      party_attach "$session"
-      exit
+      exec "${PARTY_CLI_CMD[@]}" continue --attach "$session"
       ;;
 
     # Accumulate flags for start
@@ -166,7 +180,7 @@ done
 [[ $# -gt 0 && -z "$_party_title" ]] && _party_title="$1"
 
 # --- Start a new session via party-cli ---
-party_resolve_cli_bin || exit 1
+_resolve_party_cli || exit 1
 
 start_args=(start --cwd "$PWD")
 [[ -n "$_party_title" ]]        && start_args+=("$_party_title")
@@ -176,18 +190,9 @@ start_args=(start --cwd "$PWD")
 [[ -n "$_party_resume_claude" ]] && start_args+=(--resume-claude "$_party_resume_claude")
 [[ -n "$_party_resume_codex" ]]  && start_args+=(--resume-codex "$_party_resume_codex")
 
-output="$("${PARTY_CLI_CMD[@]}" "${start_args[@]}")" || exit 1
-echo "$output"
-
-# Extract session ID from party-cli output.
-# party-cli prints "... session 'party-XXXX' started." — extract the quoted ID.
-session_id="$(echo "$output" | sed -n "s/.*'\(party-[^']*\)'.*/\1/p" | head -1)"
-
-if [[ -z "$session_id" ]]; then
-  echo "Error: could not extract session ID from party-cli output." >&2
-  exit 1
-fi
-
+# Use --attach when not detached to let party-cli handle attach directly.
 if [[ "$_party_detached" -eq 0 ]]; then
-  party_attach "$session_id"
+  start_args+=(--attach)
 fi
+
+exec "${PARTY_CLI_CMD[@]}" "${start_args[@]}"

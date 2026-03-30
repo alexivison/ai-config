@@ -47,6 +47,7 @@ case "$1" in
   read)   echo "(pane content)" ;;
   report) echo "Report sent." ;;
   relay)  echo "Relayed." ;;
+  spawn)  echo "Worker 'party-mock-w1' spawned." ;;
 esac
 exit 0
 MOCKEOF
@@ -85,20 +86,29 @@ bash "$REPO_ROOT/session/party.sh" --promote party-test-123 2>/dev/null || true
 assert "party.sh --promote delegates to party-cli" \
   'grep -q "^promote party-test-123" "$MOCK_LOG"'
 
+# ---- party.sh --continue delegates to party-cli continue --attach ----
+> "$MOCK_LOG"
+bash "$REPO_ROOT/session/party.sh" --continue party-test-123 2>/dev/null || true
+assert "party.sh --continue delegates to party-cli with --attach" \
+  'grep -q "^continue --attach party-test-123" "$MOCK_LOG"'
+
+# ---- party.sh start delegates with --attach ----
+> "$MOCK_LOG"
+bash "$REPO_ROOT/session/party.sh" test-title 2>/dev/null || true
+assert "party.sh start passes --attach to party-cli" \
+  'grep -q "start.*--attach" "$MOCK_LOG"'
+
+# ---- party.sh --detached start does NOT pass --attach ----
+> "$MOCK_LOG"
+bash "$REPO_ROOT/session/party.sh" --detached test-title 2>/dev/null || true
+assert "party.sh --detached omits --attach" \
+  '! grep -q "\-\-attach" "$MOCK_LOG"'
+
 # ---- party-relay.sh --broadcast delegates to party-cli broadcast ----
 > "$MOCK_LOG"
-# relay requires discover_session — set PARTY_SESSION to a master
-export PARTY_STATE_ROOT="$MOCK_DIR/state"
-mkdir -p "$PARTY_STATE_ROOT"
-# Create a fake master manifest
-FAKE_MASTER="party-test-master-$$"
-export PARTY_SESSION="$FAKE_MASTER"
-cat > "$PARTY_STATE_ROOT/$FAKE_MASTER.json" << EOF
-{"party_id":"$FAKE_MASTER","session_type":"master","workers":[]}
-EOF
 bash "$REPO_ROOT/session/party-relay.sh" --broadcast "hello workers" 2>/dev/null || true
-assert "party-relay.sh --broadcast delegates to party-cli" \
-  'grep -q "^broadcast" "$MOCK_LOG"'
+assert "party-relay.sh --broadcast delegates to party-cli (auto-discover)" \
+  'grep -q "^broadcast hello workers" "$MOCK_LOG"'
 
 # ---- party-relay.sh --read delegates to party-cli read ----
 > "$MOCK_LOG"
@@ -106,21 +116,16 @@ bash "$REPO_ROOT/session/party-relay.sh" --read party-worker-1 2>/dev/null || tr
 assert "party-relay.sh --read delegates to party-cli" \
   'grep -q "^read party-worker-1" "$MOCK_LOG"'
 
-# ---- party-relay.sh --report delegates to party-cli report ----
+# ---- party-relay.sh --report delegates to party-cli report (auto-discover) ----
 > "$MOCK_LOG"
-export PARTY_SESSION="party-worker-1"
-cat > "$PARTY_STATE_ROOT/party-worker-1.json" << EOF
-{"party_id":"party-worker-1","parent_session":"$FAKE_MASTER"}
-EOF
 bash "$REPO_ROOT/session/party-relay.sh" --report "task done" 2>/dev/null || true
-assert "party-relay.sh --report delegates to party-cli" \
-  'grep -q "^report" "$MOCK_LOG"'
+assert "party-relay.sh --report delegates to party-cli (auto-discover)" \
+  'grep -q "^report task done" "$MOCK_LOG"'
 
-# ---- party-relay.sh --list delegates to party-cli workers ----
+# ---- party-relay.sh --list delegates to party-cli workers (auto-discover) ----
 > "$MOCK_LOG"
-export PARTY_SESSION="$FAKE_MASTER"
 bash "$REPO_ROOT/session/party-relay.sh" --list 2>/dev/null || true
-assert "party-relay.sh --list delegates to party-cli" \
+assert "party-relay.sh --list delegates to party-cli (auto-discover)" \
   'grep -q "^workers" "$MOCK_LOG"'
 
 # ---- party-relay.sh <worker> "msg" delegates to party-cli relay ----
@@ -128,6 +133,12 @@ assert "party-relay.sh --list delegates to party-cli" \
 bash "$REPO_ROOT/session/party-relay.sh" party-worker-1 "do the thing" 2>/dev/null || true
 assert "party-relay.sh direct relay delegates to party-cli" \
   'grep -q "^relay party-worker-1" "$MOCK_LOG"'
+
+# ---- party-relay.sh --spawn delegates to party-cli spawn (auto-discover) ----
+> "$MOCK_LOG"
+bash "$REPO_ROOT/session/party-relay.sh" --spawn "worker-title" 2>/dev/null || true
+assert "party-relay.sh --spawn delegates to party-cli (auto-discover)" \
+  'grep -q "^spawn worker-title" "$MOCK_LOG"'
 
 # ---- party.sh --pick-entries delegates to party-cli picker entries ----
 > "$MOCK_LOG"
@@ -139,11 +150,22 @@ assert "party.sh --pick-entries delegates to party-cli" \
 assert "party-master.sh is retired (not sourced by party.sh)" \
   '! grep -q "source.*party-master.sh" "$REPO_ROOT/session/party.sh"'
 
-# ---- Verify party-preview.sh delegates to party-cli ----
-> "$MOCK_LOG"
-bash "$REPO_ROOT/session/party-preview.sh" party-test-123 "$PARTY_STATE_ROOT" "$HOME" 2>/dev/null || true
-assert "party-preview.sh delegates to party-cli picker preview" \
-  'grep -q "^picker preview -- party-test-123" "$MOCK_LOG"'
+# ---- Verify party-lib.sh is no longer sourced by wrappers ----
+assert "party.sh does not source party-lib.sh" \
+  '! grep -q "source.*party-lib.sh" "$REPO_ROOT/session/party.sh"'
+
+assert "party-relay.sh does not source party-lib.sh" \
+  '! grep -q "source.*party-lib.sh" "$REPO_ROOT/session/party-relay.sh"'
+
+# ---- Verify vestigial scripts are deleted ----
+assert "party-picker.sh is deleted" \
+  '[ ! -f "$REPO_ROOT/session/party-picker.sh" ]'
+
+assert "party-preview.sh is deleted" \
+  '[ ! -f "$REPO_ROOT/session/party-preview.sh" ]'
+
+assert "party-master-jump.sh is deleted" \
+  '[ ! -f "$REPO_ROOT/session/party-master-jump.sh" ]'
 
 # ---- Verify duplicate bash functions are removed from party.sh ----
 assert "party_list() removed from party.sh" \
@@ -186,14 +208,7 @@ assert "relay_read() removed from party-relay.sh" \
 assert "relay_report() removed from party-relay.sh" \
   '! grep -q "^relay_report()" "$REPO_ROOT/session/party-relay.sh"'
 
-# ---- Verify party-picker.sh delegate functions are removed ----
-assert "party_pick_entries() removed from party-picker.sh" \
-  '! grep -q "^party_pick_entries()" "$REPO_ROOT/session/party-picker.sh"'
-
-assert "_party_fzf_select() removed from party-picker.sh" \
-  '! grep -q "^_party_fzf_select()" "$REPO_ROOT/session/party-picker.sh"'
-
-# ---- Verify party-lib.sh is retained ----
+# ---- Verify party-lib.sh is retained for transport layer ----
 assert "party-lib.sh still exists" \
   '[ -f "$REPO_ROOT/session/party-lib.sh" ]'
 
@@ -210,15 +225,9 @@ assert "party-lib.sh still has write_codex_status" \
 assert "party_resolve_cli_bin() exists in party-lib.sh" \
   'grep -q "^party_resolve_cli_bin()" "$REPO_ROOT/session/party-lib.sh"'
 
-# ---- Verify no duplicate _resolve_party_cli in wrappers ----
-assert "no _resolve_party_cli in party.sh (uses shared)" \
-  '! grep -q "_resolve_party_cli()" "$REPO_ROOT/session/party.sh"'
-
-assert "no _resolve_party_cli in party-relay.sh (uses shared)" \
-  '! grep -q "_resolve_party_cli()" "$REPO_ROOT/session/party-relay.sh"'
-
-assert "no _picker_resolve_cli in party-picker.sh (uses shared)" \
-  '! grep -q "_picker_resolve_cli()" "$REPO_ROOT/session/party-picker.sh"'
+# ---- Verify no duplicate _resolve_party_cli in old locations ----
+assert "no _resolve_party_cli in party-picker.sh (deleted)" \
+  '[ ! -f "$REPO_ROOT/session/party-picker.sh" ]'
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
