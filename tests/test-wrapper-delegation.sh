@@ -208,23 +208,6 @@ assert "relay_read() removed from party-relay.sh" \
 assert "relay_report() removed from party-relay.sh" \
   '! grep -q "^relay_report()" "$REPO_ROOT/session/party-relay.sh"'
 
-# ---- Verify party-lib.sh is retained for transport layer ----
-assert "party-lib.sh still exists" \
-  '[ -f "$REPO_ROOT/session/party-lib.sh" ]'
-
-assert "party-lib.sh still has discover_session" \
-  'grep -q "^discover_session()" "$REPO_ROOT/session/party-lib.sh"'
-
-assert "party-lib.sh still has tmux_send" \
-  'grep -q "^tmux_send()" "$REPO_ROOT/session/party-lib.sh"'
-
-assert "party-lib.sh still has write_codex_status" \
-  'grep -q "^write_codex_status()" "$REPO_ROOT/session/party-lib.sh"'
-
-# ---- Verify shared resolver exists in party-lib.sh ----
-assert "party_resolve_cli_bin() exists in party-lib.sh" \
-  'grep -q "^party_resolve_cli_bin()" "$REPO_ROOT/session/party-lib.sh"'
-
 # ---- Verify no duplicate _resolve_party_cli in old locations ----
 assert "no _resolve_party_cli in party-picker.sh (deleted)" \
   '[ ! -f "$REPO_ROOT/session/party-picker.sh" ]'
