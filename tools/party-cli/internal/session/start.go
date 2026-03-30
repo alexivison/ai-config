@@ -74,6 +74,7 @@ func (s *Service) Start(ctx context.Context, opts StartOpts) (StartResult, error
 
 	runtimeDir, err := ensureRuntimeDir(sessionID)
 	if err != nil {
+		_ = s.Store.Delete(sessionID) // rollback manifest
 		return StartResult{}, err
 	}
 
