@@ -35,10 +35,10 @@ ai-config/
 │   └── party-master-jump.sh  # tmux keybinding: jump from worker to master
 ├── tools/
 │   ├── party-cli/         # Unified Go binary: TUI + CLI (primary implementation)
-│   └── party-tracker/     # Legacy Bubble Tea tracker (absorbed into party-cli)
+│   └── (party-tracker removed — functionality absorbed into party-cli)
 ├── tmux/            # tmux configuration
 ├── tests/           # Test suite
-├── install.sh       # Install CLIs, create symlinks, build tracker
+├── install.sh       # Install CLIs, create symlinks
 ├── uninstall.sh     # Remove symlinks
 └── README.md
 ```
