@@ -59,15 +59,16 @@ func TestStart_RetriesOnIDCollision(t *testing.T) {
 }
 
 // W4: Cleanup script uses jq without checking availability.
-// If jq is not on PATH, the worker-deregistration step silently fails,
-// leaving stale entries in the parent manifest.
+// The parent session ID is now embedded at generation time so jq is only
+// needed for the worker-list rewrite (best-effort). Manifest deletion
+// works without jq.
 func TestWriteCleanupScript_ChecksJqAvailability(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "cleanup.sh")
 
-	if err := writeCleanupScript(path, "/tmp/state", "party-test"); err != nil {
+	if err := writeCleanupScript(path, "/tmp/state", "party-test", "party-master"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -77,10 +78,46 @@ func TestWriteCleanupScript_ChecksJqAvailability(t *testing.T) {
 	}
 	script := string(data)
 
-	// After fix: script should guard jq usage with an availability check.
-	if !strings.Contains(script, "command -v jq") &&
-		!strings.Contains(script, "which jq") &&
-		!strings.Contains(script, "type jq") {
+	// jq usage (worker-list rewrite) should be guarded.
+	if !strings.Contains(script, "command -v jq") {
 		t.Error("cleanup script should check for jq availability before using it")
+	}
+
+	// Parent ID should be embedded, not discovered at runtime.
+	if !strings.Contains(script, "party-master") {
+		t.Error("cleanup script should embed the parent session ID")
+	}
+
+	// Manifest deletion (rm -f) should NOT be inside the jq-guarded block.
+	// It must work even when jq is absent.
+	jqGuardIdx := strings.Index(script, "command -v jq")
+	rmManifestIdx := strings.Index(script, "rm -f \"$SR/$W.json\"")
+	if rmManifestIdx < 0 {
+		t.Fatal("cleanup script should delete worker manifest")
+	}
+	if rmManifestIdx < jqGuardIdx {
+		t.Error("manifest deletion should be outside the jq-guarded block")
+	}
+}
+
+func TestWriteCleanupScript_NoParent(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "cleanup.sh")
+
+	if err := writeCleanupScript(path, "/tmp/state", "party-standalone", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := string(data)
+
+	// Standalone sessions should still clean up runtime dir.
+	if !strings.Contains(script, "rm -rf") {
+		t.Error("cleanup script should remove runtime dir for standalone sessions")
 	}
 }

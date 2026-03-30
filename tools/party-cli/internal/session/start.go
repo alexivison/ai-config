@@ -269,7 +269,15 @@ func (s *Service) setCleanupHook(ctx context.Context, sessionID string) error {
 	runtimeDir := runtimeDir(sessionID)
 	scriptPath := filepath.Join(runtimeDir, "cleanup.sh")
 
-	if err := writeCleanupScript(scriptPath, s.Store.Root(), sessionID); err != nil {
+	// Embed parent ID at hook-creation time so the cleanup script doesn't
+	// need jq to discover it. jq is only used (best-effort) for rewriting
+	// the parent's worker list.
+	var parentID string
+	if m, err := s.Store.Read(sessionID); err == nil {
+		parentID = m.ExtraString("parent_session")
+	}
+
+	if err := writeCleanupScript(scriptPath, s.Store.Root(), sessionID, parentID); err != nil {
 		return fmt.Errorf("write cleanup script: %w", err)
 	}
 
@@ -280,19 +288,19 @@ func (s *Service) setCleanupHook(ctx context.Context, sessionID string) error {
 
 // writeCleanupScript writes the session cleanup logic to a shell script.
 // Paths are injected via heredoc-style quoting so spaces and special
-// characters (including apostrophes) are safe.
-func writeCleanupScript(path, stateRoot, sessionID string) error {
+// characters (including apostrophes) are safe. The parent session ID is
+// embedded at generation time so the script doesn't need jq to discover it.
+// jq is only used (best-effort) for rewriting the parent's worker list.
+func writeCleanupScript(path, stateRoot, sessionID, parentID string) error {
 	// Perl is used as a portable flock wrapper (macOS ships with Perl;
 	// flock CLI does not exist). system() (not exec) holds the lock
 	// while bash runs the jq rewrite.
 	script := fmt.Sprintf(`#!/bin/sh
 export SR=%s
 W=%s
-p=
-if command -v jq >/dev/null 2>&1; then
-  p=$(jq -r '.parent_session // empty' "$SR/$W.json" 2>/dev/null)
-fi
-if [ -n "$p" ] && [ -f "$SR/$p.json" ]; then
+p=%s
+# Best-effort: remove this worker from parent's worker list (requires jq).
+if [ -n "$p" ] && [ -f "$SR/$p.json" ] && command -v jq >/dev/null 2>&1; then
   export p
   perl -MFcntl=:flock -e \
     'open my $f,">",shift or exit 1;flock($f,LOCK_EX) or exit 1;exit(system(@ARGV[1..$#ARGV])>>8)' \
@@ -309,7 +317,7 @@ if [ -n "$p" ]; then
   rm -f "$SR/$W.json" "$SR/$W.json.lock"
 fi
 exit 0
-`, shellQuoteForScript(stateRoot), shellQuoteForScript(sessionID))
+`, shellQuoteForScript(stateRoot), shellQuoteForScript(sessionID), shellQuoteForScript(parentID))
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
