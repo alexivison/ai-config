@@ -153,11 +153,13 @@ func (s *Service) claimSessionID(ctx context.Context, template state.Manifest) (
 		// Propagate real transport errors; benign "no server" returns (false, nil).
 		exists, hsErr := s.Client.HasSession(ctx, id)
 		if hsErr != nil {
-			_ = s.Store.Delete(id)
+			if delErr := s.Store.Delete(id); delErr != nil && !isManifestNotFound(delErr) {
+				return "", fmt.Errorf("check tmux session %s: %w (rollback failed: %v)", id, hsErr, delErr)
+			}
 			return "", fmt.Errorf("check tmux session %s: %w", id, hsErr)
 		}
 		if exists {
-			_ = s.Store.Delete(id)
+			_ = s.Store.Delete(id) // best-effort; retries use different IDs
 			continue
 		}
 

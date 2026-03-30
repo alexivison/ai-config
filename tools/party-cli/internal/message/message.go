@@ -79,10 +79,12 @@ func (s *Service) Broadcast(ctx context.Context, masterID, message string) (Broa
 	}
 
 	result := BroadcastResult{Registered: len(workers)}
+	var transportErr error
 	for _, wid := range workers {
 		alive, err := s.client.HasSession(ctx, wid)
 		if err != nil {
-			return result, fmt.Errorf("check worker %s: %w", wid, err)
+			transportErr = fmt.Errorf("check worker %s: %w", wid, err)
+			continue // deliver to remaining workers
 		}
 		if !alive {
 			continue
@@ -96,7 +98,7 @@ func (s *Service) Broadcast(ctx context.Context, masterID, message string) (Broa
 			result.Delivered++
 		}
 	}
-	return result, nil
+	return result, transportErr
 }
 
 // Read captures output from a worker's Claude pane.
