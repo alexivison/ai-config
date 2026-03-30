@@ -187,6 +187,21 @@ func TestKillSession_NotFound(t *testing.T) {
 	}
 }
 
+func TestKillSession_ConnectionError(t *testing.T) {
+	t.Parallel()
+
+	// Transport error (permission denied) should propagate, NOT be
+	// treated as "session doesn't exist" — the session may still be alive.
+	m := newMock(func(_ context.Context, _ ...string) (string, error) {
+		return "", &ExitError{Code: 1, Stderr: "error connecting to /tmp/tmux-501/default (Permission denied)"}
+	})
+	c := NewClient(m)
+
+	if err := c.KillSession(t.Context(), "party-perm"); err == nil {
+		t.Fatal("expected error for connection failure, got nil")
+	}
+}
+
 func TestKillSession_Error(t *testing.T) {
 	t.Parallel()
 

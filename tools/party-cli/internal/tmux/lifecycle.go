@@ -37,11 +37,13 @@ func (c *Client) EnsureSessionRunning(ctx context.Context, sessionID, label stri
 }
 
 // KillSession destroys a tmux session. Returns nil if the session does not exist.
+// Propagates transport errors (permission denied, lost server) so callers don't
+// delete manifests for sessions that are still alive but temporarily inaccessible.
 func (c *Client) KillSession(ctx context.Context, sessionID string) error {
 	_, err := c.runner.Run(ctx, "kill-session", "-t", sessionID)
 	if err != nil {
 		var exitErr *ExitError
-		if errors.As(err, &exitErr) {
+		if errors.As(err, &exitErr) && !exitErr.IsConnectionError() {
 			return nil
 		}
 		return fmt.Errorf("kill-session %s: %w", sessionID, err)
