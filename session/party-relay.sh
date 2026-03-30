@@ -9,6 +9,7 @@
 #   party-relay.sh --stop <worker-id>              # stop a worker
 #   party-relay.sh --spawn [--prompt "..."] "title" # spawn a new worker
 #   party-relay.sh --file <path> <worker-id>        # send file pointer to worker
+#   party-relay.sh --wizard <worker-id> "message"    # send raw text to worker's Wizard pane
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,6 +26,7 @@ Usage:
   party-relay.sh --stop <worker-id>
   party-relay.sh --spawn [--prompt "text"] "title"
   party-relay.sh --file <path> <worker-id>    # send file pointer to worker
+  party-relay.sh --wizard <worker-id> "msg"   # send raw text to worker's Wizard pane
 EOF
 }
 
@@ -98,6 +100,26 @@ case "$1" in
       exit 1
     fi
     exec "${PARTY_CLI_CMD[@]}" relay "$_file_worker" "Read relay instructions at $_file_path"
+    ;;
+  --wizard)
+    relay_discover_master
+    shift
+    _wiz_worker="${1:?--wizard requires a worker ID}"
+    _wiz_msg="${2:?--wizard requires a message}"
+    _wiz_pane=$(party_codex_pane_target "$_wiz_worker") || {
+      echo "Error: Cannot resolve Wizard pane in worker '$_wiz_worker'" >&2
+      exit 1
+    }
+    _wiz_rc=0
+    tmux_send "$_wiz_pane" "$_wiz_msg" "party-relay.sh:wizard" || _wiz_rc=$?
+    if [[ $_wiz_rc -eq 75 ]]; then
+      echo "Error: Wizard pane busy in worker '$_wiz_worker'. Message dropped." >&2
+      exit 1
+    elif [[ $_wiz_rc -ne 0 && $_wiz_rc -ne 76 ]]; then
+      echo "Error: Failed to send to Wizard in worker '$_wiz_worker' (rc=$_wiz_rc)." >&2
+      exit 1
+    fi
+    echo "Sent to Wizard in '$_wiz_worker'."
     ;;
   --help|-h)
     relay_usage
