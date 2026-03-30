@@ -1,13 +1,13 @@
 # Execution Core
 
-Shared rules for all workflow skills. Bugfix-workflow omits checkboxes (no PLAN.md).
+Shared rules for all workflow skills. Applies to all implementation regardless of planning source. Bugfix-workflow omits source-file updates (no tracking files).
 
 ## Core Sequence
 
 This section is the single source of truth for execution order across workflow docs.
 
 ```
-/write-tests → implement → checkboxes → [code-critic + minimizer (+ scribe if TASK file)] → codex [+ sentinel] → /pre-pr-verification → commit → PR
+/write-tests → implement → source-file updates → [code-critic + minimizer (+ scribe when requirements provided)] → codex [+ sentinel] → /pre-pr-verification → commit → PR
 ```
 
 Workflow skills enforce the critic-before-Codex ordering. Hooks only record evidence and block self-approval — they do not gate sequencing. Sentinel runs after critics pass. Advisory only — no gating markers.
@@ -37,7 +37,7 @@ Before critics:
 1. Record the "smallest possible fix" rationale (one line)
 2. Remove speculative code and single-use abstractions without clear value
 3. Avoid new dependencies unless strictly needed and justified
-4. Compare `git diff --name-only` against TASK scope; out-of-scope touches require explicit justification
+4. Compare `git diff --name-only` against the provided scope boundaries; out-of-scope touches require explicit justification
 
 Out-of-scope touches without justification are blocking and require `NEEDS_DISCUSSION`.
 
@@ -94,7 +94,7 @@ Review effectiveness metrics are tracked in persistent per-session JSONL logs (`
 
 ## Tiered Execution
 
-- **Full tier** (default): current sequence unchanged (`/write-tests → implement → ... → PR`). Gate-enforced evidence: pr-verified, code-critic, minimizer, codex, test-runner, check-runner. Scribe is workflow-enforced by task-workflow (not gate-enforced) — it runs when a TASK file exists but bugfix-workflow has no TASK file, so scribe cannot be a universal gate requirement.
+- **Full tier** (default): current sequence unchanged (`/write-tests → implement → ... → PR`). Gate-enforced evidence: pr-verified, code-critic, minimizer, codex, test-runner, check-runner. Scribe is workflow-enforced by task-workflow (not gate-enforced) — it runs when requirements are provided but bugfix-workflow has no requirements source, so scribe cannot be a universal gate requirement.
 - **Quick tier**: requires explicit `quick-tier` evidence from the quick-fix-workflow skill (size alone is insufficient). For non-behavioral changes only (config, deps, typos, CI). Sequence: `implement → code-critic → test-runner → check-runner → PR`. Required evidence: quick-tier, code-critic, test-runner, check-runner. Size limit: ≤30 changed lines (additions + deletions), ≤3 files, 0 new files. Explicitly forbidden for: new features, bug fixes, logic changes, API changes, security-relevant changes.
 
 ## Review Governance
@@ -105,7 +105,7 @@ Classify every finding before acting:
 |----------|-----------|--------|
 | **Blocking** | Correctness bug, crash, security HIGH/CRITICAL | Fix + re-run |
 | **Non-blocking** | Style, "could be simpler", defensive edge cases | Note only, do NOT re-run |
-| **Out-of-scope** | Pre-existing untouched code, requirements not in TASK | Reject |
+| **Out-of-scope** | Pre-existing untouched code, requirements not in scope | Reject |
 
 **Issue ledger:** Track findings across iterations. Closed findings cannot be re-raised without new evidence. Critic reversing own feedback = oscillation — use own judgment, proceed.
 
@@ -119,14 +119,14 @@ Classify every finding before acting:
 
 **Tiered re-review:** One-symbol swap → test-runner only. Logic change → test-runner + critics. New export/signature/security path → full cascade.
 
-**Scope enforcement:** Every sub-agent prompt MUST include TASK file scope boundaries. Critics review the diff, not the codebase. Pre-existing code is non-blocking unless newly reachable.
+**Scope enforcement:** Every sub-agent prompt MUST include the provided scope boundaries. Critics review the diff, not the codebase. Pre-existing code is non-blocking unless newly reachable.
 
 ## Decision Matrix
 
 | Step | Outcome | Next | Pause? |
 |------|---------|------|--------|
 | /write-tests | Written (RED) | Implement | NO |
-| Implement | Done | Checkboxes | NO |
+| Implement | Done | Source-file updates | NO |
 | Minimality + Scope Gate | PASS | Critics | NO |
 | Minimality + Scope Gate | Scope violation w/o justification | NEEDS_DISCUSSION | YES |
 | code-critic, minimizer, or scribe | APPROVE | Wait for others / codex | NO |
@@ -177,7 +177,7 @@ Evidence before claims. No assertions without proof (test output, file:line, gre
 
 ## PR Gate
 
-Code PRs require all evidence at the current diff_hash. The PR gate (`pr-gate.sh`) is the single enforcement point — no other hook gates sequencing. Full tier: pr-verified, code-critic, minimizer, codex, test-runner, check-runner (scribe is enforced by task-workflow when a TASK file exists, not by the gate — bugfix-workflow has no TASK file). Quick tier (requires explicit quick-tier evidence + size limits): quick-tier, code-critic, test-runner, check-runner. Evidence created by `agent-trace-stop.sh`, `codex-trace.sh`, `skill-marker.sh`, and workflow skills (e.g., `quick-fix-workflow` writes `quick-tier`).
+Code PRs require all evidence at the current diff_hash. The PR gate (`pr-gate.sh`) is the single enforcement point — no other hook gates sequencing. Full tier: pr-verified, code-critic, minimizer, codex, test-runner, check-runner (scribe is enforced by task-workflow when requirements are provided, not by the gate — bugfix-workflow has no requirements source). Quick tier (requires explicit quick-tier evidence + size limits): quick-tier, code-critic, test-runner, check-runner. Evidence created by `agent-trace-stop.sh`, `codex-trace.sh`, `skill-marker.sh`, and workflow skills (e.g., `quick-fix-workflow` writes `quick-tier`).
 
 **Post-PR:** Changes in same branch → re-run /pre-pr-verification → amend + force-push with `--force-with-lease`.
 

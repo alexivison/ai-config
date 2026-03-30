@@ -1,17 +1,17 @@
 ---
 name: task-workflow
 description: >-
-  Execute a task from TASK*.md with full autonomous workflow including tests,
-  implementation, critic review, Codex review, and PR creation. Auto-invoked when
-  implementing planned tasks. Use when the user says to work on a task, implement
-  a feature from a TASK file, start a planned item, or when skill-eval suggests
-  task-workflow. Covers the entire cycle from worktree creation to draft PR.
+  Execute planned work with full autonomous workflow including tests,
+  implementation, critic review, Codex review, and PR creation. Works with
+  any planning source that provides scope, requirements, and a goal — TASK
+  files, external planning tools, or direct user instructions. Covers the
+  entire cycle from worktree creation to draft PR.
 user-invocable: true
 ---
 
 # Task Workflow
 
-Execute tasks from TASK*.md files with the full autonomous workflow.
+Execute planned work with the full autonomous workflow.
 
 ## Pre-Implementation Gate
 
@@ -20,8 +20,17 @@ Execute tasks from TASK*.md files with the full autonomous workflow.
 1. **Create worktree first** — `git worktree add ../repo-branch-name -b branch-name`
 2. **Behavior change?** → invoke `/write-tests` FIRST and capture RED evidence (failing test + failure reason)
 3. **Requirements unclear?** → Ask user
-4. **Locate PLAN.md** — Find the project's PLAN.md for checkbox updates later
-5. **Extract scope boundaries** — Read the TASK file's "In Scope" and "Out of Scope" sections for use in all sub-agent prompts
+4. **Extract scope and requirements** — Identify the source of work and extract:
+   - **Scope boundaries** (in scope / out of scope) for use in all sub-agent prompts
+   - **Requirements** as a list of concrete, verifiable items for scribe
+   - **Goal** as a one-line summary for review context
+
+   Sources may include:
+   - A TASK*.md file (read "In Scope", "Out of Scope", and acceptance criteria sections)
+   - An external planning tool's artifacts (read the relevant files to extract the same information)
+   - Direct user instructions (use the user's description as scope and requirements)
+
+   If a PLAN.md or equivalent tracking file exists, note its location for checkbox updates later.
 
 State which items were checked before proceeding.
 
@@ -36,14 +45,14 @@ Use the canonical sequence in [execution-core.md](~/.claude/rules/execution-core
    - **Feature flags:** Add gate tests for both states. Flag ON must validate new behavior; flag OFF must assert pre-implementation behavior remains unchanged.
 2. **Implement** — Write the code to make tests pass
 3. **GREEN phase** — Run test-runner agent to verify tests pass (RED→GREEN evidence required for behavior changes)
-4. **Checkboxes** — Update both TASK*.md AND PLAN.md: `- [ ]` → `- [x]` (MANDATORY — both files)
+4. **Source-file updates** — If the work source has checkboxes or completion tracking (e.g., TASK*.md + PLAN.md, or an external tool's tasks file), update them: `- [ ]` → `- [x]`. If no tracking files exist, skip this step.
 5. **Minimality + Scope Gate (blocking)** — Before critics:
    - Record a one-line "smallest possible fix" rationale.
-   - Compare `git diff --name-only` against TASK "In Scope".
+   - Compare `git diff --name-only` against the extracted scope boundaries.
    - Any out-of-scope file touch requires explicit justification; otherwise stop with `NEEDS_DISCUSSION`.
    - Remove single-use abstractions, speculative code (YAGNI), and unjustified new dependencies.
 6. **code-critic + minimizer + scribe** — Run all three in parallel with scope context and diff focus (see [Review Governance](#review-governance)).
-   - **scribe** gets the TASK file path, diff command, and test file paths. It verifies every requirement is implemented and tested.
+   - **scribe** gets the extracted requirements as text, scope boundaries as text, the diff command, and test file paths. It verifies every requirement is implemented and tested.
    - Round 1: collect findings from all three, fix only `[must]` in one batch.
    - **After fixing blocking items → re-run all three (one pass).** Do NOT proceed to codex without this re-run. Only when all return APPROVE (or only non-blocking findings remain) may you proceed.
    - Stop critic loop at 3 rounds. If blocking findings still remain, enter dispute resolution (2 rounds) per execution-core, then escalate to user if unresolved.
@@ -53,7 +62,7 @@ Use the canonical sequence in [execution-core.md](~/.claude/rules/execution-core
       ~/.claude/skills/codex-transport/scripts/tmux-codex.sh --review main "{PR title}" "$(pwd)"
       ```
       `work_dir` is required — pass the worktree/repo path. Codex notifies via `[CODEX]` message when done.
-8. **Sentinel review** — Immediately after dispatching Codex, launch the `sentinel` sub-agent in the background. Pass the merge-base diff, scope boundaries from TASK, and a short PR goal context.
+8. **Sentinel review** — Immediately after dispatching Codex, launch the `sentinel` sub-agent in the background. Pass the merge-base diff, scope boundaries, and a short PR goal context.
       - **BARRIER:** no code edits until both Codex AND Sentinel return.
       - Sentinel findings are advisory (no gating markers). Paladin triages.
 9. **Triage findings** — When `[CODEX] Review complete` arrives: read findings, triage by severity. Triage the UNION of Codex + Sentinel findings.
@@ -66,30 +75,28 @@ Use the canonical sequence in [execution-core.md](~/.claude/rules/execution-core
    - Critics and Codex evidence must also be fresh at the committed hash. If the commit changed the hash (it always does), re-run the cascade: critics → codex → `/pre-pr-verification`.
 12. **PR** — Create draft PR
 
-**Note:** Step 4 (Checkboxes) MUST include PLAN.md. Forgetting PLAN.md is a common violation.
-
 **Important:** Always use test-runner agent for running tests, check-runner for lint/typecheck. This preserves context by isolating verbose output.
 
 ## Review Governance
 
 See [execution-core.md](~/.claude/rules/execution-core.md#review-governance) for full rules. Key points:
 
-- **Every** sub-agent prompt MUST include scope boundaries from the TASK file
+- **Every** sub-agent prompt MUST include the extracted scope boundaries
 - Out-of-scope file touches are blocking unless explicitly justified
 - Triage findings as **blocking** (fix + re-run), **non-blocking** (note only), or **out-of-scope** (reject)
 - Only blocking findings continue the review loop
 - Max 3 critic iterations for blocking, then dispute resolution (2 rounds) before escalating to user
 - **Codex has NO iteration cap** — continue the fix/dispute loop until Codex writes `VERDICT: APPROVED`. Do not decide the review phase is done prematurely.
 
-## Plan Conformance (Checkbox Enforcement)
+## Source-File Updates
 
-When PLAN.md exists, enforce:
+When the work source has tracking files, keep them in sync:
 
-1. **Both files updated:** TASK*.md AND PLAN.md checkboxes must change `- [ ]` → `- [x]` after implementation.
-2. **Dependency/order changes:** If task execution reveals the need to reorder or add tasks, update PLAN.md explicitly before proceeding.
-3. **Commit together:** Checkbox updates go WITH implementation, not as separate commits.
+1. **TASK*.md + PLAN.md:** Update checkboxes in both files: `- [ ]` → `- [x]` after implementation. Commit together with implementation.
+2. **External tool's tracking files:** Update completion markers per that tool's conventions after implementation. Commit together with implementation.
+3. **No tracking files:** Skip this step entirely.
 
-Forgetting PLAN.md is the most common violation. Verify both files are updated before proceeding to critics.
+If task execution reveals the need to reorder or add tasks, update the tracking file explicitly before proceeding.
 
 **Pre-filled checkbox prohibition:** Never write `- [x]` when creating new checklist items. All new items start as `- [ ]` and are only checked after the work is done and verified. Pre-filling checkboxes is falsifying evidence.
 
