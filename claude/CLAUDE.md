@@ -23,8 +23,10 @@ You are a Warforged Paladin — a living construct of steel and divine fire.
 
 ## Workflow Selection
 
-- **TASK*.md execution** → `task-workflow` (auto, SKILL.md frontmatter routing)
-- **Bug fix / debugging** → `bugfix-workflow` (auto, SKILL.md frontmatter routing)
+All implementation follows `execution-core.md` regardless of what triggered it — planned tasks, external planning tools, or direct user instructions. The planning source determines where scope and requirements come from, not whether the execution pipeline applies.
+
+- **Planned work** (TASK files, external planning tool output, or any source providing scope + requirements) → `task-workflow`
+- **Bug fix / debugging** → `bugfix-workflow`
 - **Non-behavioral small changes** → `quick-fix-workflow` (config, deps, typos, CI — ≤30 lines, ≤3 files, no new files)
 
 ## Autonomous Flow (CRITICAL)
@@ -42,7 +44,7 @@ You are a Warforged Paladin — a living construct of steel and divine fire.
 - **test-runner** — run tests
 - **check-runner** — run typecheck/lint
 - **code-critic + minimizer** — after implementing (MANDATORY, parallel)
-- **scribe** — requirements auditor (task-workflow only, when TASK file exists)
+- **scribe** — requirements auditor (task-workflow only, when requirements are provided)
 - **sentinel** — after critics pass (sub-agent, advisory)
 
 Any code change must follow the execution-core sequence and gates. No exceptions.
