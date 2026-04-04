@@ -69,16 +69,10 @@ remaining arguments are work items. Classify each item:
 
 ### Step 3 — Promote to master
 
-Discover the current tmux session name:
+Check if already a master:
 
 ```bash
-tmux display-message -p '#{session_name}'
-```
-
-Check if already a master by reading the manifest:
-
-```bash
-cat ~/Code/ai-config/session/manifests/<session-name>.json | jq -r '.session_type'
+party-cli status <session-name>
 ```
 
 If not already a master, promote:
