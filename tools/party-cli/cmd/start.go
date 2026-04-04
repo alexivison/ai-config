@@ -41,7 +41,7 @@ func newStartCmd(store *state.Store, client *tmux.Client, repoRoot string) *cobr
 				ClaudeResumeID: opts.resumeClaude,
 				CodexResumeID:  opts.resumeCodex,
 				Prompt:         opts.prompt,
-				Detached:       true, // shell wrappers handle attach
+				Detached:       true, // caller handles attach via --attach flag
 			})
 			if err != nil {
 				return err
@@ -70,7 +70,6 @@ func newStartCmd(store *state.Store, client *tmux.Client, repoRoot string) *cobr
 	cmd.Flags().StringVar(&opts.resumeCodex, "resume-codex", "", "Codex thread ID to resume")
 	cmd.Flags().StringVar(&opts.prompt, "prompt", "", "initial prompt for Claude")
 	cmd.Flags().BoolVar(&opts.attach, "attach", false, "attach to session after creation")
-	// Note: by default, attach behavior is handled by shell wrappers (party.sh).
 	// Use --attach to have party-cli attach directly after creating the session.
 
 	return cmd

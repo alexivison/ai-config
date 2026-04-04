@@ -53,7 +53,7 @@ func (c *Client) KillSession(ctx context.Context, sessionID string) error {
 
 // NewSession creates a detached tmux session.
 // Temporarily unsets TMUX env to avoid "sessions should be nested with care" errors
-// when called from within an existing tmux session (mirrors party.sh:party_create_session).
+// when called from within an existing tmux session.
 func (c *Client) NewSession(ctx context.Context, name, windowName, cwd string) error {
 	// The Runner interface doesn't support env manipulation, so we use the
 	// EnvRunner wrapper to clear TMUX for this call.
