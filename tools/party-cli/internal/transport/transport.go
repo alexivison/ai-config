@@ -176,14 +176,14 @@ func (s *Service) Prompt(ctx context.Context, opts PromptOpts) (PromptResult, er
 // ReviewCompleteResult contains the parsed verdict from a findings file.
 type ReviewCompleteResult struct {
 	ReviewRan bool
-	Verdict   string // "APPROVED", "REQUEST_CHANGES", "VERDICT_MISSING"
+	Verdict   string // "APPROVED", "REQUEST_CHANGES", or "" if missing
 }
 
 // ReviewComplete reads a findings file and parses the verdict.
 // Mirrors tmux-codex.sh --review-complete. Does not require a party session.
 func ReviewComplete(findingsFile string) (ReviewCompleteResult, error) {
 	if _, err := os.Stat(findingsFile); err != nil {
-		return ReviewCompleteResult{}, fmt.Errorf("findings file not found: %s", findingsFile)
+		return ReviewCompleteResult{}, fmt.Errorf("findings file not accessible: %w", err)
 	}
 
 	verdict := parseVerdict(findingsFile)

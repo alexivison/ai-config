@@ -59,7 +59,7 @@ Use the canonical sequence in [execution-core.md](~/.claude/rules/execution-core
    - `[q]`/`[nit]` are opt-in only (explicit polish request) and should not trigger another critic round.
 7. **Dispatch Codex review** (non-blocking):
       ```bash
-      party-cli transport review main "{PR title}" "$(pwd)"
+      party-cli transport review "$(pwd)" main "{PR title}"
       ```
       `work_dir` is required — pass the worktree/repo path. Codex notifies via `[CODEX]` message when done.
 8. **Sentinel review** — Immediately after dispatching Codex, launch the `sentinel` sub-agent in the background. Pass the merge-base diff, scope boundaries, and a short PR goal context.

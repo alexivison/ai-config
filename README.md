@@ -26,7 +26,6 @@ ai-config/
 ├── docs/            # Project documentation
 ├── nvim/            # Neovim (LazyVim) configuration
 ├── shared/          # Skills shared by both platforms
-├── session/         # Retained shell shims (backward compatibility)
 ├── tools/
 │   └── party-cli/   # Unified Go binary: TUI + CLI (all session operations)
 ├── tmux/            # tmux configuration and status scripts

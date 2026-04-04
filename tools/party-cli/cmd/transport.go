@@ -58,11 +58,10 @@ Claude is NOT blocked — Codex will notify via tmux when complete.`,
 			w := cmd.OutOrStdout()
 			if err != nil {
 				fmt.Fprintln(w, "CODEX_REVIEW_DROPPED")
-				fmt.Fprintln(w, "Codex pane is busy. Message dropped (best-effort delivery).")
 				if result.FindingsFile != "" {
 					fmt.Fprintf(w, "Findings will be written to: %s\n", result.FindingsFile)
 				}
-				return err
+				return fmt.Errorf("review dispatch failed: %w", err)
 			}
 
 			fmt.Fprintln(w, "CODEX_REVIEW_REQUESTED")
@@ -96,8 +95,7 @@ func newTransportPlanReviewCmd(store *state.Store, client *tmux.Client, repoRoot
 			w := cmd.OutOrStdout()
 			if err != nil {
 				fmt.Fprintln(w, "CODEX_PLAN_REVIEW_DROPPED")
-				fmt.Fprintln(w, "Codex pane is busy. Message dropped (best-effort delivery).")
-				return err
+				return fmt.Errorf("plan-review dispatch failed: %w", err)
 			}
 
 			fmt.Fprintln(w, "CODEX_PLAN_REVIEW_REQUESTED")
@@ -125,8 +123,7 @@ func newTransportPromptCmd(store *state.Store, client *tmux.Client, repoRoot str
 			w := cmd.OutOrStdout()
 			if err != nil {
 				fmt.Fprintln(w, "CODEX_TASK_DROPPED")
-				fmt.Fprintln(w, "Codex pane is busy. Message dropped (best-effort delivery).")
-				return err
+				return fmt.Errorf("prompt dispatch failed: %w", err)
 			}
 
 			fmt.Fprintln(w, "CODEX_TASK_REQUESTED")

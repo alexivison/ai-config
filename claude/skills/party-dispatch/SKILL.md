@@ -189,7 +189,7 @@ their entire lifecycle. The master is an orchestrator, never an implementor.
 
 - **Check status**: `party-cli workers` to see all workers and their state
 - **Read scrollback**: `party-cli read <worker-id>` (default 50 lines)
-  or `--read <worker-id> --lines 200` for deeper history
+  or `party-cli read <worker-id> --lines 200` for deeper history
 - **Watch tracker pane**: the left pane shows real-time worker status
 
 ### Handling worker reports
