@@ -3,7 +3,7 @@
 # Displays Claude context-remaining percentage.
 #
 # Usage (in tmux.conf):
-#   #(~/Code/ai-config/tmux/context-status.sh)
+#   #(~/Code/ai-party/tmux/context-status.sh)
 #
 # Data source:
 #   Cache file written by status-line.sh (/tmp/ai-context-cache/claude-<pane>)

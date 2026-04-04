@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-21
 **Session:** `71a554a9-3364-4c58-b574-ee93ed77fc28`
-**Branch:** `sidebar-tui-plan` (worktree at `../ai-config-sidebar-tui-plan`)
+**Branch:** `sidebar-tui-plan` (worktree at `../ai-party-sidebar-tui-plan`)
 **Symptom:** `gh pr create` blocked with "Missing: pr-verified code-critic minimizer codex test-runner check-runner" despite the PR containing only `.md` and `.svg` files.
 
 ---
@@ -42,18 +42,18 @@ This is more robust — new doc formats are automatically safe, and only actual 
 
 **File:** `~/.claude/hooks/worktree-track.sh:58-71`
 
-**Problem:** The override file `/tmp/claude-worktree-71a554a9-...` contained a single newline (0x0a) — the path was empty. This means `_resolve_cwd()` in evidence.sh found the file, read empty content, `[ -d "" ]` failed, and fell back to the hook's `cwd` (`/Users/aleksi.tuominen/Code/ai-config` — the main repo, not the worktree).
+**Problem:** The override file `/tmp/claude-worktree-71a554a9-...` contained a single newline (0x0a) — the path was empty. This means `_resolve_cwd()` in evidence.sh found the file, read empty content, `[ -d "" ]` failed, and fell back to the hook's `cwd` (`/Users/aleksi.tuominen/Code/ai-party` — the main repo, not the worktree).
 
 **Trace of the failure in worktree-track.sh:**
 
 The `git worktree add` command was:
 ```bash
-git worktree add ../ai-config-sidebar-tui-plan -b sidebar-tui-plan
+git worktree add ../ai-party-sidebar-tui-plan -b sidebar-tui-plan
 ```
 
-Line 35: `sed 's/.*git worktree add //'` → `../ai-config-sidebar-tui-plan -b sidebar-tui-plan`
+Line 35: `sed 's/.*git worktree add //'` → `../ai-party-sidebar-tui-plan -b sidebar-tui-plan`
 
-Lines 40-50 (arg parsing loop): First non-flag arg is `../ai-config-sidebar-tui-plan` → `worktree_path="../ai-config-sidebar-tui-plan"`, break. ✓
+Lines 40-50 (arg parsing loop): First non-flag arg is `../ai-party-sidebar-tui-plan` → `worktree_path="../ai-party-sidebar-tui-plan"`, break. ✓
 
 Lines 58-63 (relative path resolution):
 ```bash
@@ -65,7 +65,7 @@ if [[ "$worktree_path" != /* ]]; then
 fi
 ```
 
-Here's the likely failure: `cwd` from hook input was empty or the path concatenation produced an invalid directory. If `cwd` was empty, `worktree_path` remained relative (`../ai-config-sidebar-tui-plan`).
+Here's the likely failure: `cwd` from hook input was empty or the path concatenation produced an invalid directory. If `cwd` was empty, `worktree_path` remained relative (`../ai-party-sidebar-tui-plan`).
 
 Lines 66-68 (normalize):
 ```bash
@@ -74,7 +74,7 @@ if [ -d "$worktree_path" ]; then
 fi
 ```
 
-If the hook's working directory at execution time is NOT the repo root (hooks run from an unspecified cwd), then `../ai-config-sidebar-tui-plan` relative to the hook's cwd would NOT be a valid directory. The `[ -d ]` check would fail, skipping normalization. But then `worktree_path` would still be `../ai-config-sidebar-tui-plan`.
+If the hook's working directory at execution time is NOT the repo root (hooks run from an unspecified cwd), then `../ai-party-sidebar-tui-plan` relative to the hook's cwd would NOT be a valid directory. The `[ -d ]` check would fail, skipping normalization. But then `worktree_path` would still be `../ai-party-sidebar-tui-plan`.
 
 Lines 70-71:
 ```bash
@@ -83,11 +83,11 @@ if [ -d "$worktree_path" ]; then
 fi
 ```
 
-If `[ -d "../ai-config-sidebar-tui-plan" ]` fails here too (same cwd problem), the echo never runs. But the file IS 1 byte (a newline), meaning _something_ wrote to it. Let me reconsider...
+If `[ -d "../ai-party-sidebar-tui-plan" ]` fails here too (same cwd problem), the echo never runs. But the file IS 1 byte (a newline), meaning _something_ wrote to it. Let me reconsider...
 
 **Alternative hypothesis:** The hook ran, but a _later_ invocation of the same session ID overwrote the file with empty content. Or a race condition between the PostToolUse hook and another hook. Or the worktree-guard hook (which also triggers on Bash) blocked the command _before_ the worktree was created, but the PostToolUse hook still fired with a failed exit code... except exit code checking is at lines 26-30 and should prevent this.
 
-**Most likely:** The `cwd` field in PostToolUse hook input was correct, but the relative-to-absolute resolution at line 62 produced a path that existed at normalization time (line 66-68, yielding a valid absolute path), but then a second PostToolUse event (from the `cd` command that followed) overwrote the file. The `cd /Users/aleksi.tuominen/Code/ai-config-sidebar-tui-plan && ...` command would trigger PostToolUse but doesn't match `git worktree add`, so the hook would exit early... unless there was a different Bash command that re-triggered the hook.
+**Most likely:** The `cwd` field in PostToolUse hook input was correct, but the relative-to-absolute resolution at line 62 produced a path that existed at normalization time (line 66-68, yielding a valid absolute path), but then a second PostToolUse event (from the `cd` command that followed) overwrote the file. The `cd /Users/aleksi.tuominen/Code/ai-party-sidebar-tui-plan && ...` command would trigger PostToolUse but doesn't match `git worktree add`, so the hook would exit early... unless there was a different Bash command that re-triggered the hook.
 
 **Actually most likely:** The `worktree-track` hook ran but the `git worktree add` command was the one that got _blocked_ by the `worktree-guard` hook first. The user's actual command was `git checkout -b sidebar-tui-plan`, which was blocked with the suggestion to use `git worktree add`. Then `git worktree add` was the second command. But the PostToolUse hook input for the _first_ (blocked) command would not have fired (PreToolUse denied it). The PostToolUse for `git worktree add` should have the correct input.
 
@@ -165,8 +165,8 @@ Store evidence by `repo-path + branch` instead of `session_id`. This eliminates 
 
 **Debug log captured (then cleaned up):**
 ```
-PR_GATE_DEBUG: session_id=71a554a9-3364-4c58-b574-ee93ed77fc28 cwd=/Users/aleksi.tuominen/Code/ai-config
-PR_GATE_DEBUG: resolved_cwd=/Users/aleksi.tuominen/Code/ai-config-sidebar-tui-plan
+PR_GATE_DEBUG: session_id=71a554a9-3364-4c58-b574-ee93ed77fc28 cwd=/Users/aleksi.tuominen/Code/ai-party
+PR_GATE_DEBUG: resolved_cwd=/Users/aleksi.tuominen/Code/ai-party-sidebar-tui-plan
 ```
 
 Note: `resolved_cwd` was correct in the final attempt because I had written the override manually for this session ID. The first 3 attempts failed because evidence was written for wrong session IDs.

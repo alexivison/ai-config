@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-The ai-config workflow layer is a sophisticated but heavyweight system for enforcing quality gates on an AI-assisted development workflow. It comprises **14 skills** (2,579 lines), **11 hooks + 2 libraries** (1,264 lines), **1,987 lines of hook tests**, **7 rule files** (311 unique lines), and a JSONL-based evidence system with diff_hash matching.
+The ai-party workflow layer is a sophisticated but heavyweight system for enforcing quality gates on an AI-assisted development workflow. It comprises **14 skills** (2,579 lines), **11 hooks + 2 libraries** (1,264 lines), **1,987 lines of hook tests**, **7 rule files** (311 unique lines), and a JSONL-based evidence system with diff_hash matching.
 
 **Key findings:**
 1. The evidence system is well-designed post-phase-simplification but session-scoped evidence creates friction for branch-hopping workflows

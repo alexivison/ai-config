@@ -405,7 +405,7 @@ Visual hierarchy: title/cwd render as plain `Muted` value lines; `Codex` and `Ev
 ```text
 ╭─ Worker: party-worker-17 ────────────────────────────────────────────╮
 │ tui style match                                                      │
-│ ~/Code/ai-config                                                     │
+│ ~/Code/ai-party                                                     │
 │                                                                      │
 │ Codex ⠋ working                                                      │
 │   review · DESIGN.md · 00:02:14                                      │
@@ -425,7 +425,7 @@ Height-aware behavior: this example assumes `< 14` rows, so there is no separate
 ```text
 ╭─ party-worker-17 / worker ─────────────────╮
 │ tui style match                            │
-│ ~/Code/ai-config                           │
+│ ~/Code/ai-party                           │
 │ Codex idle                                 │
 │   APPROVE · 12s ago                        │
 │ Evidence                                   │

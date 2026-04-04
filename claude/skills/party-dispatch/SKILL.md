@@ -78,13 +78,13 @@ tmux display-message -p '#{session_name}'
 Check if already a master by reading the manifest:
 
 ```bash
-cat ~/Code/ai-config/session/manifests/<session-name>.json | jq -r '.session_type'
+cat ~/Code/ai-party/session/manifests/<session-name>.json | jq -r '.session_type'
 ```
 
 If not already a master, promote:
 
 ```bash
-~/Code/ai-config/session/party.sh --promote <session-name>
+~/Code/ai-party/session/party.sh --promote <session-name>
 ```
 
 This replaces the Codex pane with the tracker and sets `session_type=master`.
@@ -95,7 +95,7 @@ If already a master, this is a no-op.
 Spawn each item as a **detached worker session** registered with the master:
 
 ```bash
-~/Code/ai-config/session/party.sh --detached --master-id <session-name> \
+~/Code/ai-party/session/party.sh --detached --master-id <session-name> \
   --prompt "<prompt>" "<title>"
 ```
 
@@ -124,7 +124,7 @@ Run /<skill> on this issue.
 Work in the repo at <absolute-cwd>.
 
 When done, report completion to the master:
-~/Code/ai-config/session/party-relay.sh --report "done: <one-line summary> | PR: <url or 'none'>"
+~/Code/ai-party/session/party-relay.sh --report "done: <one-line summary> | PR: <url or 'none'>"
 ```
 
 **For file-based items:**
@@ -135,7 +135,7 @@ Run /task-workflow on the task file at: <absolute-path>
 Read the file first to understand the scope, then execute the workflow.
 
 When done, report completion to the master:
-~/Code/ai-config/session/party-relay.sh --report "done: <one-line summary> | PR: <url or 'none'>"
+~/Code/ai-party/session/party-relay.sh --report "done: <one-line summary> | PR: <url or 'none'>"
 ```
 
 **For freeform tasks:**
@@ -148,7 +148,7 @@ references files, use absolute paths.
 
 ```
 When done, report completion to the master:
-~/Code/ai-config/session/party-relay.sh --report "done: <one-line summary> | PR: <url or 'none'>"
+~/Code/ai-party/session/party-relay.sh --report "done: <one-line summary> | PR: <url or 'none'>"
 ```
 
 Workers that don't receive this instruction will silently finish without
@@ -164,7 +164,7 @@ cat > /tmp/party-prompt-N.md <<'PROMPT_EOF'
 <full prompt text>
 PROMPT_EOF
 
-~/Code/ai-config/session/party.sh --detached --master-id <session-name> \
+~/Code/ai-party/session/party.sh --detached --master-id <session-name> \
   --prompt "$(cat /tmp/party-prompt-N.md)" "<title>"
 ```
 
@@ -216,7 +216,7 @@ report arrives:
 When a worker needs guidance or additional work:
 
 ```bash
-~/Code/ai-config/session/party-relay.sh <worker-id> "instruction text"
+~/Code/ai-party/session/party-relay.sh <worker-id> "instruction text"
 ```
 
 Always include investigation context (file paths, line numbers, root cause
@@ -225,7 +225,7 @@ analysis) so the worker can act immediately without re-investigating.
 For broadcasts to all workers:
 
 ```bash
-~/Code/ai-config/session/party-relay.sh --broadcast "message"
+~/Code/ai-party/session/party-relay.sh --broadcast "message"
 ```
 
 ### Reviewing worker PRs (MANDATORY)

@@ -104,7 +104,7 @@ When running in a master session (`session_type == "master"` in manifest):
 **CRITICAL — Worker report-back:** Every worker prompt you write MUST end with:
 ```
 When done, report completion to the master:
-~/Code/ai-config/session/party-relay.sh --report "done: <one-line summary> | PR: <url or 'none'>"
+~/Code/ai-party/session/party-relay.sh --report "done: <one-line summary> | PR: <url or 'none'>"
 ```
 Workers that don't receive this instruction will silently finish without notifying the master.
 
