@@ -37,7 +37,7 @@ When reading a TOON findings file:
 1. Validate header line matches `findings[N]{id,file,line,severity,category,description,suggestion}:`
 2. Verify `[N]` equals the actual row count
 3. Read `summary` and `stats` sections
-4. If malformed: record validation issue, request re-emit from Codex via `--prompt`, OR triage manually as plain text if urgent
+4. If malformed: record validation issue, request re-emit from Codex via `transport prompt`, OR triage manually as plain text if urgent
 
 ### Helper workflow
 
@@ -70,11 +70,11 @@ Message: `[CODEX] Review complete. Findings at: <path>`
    `party-cli transport review-complete <path>`
 4. Triage each finding: blocking / non-blocking / out-of-scope
 5. Update your issue ledger (reject re-raised closed findings, detect oscillation)
-6. The verdict comes from the `VERDICT:` line Codex wrote in the findings file — `--review-complete` reads it automatically:
+6. The verdict comes from the `VERDICT:` line Codex wrote in the findings file — `review-complete` reads it automatically:
    - `VERDICT: APPROVED` in findings → approval evidence created
-   - `VERDICT: REQUEST_CHANGES` → no approval evidence; fix code, re-run critics, dispatch new `--review` → `--review-complete`
+   - `VERDICT: REQUEST_CHANGES` → no approval evidence; fix code, re-run critics, dispatch new `review` → `review-complete`
    - Unresolvable → `party-cli transport needs-discussion "reason"`
-   - **Do NOT call `--approve` directly** — the gate blocks it.
+   - **Do NOT call `approve` directly** — the gate blocks it.
 
 ### Question from Codex
 Message: `[CODEX] Question: <question>. Write response to: <response_file>`

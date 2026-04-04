@@ -2,8 +2,8 @@
 name: codex-transport
 description: >-
   Transport layer for communicating with Codex CLI via tmux. Provides modes for
-  code review (--review), plan review (--plan-review), ad-hoc tasks (--prompt),
-  review evidence (--review-complete), and escalation (--needs-discussion).
+  code review (review), plan review (plan-review), ad-hoc tasks (prompt),
+  review evidence (review-complete), and escalation (needs-discussion).
   Wizard approval flows through the findings file verdict — workers cannot
   self-approve. Use whenever dispatching work to The Wizard, recording review
   evidence, or signaling escalation.
@@ -77,7 +77,7 @@ This reads the findings file and extracts the verdict The Wizard wrote:
 - If findings contain `VERDICT: REQUEST_CHANGES` → no evidence created
 - If no verdict line found → no evidence created (warning emitted)
 
-**You CANNOT call `--approve` directly.** The gate hard-blocks it. Approval can only come from The Wizard via the verdict line in the findings file. This prevents workers from self-approving their own fixes.
+**You CANNOT call `approve` directly.** The gate hard-blocks it. Approval can only come from The Wizard via the verdict line in the findings file. This prevents workers from self-approving their own fixes.
 
 ### Triage override (out-of-scope critic findings)
 When critics flag out-of-scope code (e.g., from rebase), you can override with a rationale:
@@ -106,6 +106,6 @@ For out-of-scope Codex findings or NEEDS_DISCUSSION, see [execution-core.md § D
 - `review-complete` emits `CODEX_REVIEW_RAN` only after findings exist.
 - `needs-discussion` is instant — outputs a sentinel for hook detection.
 - **You cannot self-approve.** The Wizard decides the verdict via the `VERDICT:` line in the findings file.
-- Workflow skills enforce running critics before `review`. The hook only blocks `--approve`.
+- Workflow skills enforce running critics before `review`. The hook only blocks `approve`.
 - `plan-review` is ungated — no evidence required or affected.
 - **Blocking Wizard findings:** fix code → commit → re-run critics → new `review` → `review-complete`.

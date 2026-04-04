@@ -99,7 +99,7 @@ Claude asks you to investigate or work on something.
 2. Write results to the file path specified (if given)
 3. Notify Claude: `party-cli notify "Task complete. Response at: <path>"`
 
-### NEEDS_DISCUSSION debate (via --prompt)
+### NEEDS_DISCUSSION debate (via transport prompt)
 Claude sends a structured position on a disputed finding — either from your review or a critic's.
 
 1. Read Claude's position: it will state concede, counter-argue, or propose compromise, with evidence

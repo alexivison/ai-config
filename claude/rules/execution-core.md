@@ -45,7 +45,7 @@ Out-of-scope touches without justification are blocking and require `NEEDS_DISCU
 
 Evidence is stored in a per-session JSONL log (`/tmp/claude-evidence-{session_id}.jsonl`). Each entry records a `diff_hash` — SHA-256 of the branch diff from merge-base. Gate hooks compute the current diff_hash and only accept evidence with a matching hash. Editing code after approval automatically invalidates prior evidence (different hash) — no invalidation hook needed.
 
-`codex-gate.sh` only blocks `party-cli transport approve` (self-approval). All other transport commands (`review`, `prompt`, `plan-review`, `review-complete`) pass through freely. Workflow skills are responsible for running critics before dispatching Codex review. `--approve` is hard-blocked; approval flows through `--review-complete` reading the verdict Codex wrote.
+`codex-gate.sh` only blocks `party-cli transport approve` (self-approval). All other transport commands (`review`, `prompt`, `plan-review`, `review-complete`) pass through freely. Workflow skills are responsible for running critics before dispatching Codex review. `approve` is hard-blocked; approval flows through `review-complete` reading the verdict Codex wrote.
 
 `agent-trace-stop.sh` tracks all critic verdicts (APPROVED and REQUEST_CHANGES) via `{type}-run` evidence entries and detects oscillation in two modes:
 - **Same-hash alternation** (all critics including scribe): when 3 alternating verdicts are detected at the same hash (e.g., RC→A→RC), an auto-triage-override is recorded.
@@ -64,7 +64,7 @@ Review effectiveness metrics are tracked in persistent per-session JSONL logs (`
 
 **Automatic recording** (via hooks):
 - `agent-trace-stop.sh` records `findings_summary` for code-critic, minimizer, scribe, and sentinel by parsing `[must]`/`[should]`/`[nit]` tags and `**BLOCKING**`/`**NON-BLOCKING**` markers from agent responses.
-- `codex-trace.sh` records individual `finding_raised` entries and a `findings_summary` by parsing the TOON findings file when `--review-complete` runs.
+- `codex-trace.sh` records individual `finding_raised` entries and a `findings_summary` by parsing the TOON findings file when `review-complete` runs.
 
 **Manual recording** (via CLI during triage):
 ```bash
@@ -115,7 +115,7 @@ Classify every finding before acting:
 - `[q]` and `[nit]` are opt-in (only when explicitly requested). By default, suppress them.
 - Critics should return `APPROVE` when only non-blocking findings remain.
 
-**Caps:** Blocking critics: max 3 critic iterations, then dispute resolution (2 rounds) before escalating to user. **Codex has NO iteration cap** — you MUST continue the review loop (fix → re-review, or dispute via `--prompt`) until Codex writes `VERDICT: APPROVED`. You may NOT decide the Codex review phase is "done" while the verdict is still `REQUEST_CHANGES` or `NEEDS_DISCUSSION`. If you believe Codex is wrong, dispute with evidence — do not bypass. Escalate to user only when both agents explicitly agree they need human input, or a security-critical finding is disputed. Non-blocking: max 1 round → accept or drop.
+**Caps:** Blocking critics: max 3 critic iterations, then dispute resolution (2 rounds) before escalating to user. **Codex has NO iteration cap** — you MUST continue the review loop (fix → re-review, or dispute via `transport prompt`) until Codex writes `VERDICT: APPROVED`. You may NOT decide the Codex review phase is "done" while the verdict is still `REQUEST_CHANGES` or `NEEDS_DISCUSSION`. If you believe Codex is wrong, dispute with evidence — do not bypass. Escalate to user only when both agents explicitly agree they need human input, or a security-critical finding is disputed. Non-blocking: max 1 round → accept or drop.
 
 **Tiered re-review:** One-symbol swap → test-runner only. Logic change → test-runner + critics. New export/signature/security path → full cascade.
 
@@ -135,10 +135,10 @@ Classify every finding before acting:
 | code-critic, minimizer, or scribe | NEEDS_DISCUSSION / oscillation / cap | Dispute resolution: re-run with context explaining dismissed findings (2 rounds) → escalate to user if unresolved | NO (until dispute cap) |
 | All three critics done, no blocking | — | Run codex | NO |
 | codex | APPROVE | /pre-pr-verification | NO |
-| codex | REQUEST_CHANGES (blocking) | Fix in one batch + commit + re-run critics + new `--review` → `--review-complete`. **Repeat until APPROVED.** Escalate per § Escalation criteria if circular. | NO |
+| codex | REQUEST_CHANGES (blocking) | Fix in one batch + commit + re-run critics + new `review` → `review-complete`. **Repeat until APPROVED.** Escalate per § Escalation criteria if circular. | NO |
 | codex | REQUEST_CHANGES (non-blocking) | Record and proceed to /pre-pr-verification | NO |
-| codex | REQUEST_CHANGES with out-of-scope findings | Dismiss with rationale in dispute context file → re-review. If Codex still disagrees, debate via `--prompt` with evidence. **Continue until Codex concedes or approves.** Escalate per § Escalation criteria if circular or security-critical. | NO |
-| codex | NEEDS_DISCUSSION | Debate via `--prompt` with evidence-based reasoning. Codex may concede, counter-argue, or propose compromise. **Continue discussion until resolved** (one agent concedes or compromise reached). Escalate per § Escalation criteria if circular or security-critical. | NO |
+| codex | REQUEST_CHANGES with out-of-scope findings | Dismiss with rationale in dispute context file → re-review. If Codex still disagrees, debate via `transport prompt` with evidence. **Continue until Codex concedes or approves.** Escalate per § Escalation criteria if circular or security-critical. | NO |
+| codex | NEEDS_DISCUSSION | Debate via `transport prompt` with evidence-based reasoning. Codex may concede, counter-argue, or propose compromise. **Continue discussion until resolved** (one agent concedes or compromise reached). Escalate per § Escalation criteria if circular or security-critical. | NO |
 | sentinel | Any findings | Paladin triages (advisory, no gating markers) | NO |
 | sentinel | Timeout | Proceed with Codex findings only | NO |
 | /pre-pr-verification | Pass/Fail | PR / fix | NO |
@@ -150,11 +150,11 @@ When critics or Codex return NEEDS_DISCUSSION or raise out-of-scope findings, ag
 
 **Critic disputes:** Re-run the critic with updated prompt context explaining which findings are out-of-scope and why. The critic sees the rationale and either accepts (APPROVE) or raises new evidence. Max 2 dispute rounds per critic.
 
-**Codex out-of-scope disputes:** Write a dispute context file listing dismissed finding IDs and rationales. Pass via `--dispute <file>` to `--review`. Codex reads the file, accepts valid dismissals, challenges invalid ones with file:line evidence. **No round cap** — continue disputing until Codex accepts the dismissals or you concede and fix the findings. If Codex provides compelling file:line evidence against a dismissal, concede that finding and fix it.
+**Codex out-of-scope disputes:** Write a dispute context file listing dismissed finding IDs and rationales. Pass via `--dispute <file>` to `transport review`. Codex reads the file, accepts valid dismissals, challenges invalid ones with file:line evidence. **No round cap** — continue disputing until Codex accepts the dismissals or you concede and fix the findings. If Codex provides compelling file:line evidence against a dismissal, concede that finding and fix it.
 
-**Codex NEEDS_DISCUSSION:** Formulate a position (concede, counter-argue, or propose compromise) and send via `--prompt`. Codex responds with evidence-based reasoning. **Continue the discussion** — do not abandon it after a fixed number of rounds. Each exchange should make progress: concede valid points, counter with evidence, or propose concrete compromises. The goal is genuine agreement, not attrition.
+**Codex NEEDS_DISCUSSION:** Formulate a position (concede, counter-argue, or propose compromise) and send via `transport prompt`. Codex responds with evidence-based reasoning. **Continue the discussion** — do not abandon it after a fixed number of rounds. Each exchange should make progress: concede valid points, counter with evidence, or propose concrete compromises. The goal is genuine agreement, not attrition.
 
-**After successful dispute resolution:** If the dispute concludes that the work should proceed, dispatch a fresh `--review` → `--review-complete` to satisfy the gate evidence requirements.
+**After successful dispute resolution:** If the dispute concludes that the work should proceed, dispatch a fresh `transport review` → `transport review-complete` to satisfy the gate evidence requirements.
 
 **Escalation criteria (user involvement):**
 - Security-critical finding is disputed
@@ -193,7 +193,7 @@ Code PRs require all evidence at the current diff_hash. The PR gate (`pr-gate.sh
 | Chase non-blocking nits 2+ rounds | Triage, note, move on |
 | Implement every finding without triage | Classify blocking/non-blocking/out-of-scope first |
 | Full cascade after one-line fix | Tiered re-review |
-| Approve without --review-complete | Gate blocks — run review first |
+| Approve without review-complete | Gate blocks — run review first |
 | Edit after approval, then PR | Evidence stale (diff_hash changed) — re-run |
 | Create evidence outside authorized paths | Forbidden — only hooks and workflow skills write evidence via `append_evidence` |
 | Fourth critic round on same diff | Enter dispute resolution (2 rounds) → escalate to user if unresolved |

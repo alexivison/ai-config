@@ -54,6 +54,9 @@ Creates symlinks for Claude, Codex, tmux, and nvim configurations.`,
 			}
 
 			home := os.Getenv("HOME")
+			if home == "" {
+				return fmt.Errorf("HOME environment variable is not set")
+			}
 
 			// Claude config
 			fmt.Fprintln(w, "\n━━━ claude ━━━")
@@ -135,6 +138,9 @@ func newUninstallCmd(repoRoot string) *cobra.Command {
 
 			w := cmd.OutOrStdout()
 			home := os.Getenv("HOME")
+			if home == "" {
+				return fmt.Errorf("HOME environment variable is not set")
+			}
 
 			fmt.Fprintln(w, "party-cli uninstaller")
 			fmt.Fprintln(w, "=====================")
@@ -145,6 +151,15 @@ func newUninstallCmd(repoRoot string) *cobra.Command {
 				removeDirSymlink(w, filepath.Join(root, tool), filepath.Join(home, "."+tool))
 			}
 			removeFileSymlink(w, filepath.Join(root, "tmux", "tmux.conf"), filepath.Join(home, ".tmux.conf"), "~/.tmux.conf")
+
+			// nvim config
+			nvimSource := filepath.Join(root, "nvim")
+			xdgConfig := os.Getenv("XDG_CONFIG_HOME")
+			if xdgConfig == "" {
+				xdgConfig = filepath.Join(home, ".config")
+			}
+			nvimTarget := filepath.Join(xdgConfig, "nvim")
+			removeDirSymlink(w, nvimSource, nvimTarget)
 
 			fmt.Fprintln(w, "\nUninstall complete!")
 			fmt.Fprintf(w, "The repo remains at: %s\n", root)
@@ -162,17 +177,27 @@ func resolveRepoRoot(provided string) string {
 	if env := os.Getenv("PARTY_REPO_ROOT"); env != "" {
 		return env
 	}
-	// Try to find go.mod by walking up from executable location.
-	exe, err := os.Executable()
-	if err != nil {
-		return ""
-	}
-	dir := filepath.Dir(exe)
-	for i := 0; i < 5; i++ {
-		if _, err := os.Stat(filepath.Join(dir, "install.sh")); err == nil {
-			return dir
+	// Try to find the repo by walking up from executable location or CWD.
+	// Look for the claude/ directory as a repo marker (install.sh was removed
+	// during CLI-ification).
+	for _, start := range []func() (string, error){os.Executable, os.Getwd} {
+		base, err := start()
+		if err != nil {
+			continue
 		}
-		dir = filepath.Dir(dir)
+		dir := base
+		// os.Executable returns a file path; start from its directory.
+		if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
+			dir = filepath.Dir(dir)
+		}
+		for i := 0; i < 5; i++ {
+			if _, err := os.Stat(filepath.Join(dir, "claude")); err == nil {
+				if _, err := os.Stat(filepath.Join(dir, "tools", "party-cli")); err == nil {
+					return dir
+				}
+			}
+			dir = filepath.Dir(dir)
+		}
 	}
 	return ""
 }
@@ -253,13 +278,21 @@ func backupExisting(w io.Writer, target string) {
 	}
 	if fi.Mode()&os.ModeSymlink != 0 {
 		fmt.Fprintf(w, "  Removing existing symlink: %s\n", target)
-		os.Remove(target)
+		if err := os.Remove(target); err != nil {
+			fmt.Fprintf(w, "  ✗  Failed to remove symlink: %v\n", err)
+		}
 		return
 	}
 	if fi.IsDir() || fi.Mode().IsRegular() {
 		backup := target + ".backup"
+		// Avoid clobbering an existing backup
+		if _, err := os.Lstat(backup); err == nil {
+			backup = fmt.Sprintf("%s.backup.%d", target, os.Getpid())
+		}
 		fmt.Fprintf(w, "  Backing up: %s → %s\n", target, backup)
-		os.Rename(target, backup)
+		if err := os.Rename(target, backup); err != nil {
+			fmt.Fprintf(w, "  ✗  Failed to back up: %v\n", err)
+		}
 	}
 }
 

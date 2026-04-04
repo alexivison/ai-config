@@ -30,8 +30,8 @@ jobs:
         env:
           PARTY_REPO_ROOT: ${{ github.workspace }}
 
-  shell-tests:
-    name: Shell Tests
+  hook-tests:
+    name: Hook Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,5 +41,8 @@ jobs:
           git config --global user.name 'CI'
           git config --global user.email 'ci@test.local'
 
-      - name: Run shell tests
-        run: bash tests/run-tests.sh
+      - name: Run hook tests
+        run: |
+          for t in claude/hooks/tests/test-*.sh claude/skills/codex-transport/tests/test-*.sh; do
+            [ -f "$t" ] && bash "$t"
+          done

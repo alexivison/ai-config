@@ -39,7 +39,7 @@ Do NOT write a plan yourself. Proceed to dispatch.
 
 ## Phase 2 — Dispatch to Codex
 
-Compose a rich prompt and send it to Codex via `--prompt`. The prompt quality directly
+Compose a rich prompt and send it to Codex via `transport prompt`. The prompt quality directly
 determines plan quality — invest here.
 
 ### Prompt Construction
@@ -105,8 +105,8 @@ Check the script's stdout for sentinel strings:
 | Review an existing plan | `transport plan-review "<plan_path>" <work_dir>` | Uses the plan-review template (ungated), returns TOON findings |
 | Iterate on Codex's draft | `transport prompt "<feedback>" <work_dir>` | Send feedback, ask for revisions |
 
-`--plan-review` is for evaluating a plan that already exists as a file. For initial
-creation, use `--prompt` with explicit instructions to write the plan file.
+`transport plan-review` is for evaluating a plan that already exists as a file. For initial
+creation, use `transport prompt` with explicit instructions to write the plan file.
 
 ### While Codex Works
 
@@ -196,7 +196,7 @@ Once the user approves:
 1. **Confirm plan location** — Ensure PLAN.md and TASK*.md files are at the expected
    paths (typically `PLAN.md` in the repo root plus `tasks/TASK-*.md`)
 2. **Dispatch plan review (MANDATORY)** — Per CLAUDE.md contract, every created plan
-   must go through `--plan-review`. This is not optional:
+   must go through `transport plan-review`. This is not optional:
    ```bash
    party-cli transport \
      plan-review "<plan_path>" <work_dir>
