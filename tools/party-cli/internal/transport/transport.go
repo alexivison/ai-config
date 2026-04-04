@@ -47,7 +47,7 @@ type ReviewResult struct {
 // Review dispatches a code review to the Wizard (Codex).
 // Mirrors tmux-codex.sh --review.
 func (s *Service) Review(ctx context.Context, opts ReviewOpts) (ReviewResult, error) {
-	session, runtimeDir, codexPane, err := s.resolveCodexContext(ctx)
+	_, runtimeDir, codexPane, err := s.resolveCodexContext(ctx)
 	if err != nil {
 		return ReviewResult{}, err
 	}
@@ -94,7 +94,7 @@ func (s *Service) Review(ctx context.Context, opts ReviewOpts) (ReviewResult, er
 		return ReviewResult{FindingsFile: findingsFile}, fmt.Errorf("render review template: %w", err)
 	}
 
-	if err := s.sendWithStatusUpdate(ctx, codexPane, msg, runtimeDir, session, "review", opts.Base); err != nil {
+	if err := s.sendWithStatusUpdate(ctx, codexPane, msg, runtimeDir, "review", opts.Base); err != nil {
 		return ReviewResult{FindingsFile: findingsFile}, err
 	}
 	return ReviewResult{Dispatched: true, FindingsFile: findingsFile}, nil
@@ -115,7 +115,7 @@ type PlanReviewResult struct {
 // PlanReview dispatches a plan review to the Wizard.
 // Mirrors tmux-codex.sh --plan-review.
 func (s *Service) PlanReview(ctx context.Context, opts PlanReviewOpts) (PlanReviewResult, error) {
-	session, runtimeDir, codexPane, err := s.resolveCodexContext(ctx)
+	_, runtimeDir, codexPane, err := s.resolveCodexContext(ctx)
 	if err != nil {
 		return PlanReviewResult{}, err
 	}
@@ -135,7 +135,7 @@ func (s *Service) PlanReview(ctx context.Context, opts PlanReviewOpts) (PlanRevi
 		return PlanReviewResult{FindingsFile: findingsFile}, fmt.Errorf("render plan-review template: %w", err)
 	}
 
-	if err := s.sendWithStatusUpdate(ctx, codexPane, msg, runtimeDir, session, "plan-review", opts.PlanPath); err != nil {
+	if err := s.sendWithStatusUpdate(ctx, codexPane, msg, runtimeDir, "plan-review", opts.PlanPath); err != nil {
 		return PlanReviewResult{FindingsFile: findingsFile}, err
 	}
 	return PlanReviewResult{Dispatched: true, FindingsFile: findingsFile}, nil
@@ -156,7 +156,7 @@ type PromptResult struct {
 // Prompt dispatches a freeform task to the Wizard.
 // Mirrors tmux-codex.sh --prompt.
 func (s *Service) Prompt(ctx context.Context, opts PromptOpts) (PromptResult, error) {
-	session, runtimeDir, codexPane, err := s.resolveCodexContext(ctx)
+	_, runtimeDir, codexPane, err := s.resolveCodexContext(ctx)
 	if err != nil {
 		return PromptResult{}, err
 	}
@@ -167,7 +167,7 @@ func (s *Service) Prompt(ctx context.Context, opts PromptOpts) (PromptResult, er
 	msg := fmt.Sprintf("[CLAUDE] cd '%s' && %s — Write response to: %s — When done, run: %s \"Task complete. Response at: %s\"",
 		opts.WorkDir, opts.Text, responseFile, notifyScript, responseFile)
 
-	if err := s.sendWithStatusUpdate(ctx, codexPane, msg, runtimeDir, session, "prompt", opts.Text); err != nil {
+	if err := s.sendWithStatusUpdate(ctx, codexPane, msg, runtimeDir, "prompt", opts.Text); err != nil {
 		return PromptResult{ResponseFile: responseFile}, err
 	}
 	return PromptResult{Dispatched: true, ResponseFile: responseFile}, nil
@@ -281,7 +281,11 @@ func (s *Service) resolveCodexContext(ctx context.Context) (session, runtimeDir,
 	runtimeDir = runtimeDirForSession(session)
 
 	// Resolve Codex pane: sidebar mode → window 0, classic → role-based.
+	// Check process env first (inherited from tmux), then tmux session env as fallback.
 	layout := os.Getenv("PARTY_LAYOUT")
+	if layout == "" {
+		layout, _, _ = s.client.ShowEnvironment(ctx, session, "PARTY_LAYOUT")
+	}
 	if layout == "sidebar" {
 		codexPane = fmt.Sprintf("%s:0.0", session)
 	} else {
@@ -295,7 +299,7 @@ func (s *Service) resolveCodexContext(ctx context.Context) (session, runtimeDir,
 }
 
 // sendWithStatusUpdate sends a message to the Codex pane and updates status accordingly.
-func (s *Service) sendWithStatusUpdate(ctx context.Context, codexPane, msg, runtimeDir, session, mode, target string) error {
+func (s *Service) sendWithStatusUpdate(ctx context.Context, codexPane, msg, runtimeDir, mode, target string) error {
 	result := s.client.Send(ctx, codexPane, msg)
 	if result.Err != nil {
 		_ = WriteCodexStatus(runtimeDir, CodexStatus{

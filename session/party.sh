@@ -59,7 +59,7 @@ while [[ $# -gt 0 ]]; do
     *) args+=("$1"); shift ;;
   esac
 done
-[[ $# -gt 0 && -z "${args[*]##start --cwd *}" ]] && args+=("$1")
+[[ $# -gt 0 ]] && args+=("$1")
 [[ "$detached" -eq 0 ]] && args+=(--attach)
 
 exec "${CLI[@]}" "${args[@]}"
