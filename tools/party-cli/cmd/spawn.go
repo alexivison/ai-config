@@ -53,7 +53,7 @@ it is a master session.`,
 				ClaudeResumeID: opts.resumeClaude,
 				CodexResumeID:  opts.resumeCodex,
 				Prompt:         opts.prompt,
-				Detached:       true, // shell wrappers handle attach
+				Detached:       true, // caller handles attach
 			})
 			if err != nil {
 				return err

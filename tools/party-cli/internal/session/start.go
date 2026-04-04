@@ -215,8 +215,8 @@ func buildCodexCmd(codexBin, agentPath, resumeID string) string {
 }
 
 // clearClaudeCodeEnv removes the CLAUDECODE env var from tmux.
-// Errors are intentionally ignored — mirrors party.sh:100-101 where the
-// unset is best-effort (the var may not exist, or tmux may not be running).
+// Errors are intentionally ignored — the unset is best-effort
+// (the var may not exist, or tmux may not be running).
 func (s *Service) clearClaudeCodeEnv(ctx context.Context, sessionID string) error {
 	_ = s.Client.UnsetEnvironment(ctx, "", "CLAUDECODE")
 	_ = s.Client.UnsetEnvironment(ctx, sessionID, "CLAUDECODE")
