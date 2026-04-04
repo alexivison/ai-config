@@ -29,7 +29,6 @@ ai-config/
 ├── tools/
 │   └── party-cli/   # Unified Go binary: TUI + CLI (all session operations)
 ├── tmux/            # tmux configuration and status scripts
-├── tests/           # Test suite
 └── README.md
 ```
 

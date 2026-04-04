@@ -15,7 +15,6 @@ func newNotifyCmd(store *state.Store, client *tmux.Client, repoRoot string) *cob
 		Short: "Send a message from Codex to Claude's pane",
 		Long: `Send a notification from the Wizard (Codex) to Claude (The Paladin).
 
-Replaces tmux-claude.sh with native Go implementation.
 Automatically detects completion messages and updates Codex status.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

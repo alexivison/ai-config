@@ -14,7 +14,6 @@ var placeholderLine = regexp.MustCompile(`^\{\{.*\}\}$`)
 
 // RenderTemplate reads a template file and replaces {{VAR}} placeholders with values.
 // Lines consisting only of unreplaced placeholders are stripped (conditional sections).
-// Mirrors tmux-codex.sh _render_template.
 func RenderTemplate(templatePath string, vars map[string]string) (string, error) {
 	data, err := os.ReadFile(templatePath)
 	if err != nil {

@@ -14,7 +14,6 @@ import (
 )
 
 // LargeMessageThreshold is the character count above which messages use file indirection.
-// Matches party-relay.sh relay_needs_file threshold.
 const LargeMessageThreshold = 200
 
 // MasterPrefix is prepended to messages sent from a master to workers.
@@ -58,7 +57,6 @@ func (s *Service) Relay(ctx context.Context, workerID, message string) error {
 }
 
 // RelayToWizard sends a message to a worker's Codex (Wizard) pane.
-// Mirrors party-relay.sh --wizard: resolves the Codex pane and sends raw text.
 func (s *Service) RelayToWizard(ctx context.Context, workerID, message string) error {
 	if err := s.client.EnsureSessionRunning(ctx, workerID, "worker"); err != nil {
 		return err

@@ -1,7 +1,6 @@
 //go:build linux || darwin
 
 // Package transport provides the Claude ↔ Codex communication layer.
-// It replaces tmux-codex.sh and tmux-claude.sh with Go implementations.
 package transport
 
 import (
@@ -24,7 +23,7 @@ type CodexStatus struct {
 }
 
 // WriteCodexStatus atomically writes codex-status.json to the runtime directory.
-// Mirrors party-lib.sh write_codex_status: builds JSON, writes to .tmp, then renames.
+// Builds JSON, writes to .tmp, then renames for atomicity.
 func WriteCodexStatus(runtimeDir string, status CodexStatus) error {
 	now := time.Now().UTC().Format("2006-01-02T15:04:05Z")
 	if status.State == "working" {

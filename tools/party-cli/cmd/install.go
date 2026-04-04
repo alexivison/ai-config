@@ -20,7 +20,6 @@ func newInstallCmd(repoRoot string) *cobra.Command {
 		Short: "Install config symlinks and CLI tools",
 		Long: `Create config symlinks and optionally install CLI tools.
 
-Replaces install.sh with native Go implementation.
 Creates symlinks for Claude, Codex, tmux, and nvim configurations.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			root := resolveRepoRoot(repoRoot)
@@ -178,8 +177,7 @@ func resolveRepoRoot(provided string) string {
 		return env
 	}
 	// Try to find the repo by walking up from executable location or CWD.
-	// Look for the claude/ directory as a repo marker (install.sh was removed
-	// during CLI-ification).
+	// Look for the claude/ directory as a repo marker.
 	for _, start := range []func() (string, error){os.Executable, os.Getwd} {
 		base, err := start()
 		if err != nil {

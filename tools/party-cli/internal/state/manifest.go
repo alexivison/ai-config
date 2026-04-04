@@ -7,8 +7,7 @@ import (
 )
 
 // Manifest represents a party session's persisted state.
-// JSON field names match the existing bash manifest schema in session/party-lib.sh.
-// Extra holds unknown fields to preserve round-trip fidelity with bash writers.
+// Extra holds unknown fields to preserve round-trip fidelity.
 type Manifest struct {
 	PartyID     string   `json:"party_id"`
 	CreatedAt   string   `json:"created_at,omitempty"`

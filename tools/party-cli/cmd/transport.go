@@ -14,9 +14,7 @@ func newTransportCmd(store *state.Store, client *tmux.Client, repoRoot string) *
 		Use:   "transport",
 		Short: "Claude ↔ Codex transport layer",
 		Long: `Transport commands for communicating between Claude (The Paladin)
-and Codex (The Wizard) via tmux.
-
-Replaces tmux-codex.sh with native Go implementation.`,
+and Codex (The Wizard) via tmux.`,
 	}
 
 	cmd.AddCommand(newTransportReviewCmd(store, client, repoRoot))

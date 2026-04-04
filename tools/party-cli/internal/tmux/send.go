@@ -11,7 +11,7 @@ import (
 var ErrSendTimeout = errors.New("send timeout: pane not idle")
 
 // Send delivers text to a tmux pane with idle-check retry.
-// Mirrors party-lib.sh tmux_send: retries until the pane leaves copy mode or timeout.
+// Retries until the pane leaves copy mode or timeout.
 // Returns a SendResult envelope — callers inspect .Delivered and .Err.
 func (c *Client) Send(ctx context.Context, target, text string) SendResult {
 	deadline := time.Now().Add(c.SendTimeout)
@@ -45,8 +45,7 @@ func (c *Client) IsPaneIdle(ctx context.Context, target string) (bool, error) {
 }
 
 // sendKeys sends text literally followed by Enter with an inter-key delay.
-// The 100ms delay between text and Enter avoids the Ink paste-mode newline bug
-// that the shell transport was hardened against (see party-lib.sh tmux_send).
+// The 100ms delay between text and Enter avoids the Ink paste-mode newline bug.
 func (c *Client) sendKeys(ctx context.Context, target, text string) SendResult {
 	if _, err := c.runner.Run(ctx, "send-keys", "-t", target, "-l", "--", text); err != nil {
 		return SendResult{Target: target, Err: fmt.Errorf("send text: %w", err)}

@@ -42,7 +42,7 @@ jobs:
           git config --global user.email 'ci@test.local'
 
       - name: Run hook tests
-        run: |
-          for t in claude/hooks/tests/test-*.sh claude/skills/codex-transport/tests/test-*.sh; do
-            [ -f "$t" ] && bash "$t"
-          done
+        run: bash claude/hooks/tests/run-all.sh
+
+      - name: Run transport template tests
+        run: bash claude/skills/codex-transport/tests/test-templates.sh

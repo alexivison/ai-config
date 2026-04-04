@@ -434,7 +434,7 @@ func newAutoResolver(store *state.Store, tc *tmux.Client) SessionResolver {
 	}
 }
 
-// discoverSessionID mirrors session/party-lib.sh:discover_session().
+// discoverSessionID resolves the current party session from env or tmux.
 func discoverSessionID(tc *tmux.Client) (string, error) {
 	// 1. Explicit override
 	if id := os.Getenv("PARTY_SESSION"); id != "" {

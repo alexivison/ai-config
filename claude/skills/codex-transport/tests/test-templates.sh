@@ -36,7 +36,7 @@ assert() {
   fi
 }
 
-# Source the render function directly (avoid party-lib dependency)
+# Inline render function for testing templates
 _render_template() {
   local template_file="$1"; shift
   local content

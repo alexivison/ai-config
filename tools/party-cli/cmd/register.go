@@ -19,7 +19,6 @@ func newRegisterCmd(store *state.Store, client *tmux.Client) *cobra.Command {
 		Short: "Register agent IDs with the party session",
 		Long: `Register Claude's session ID with the current party session.
 
-Replaces the register-agent-id.sh hook's dependency on party-lib.sh.
 Writes the session ID to the runtime directory and tmux environment,
 and persists it to the manifest for the resume path.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {

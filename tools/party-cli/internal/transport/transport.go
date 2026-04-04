@@ -16,7 +16,6 @@ import (
 )
 
 // Service provides the Claude ↔ Codex transport layer.
-// Replaces tmux-codex.sh and tmux-claude.sh with Go implementations.
 type Service struct {
 	store    *state.Store
 	client   *tmux.Client
@@ -45,7 +44,6 @@ type ReviewResult struct {
 }
 
 // Review dispatches a code review to the Wizard (Codex).
-// Mirrors tmux-codex.sh --review.
 func (s *Service) Review(ctx context.Context, opts ReviewOpts) (ReviewResult, error) {
 	_, runtimeDir, codexPane, err := s.resolveCodexContext(ctx)
 	if err != nil {
@@ -71,7 +69,7 @@ func (s *Service) Review(ctx context.Context, opts ReviewOpts) (ReviewResult, er
 		"NOTIFY_CMD":    notifyCmd,
 	}
 
-	// Build conditional sections (same logic as tmux-codex.sh).
+	// Build conditional sections.
 	if opts.Scope != "" {
 		vars["SCOPE_SECTION"] = fmt.Sprintf("## Scope\n\nOnly review changes within this scope: %s\nFindings outside this scope should be classified as out-of-scope and omitted.", opts.Scope)
 	} else {
@@ -113,7 +111,6 @@ type PlanReviewResult struct {
 }
 
 // PlanReview dispatches a plan review to the Wizard.
-// Mirrors tmux-codex.sh --plan-review.
 func (s *Service) PlanReview(ctx context.Context, opts PlanReviewOpts) (PlanReviewResult, error) {
 	_, runtimeDir, codexPane, err := s.resolveCodexContext(ctx)
 	if err != nil {
@@ -154,7 +151,6 @@ type PromptResult struct {
 }
 
 // Prompt dispatches a freeform task to the Wizard.
-// Mirrors tmux-codex.sh --prompt.
 func (s *Service) Prompt(ctx context.Context, opts PromptOpts) (PromptResult, error) {
 	_, runtimeDir, codexPane, err := s.resolveCodexContext(ctx)
 	if err != nil {
@@ -179,8 +175,7 @@ type ReviewCompleteResult struct {
 	Verdict   string // "APPROVED", "REQUEST_CHANGES", or "" if missing
 }
 
-// ReviewComplete reads a findings file and parses the verdict.
-// Mirrors tmux-codex.sh --review-complete. Does not require a party session.
+// ReviewComplete reads a findings file and parses the verdict. Does not require a party session.
 func ReviewComplete(findingsFile string) (ReviewCompleteResult, error) {
 	if _, err := os.Stat(findingsFile); err != nil {
 		return ReviewCompleteResult{}, fmt.Errorf("findings file not accessible: %w", err)
@@ -215,7 +210,7 @@ type NotifyResult struct {
 }
 
 // Notify sends a message from Codex to Claude's pane.
-// Mirrors tmux-claude.sh. Also persists Codex's thread ID on first call.
+// Also persists Codex's thread ID on first call.
 func (s *Service) Notify(ctx context.Context, opts NotifyOpts) (NotifyResult, error) {
 	session, err := s.discoverSession(ctx)
 	if err != nil {
@@ -361,7 +356,7 @@ func (s *Service) templatePath(name string) string {
 }
 
 // notifyScriptPath returns the path to the notify command.
-// After CLI-ification, this points to party-cli notify instead of tmux-claude.sh.
+// Returns the party-cli notify command for embedding in dispatch messages.
 func (s *Service) notifyScriptPath() string {
 	return "party-cli notify"
 }
