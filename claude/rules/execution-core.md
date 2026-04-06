@@ -142,6 +142,7 @@ Review effectiveness metrics are tracked in persistent per-session JSONL logs (`
 
 - **Full tier** (default): current sequence unchanged (`/write-tests → implement → ... → PR`). Gate-enforced evidence: pr-verified, code-critic, minimizer, codex, test-runner, check-runner. Scribe is workflow-enforced by task-workflow (not gate-enforced) — it runs when requirements are provided but bugfix-workflow has no requirements source, so scribe cannot be a universal gate requirement.
 - **Quick tier**: requires explicit `quick-tier` evidence from the quick-fix-workflow skill (size alone is insufficient). For non-behavioral changes only (config, deps, typos, CI). Sequence: `implement → code-critic → test-runner → check-runner → PR`. Required evidence: quick-tier, code-critic, test-runner, check-runner. Size limit: ≤30 changed lines (additions + deletions), ≤3 files, 0 new files. Explicitly forbidden for: new features, bug fixes, logic changes, API changes, security-relevant changes.
+- **Spec tier**: for PRs containing only spec artifacts and design documents (proposals, design docs, requirement specs, task breakdowns) with no production code. Sequence: `draft → spec-review → plan-review → iterate → PR`. Required evidence: spec-tier, spec-review, plan-review. Applies when diff touches only spec/design files (no files under src/ or equivalent production paths). Explicitly forbidden for: any PR containing production code, test code, or configuration changes. spec-review checks: atomicity (one concern per requirement), normative language (SHALL/MUST for requirements, SHOULD for guidelines), testable scenarios (GIVEN/WHEN/THEN with concrete values), non-overlapping requirements (no duplicated or contradictory specs). plan-review checks: architecture coherence, feasibility, completeness, and alignment with project goals. Both reviewers follow the same review governance (blocking/non-blocking classification, dispute resolution) as code reviewers.
 
 ## Review Governance
 
@@ -187,6 +188,12 @@ Classify every finding before acting:
 | codex | NEEDS_DISCUSSION | Debate via `--prompt` with evidence-based reasoning. Codex may concede, counter-argue, or propose compromise. **Continue discussion until resolved** (one agent concedes or compromise reached). Escalate per § Escalation criteria if circular or security-critical. | NO |
 | sentinel | Any findings | Paladin triages (advisory, no gating markers) | NO |
 | sentinel | Timeout | Proceed with Codex findings only | NO |
+| spec-review | APPROVE | Wait for plan-review | NO |
+| spec-review | REQUEST_CHANGES (blocking) | Fix specs + one re-run | NO |
+| spec-review | NEEDS_DISCUSSION / cap | Dispute resolution (2 rounds) → escalate | NO (until dispute cap) |
+| plan-review (spec tier) | APPROVE | /pre-pr-verification | NO |
+| plan-review (spec tier) | REQUEST_CHANGES (blocking) | Fix specs + re-run spec-review + new plan-review | NO |
+| plan-review (spec tier) | NEEDS_DISCUSSION | Debate via `--prompt` → continue until resolved | NO |
 | /pre-pr-verification | Pass/Fail | PR / fix | NO |
 | Edit/Write (impl) | Evidence stale (diff_hash changed) | Re-run cascade | NO |
 
@@ -223,7 +230,7 @@ Evidence before claims. No assertions without proof (test output, file:line, gre
 
 ## PR Gate
 
-Code PRs require all evidence at the current diff_hash. The PR gate (`pr-gate.sh`) is the single enforcement point — no other hook gates sequencing. Full tier: pr-verified, code-critic, minimizer, codex, test-runner, check-runner (scribe is enforced by task-workflow when requirements are provided, not by the gate — bugfix-workflow has no requirements source). Quick tier (requires explicit quick-tier evidence + size limits): quick-tier, code-critic, test-runner, check-runner. Evidence created by `agent-trace-stop.sh`, `codex-trace.sh`, `skill-marker.sh`, and workflow skills (e.g., `quick-fix-workflow` writes `quick-tier`).
+Code PRs require all evidence at the current diff_hash. The PR gate (`pr-gate.sh`) is the single enforcement point — no other hook gates sequencing. Full tier: pr-verified, code-critic, minimizer, codex, test-runner, check-runner (scribe is enforced by task-workflow when requirements are provided, not by the gate — bugfix-workflow has no requirements source). Quick tier (requires explicit quick-tier evidence + size limits): quick-tier, code-critic, test-runner, check-runner. Spec tier (requires explicit spec-tier evidence + no production code in diff): spec-tier, spec-review, plan-review. Evidence created by `agent-trace-stop.sh`, `codex-trace.sh`, `skill-marker.sh`, and workflow skills (e.g., `quick-fix-workflow` writes `quick-tier`).
 
 **Post-PR:** Changes in same branch → re-run /pre-pr-verification → amend + force-push with `--force-with-lease`.
 
@@ -248,3 +255,5 @@ Code PRs require all evidence at the current diff_hash. The PR gate (`pr-gate.sh
 | Run lint/typecheck via Bash instead of check-runner | Always delegate to sub-agents — they run the full suite |
 | Push without running check-runner | Run check-runner before every push, no exceptions |
 | Add dependency without committing lockfile | Stage lockfile in same commit as package.json change |
+| Spec PR without spec-review + plan-review | Block; run spec tier cascade first |
+| Spec tier PR containing production code | Block; use Full tier instead |
