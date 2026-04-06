@@ -83,6 +83,26 @@ cd ~/Code/ai-party
 
 Removes symlinks but keeps the repository.
 
+## Migrating from ai-config
+
+If you have an existing `ai-config` installation:
+
+```bash
+# Remove old symlinks
+cd ~/Code/ai-config
+./uninstall.sh
+
+# Rename the directory
+mv ~/Code/ai-config ~/Code/ai-party
+
+# Update the git remote
+cd ~/Code/ai-party
+git remote set-url origin git@github.com:alexivison/ai-party.git
+
+# Re-run the installer
+./install.sh
+```
+
 ## Usage
 
 Launch a party session to run Claude and The Wizard side by side in a three-pane tmux layout:
