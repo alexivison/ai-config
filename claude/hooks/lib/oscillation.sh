@@ -69,7 +69,7 @@ detect_oscillation() {
   [ -f "$evidence_path" ] || return 0
 
   local local_hash
-  local_hash=$(compute_diff_hash "$cwd")
+  local_hash=$(compute_diff_hash "$(_resolve_cwd "$session_id" "$cwd")")
 
   # ── Same-hash alternation detection (both critic types) ──
   local verdicts_json count
