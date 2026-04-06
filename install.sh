@@ -1,5 +1,5 @@
 #!/bin/bash
-# ai-config installer
+# ai-party installer
 # Installs CLI tools, creates symlinks, and handles authentication
 
 set -e
@@ -30,7 +30,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "ai-config installer"
+echo "ai-party installer"
 echo "==================="
 echo "Repo location: $SCRIPT_DIR"
 echo ""

@@ -14,7 +14,7 @@
   <text x="16" y="30" class="border">╭─ party-worker-17 / worker ──────────────╮</text>
   <!-- body -->
   <text x="16" y="54" class="border">│</text><text x="32" y="54" class="muted">tui style match</text><text x="396" y="54" class="border">│</text>
-  <text x="16" y="78" class="border">│</text><text x="32" y="78" class="muted">~/Code/ai-config</text><text x="396" y="78" class="border">│</text>
+  <text x="16" y="78" class="border">│</text><text x="32" y="78" class="muted">~/Code/ai-party</text><text x="396" y="78" class="border">│</text>
   <text x="16" y="102" class="border">│</text><text x="396" y="102" class="border">│</text>
   <text x="16" y="126" class="border">│</text><text x="32" y="126" class="label">Codex</text><text x="80" y="126" class="muted"> idle</text><text x="396" y="126" class="border">│</text>
   <text x="16" y="150" class="border">│</text><text x="48" y="150" class="green">APPROVE</text><text x="130" y="150" class="muted"> · 12s ago</text><text x="396" y="150" class="border">│</text>

@@ -1,4 +1,4 @@
-# ai-config
+# ai-party
 
 <p align="center">
   <img src="assets/the-adventuring-party.png" alt="The Adventuring Party — Claude the Warforged Paladin, the Mastermind Rogue, and The Wizard (High Elf)" width="700">
@@ -19,7 +19,7 @@ Shared configuration and orchestration for an adventuring party of AI coding ass
 ## Structure
 
 ```
-ai-config/
+ai-party/
 ├── assets/          # Static assets (banner image)
 ├── claude/          # Claude Code configuration (hooks, skills, agents, rules)
 ├── codex/           # OpenAI Codex CLI configuration
@@ -47,10 +47,10 @@ ai-config/
 
 ```bash
 # Clone the repo
-git clone git@github.com:alexivison/ai-config.git ~/Code/ai-config
+git clone git@github.com:alexivison/ai-party.git ~/Code/ai-party
 
 # Full install (symlinks + CLI installation + auth)
-cd ~/Code/ai-config
+cd ~/Code/ai-party
 ./install.sh
 
 # Or symlinks only (install CLIs yourself)
@@ -77,11 +77,31 @@ The installer will:
 ## Uninstallation
 
 ```bash
-cd ~/Code/ai-config
+cd ~/Code/ai-party
 ./uninstall.sh
 ```
 
 Removes symlinks but keeps the repository.
+
+## Migrating from ai-config
+
+If you have an existing `ai-config` installation:
+
+```bash
+# Remove old symlinks
+cd ~/Code/ai-config
+./uninstall.sh
+
+# Rename the directory
+mv ~/Code/ai-config ~/Code/ai-party
+
+# Update the git remote
+cd ~/Code/ai-party
+git remote set-url origin git@github.com:alexivison/ai-party.git
+
+# Re-run the installer
+./install.sh
+```
 
 ## Usage
 

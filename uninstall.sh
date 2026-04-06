@@ -1,5 +1,5 @@
 #!/bin/bash
-# ai-config uninstaller
+# ai-party uninstaller
 # Removes symlinks created by install.sh (does not remove the repo)
 
 set -e
@@ -7,7 +7,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOOLS=("claude" "codex")
 
-echo "ai-config uninstaller"
+echo "ai-party uninstaller"
 echo "====================="
 echo ""
 
@@ -60,4 +60,4 @@ remove_file_symlink "$SCRIPT_DIR/tmux/tmux.conf" "$HOME/.tmux.conf" "~/.tmux.con
 
 echo ""
 echo "Uninstall complete!"
-echo "The ai-config repo remains at: $SCRIPT_DIR"
+echo "The ai-party repo remains at: $SCRIPT_DIR"
