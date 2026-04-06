@@ -203,31 +203,6 @@ setup_tmux() {
     create_file_symlink "$SCRIPT_DIR/tmux/tmux.conf" "$HOME/.tmux.conf" "tmux config"
 }
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# NVIM
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-setup_nvim() {
-    echo ""
-    echo "━━━ nvim ━━━"
-
-    local source="$SCRIPT_DIR/nvim"
-    local target="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
-
-    if [[ ! -d "$source" ]]; then
-        echo "⏭  Skipping nvim (source directory not found)"
-        return
-    fi
-
-    if [[ -L "$target" && "$(readlink "$target")" == "$source" ]]; then
-        echo "✓  nvim config already linked"
-        return
-    fi
-
-    mkdir -p "$(dirname "$target")"
-    backup_existing "$target"
-    ln -s "$source" "$target"
-    echo "✓  Created symlink: $target → $source"
-}
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # FZF (interactive session picker)
@@ -277,7 +252,6 @@ fi
 setup_claude
 setup_codex
 setup_tmux
-setup_nvim
 setup_fzf
 
 echo ""
@@ -293,8 +267,4 @@ for tool in claude codex; do
 done
 if [[ -L "$HOME/.tmux.conf" ]]; then
     echo "  ~/.tmux.conf → $(readlink "$HOME/.tmux.conf")"
-fi
-nvim_target="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
-if [[ -L "$nvim_target" ]]; then
-    echo "  $nvim_target → $(readlink "$nvim_target")"
 fi
