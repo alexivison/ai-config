@@ -12,6 +12,23 @@ This section is the single source of truth for execution order across workflow d
 
 Workflow skills enforce the critic-before-Codex ordering. Hooks only record evidence and block self-approval — they do not gate sequencing. Sentinel runs after critics pass. Advisory only — no gating markers.
 
+## Pre-Implementation Gate
+
+**Before writing ANY code:**
+
+1. **Create worktree** — `git worktree add ../repo-branch-name -b branch-name` (or `gwta` if available). One session per worktree; never `git checkout` in shared repos.
+2. **Extract scope, requirements, and goal** from whatever triggered the work:
+   - **Scope boundaries** (in scope / out of scope) — included in every sub-agent prompt
+   - **Requirements** — concrete, verifiable items for scribe validation
+   - **Goal** — one-line summary for review context
+
+   Sources may include TASK files, external planning tool artifacts, or direct user instructions. Read the relevant source and extract the same three items regardless of format.
+3. **Note tracking files** — If the work source has completion tracking (checkboxes, status markers), note the file locations for source-file updates later.
+4. **Behavior change?** → Invoke `/write-tests` FIRST and capture RED evidence before implementing.
+5. **Requirements unclear?** → Ask user.
+
+State which items were checked before proceeding.
+
 ## RED Evidence Gate
 
 For behavior-changing production code, tests are mandatory and must show RED→GREEN:
@@ -40,6 +57,35 @@ Before critics:
 4. Compare `git diff --name-only` against the provided scope boundaries; out-of-scope touches require explicit justification
 
 Out-of-scope touches without justification are blocking and require `NEEDS_DISCUSSION`.
+
+## Scribe Contract
+
+When requirements are provided (from any planning source), scribe runs alongside code-critic and minimizer. Pass scribe:
+
+- **Requirements** — the extracted list of concrete, verifiable items (text)
+- **Scope boundaries** — in-scope and out-of-scope boundaries (text)
+- **Diff command** — so scribe can inspect what changed
+- **Test file paths** — so scribe can verify each requirement has corresponding test coverage
+
+Scribe verifies every requirement is implemented and tested. It is workflow-enforced (runs when requirements exist) rather than gate-enforced — bugfix-workflow has no requirements source, so scribe cannot be a universal gate requirement.
+
+## Source-File Updates
+
+After implementation, if the work source has tracking files, keep them in sync:
+
+1. **Files with checkboxes** (TASK*.md, PLAN.md, etc.): Update `- [ ]` → `- [x]` after implementation. Commit together with implementation.
+2. **External tool tracking files**: Update completion markers per that tool's conventions. Commit together with implementation.
+3. **No tracking files**: Skip this step entirely.
+
+If task execution reveals the need to reorder or add tasks, update the tracking file explicitly before proceeding.
+
+**Pre-filled checkbox prohibition:** Never write `- [x]` when creating new checklist items. All new items start as `- [ ]` and are only checked after the work is done and verified. Pre-filling checkboxes is falsifying evidence.
+
+## Commit and PR Ordering
+
+Create the commit before running `/pre-pr-verification`. The PR gate checks evidence against the committed diff_hash, so all evidence must be recorded after the commit exists.
+
+**Re-run rule:** If you edit ANY implementation file after `/pre-pr-verification` passes, re-run before PR. Even a comment fix invalidates prior evidence (different diff_hash). Critics and Codex evidence must also be fresh at the committed hash — if the commit changed the hash, re-run the cascade: critics → codex → `/pre-pr-verification`.
 
 ## Evidence System
 
