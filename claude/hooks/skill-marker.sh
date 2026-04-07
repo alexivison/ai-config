@@ -27,7 +27,7 @@ fi
 # --- Evidence creation for enforced skills ---
 case "$SKILL" in
   pre-pr-verification)
-    append_evidence "$SESSION_ID" "pr-verified" "COMPLETED" "$CWD"
+    append_evidence "$SESSION_ID" "pr-verified" "PASS" "$CWD"
     ;;
 esac
 

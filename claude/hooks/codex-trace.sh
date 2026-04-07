@@ -13,6 +13,26 @@ set -e
 source "$(dirname "$0")/lib/evidence.sh"
 source "$(dirname "$0")/lib/review-metrics.sh"
 
+# Resolve all prior unresolved codex findings as "fixed" on approval
+_codex_resolve_prior_findings() {
+  local sid="$1" cwd_arg="$2"
+  local mf dh
+  mf=$(metrics_file "$sid")
+  [ -f "$mf" ] || return 0
+  dh=$(compute_diff_hash "$cwd_arg")
+
+  local prior_fix_ids resolved_ids
+  prior_fix_ids=$(jq -r 'select(.event == "triage" and .source == "codex" and .action == "fix") | .finding_id' "$mf" 2>/dev/null | sort -u)
+  resolved_ids=$(jq -r 'select(.event == "resolved" and .source == "codex") | .finding_id' "$mf" 2>/dev/null | sort -u)
+
+  local fix_id
+  for fix_id in $prior_fix_ids; do
+    if ! echo "$resolved_ids" | grep -qxF "$fix_id"; then
+      record_resolution "$sid" "$fix_id" "codex" "fixed" "$dh"
+    fi
+  done
+}
+
 hook_input=$(cat)
 
 # Validate JSON input — fail open on parse errors
@@ -68,6 +88,8 @@ if echo "$response" | grep -qx "CODEX APPROVED"; then
   if echo "$response" | grep -qx "CODEX_REVIEW_RAN"; then
     append_evidence "$session_id" "codex" "APPROVED" "$cwd"
     log_evidence "CODEX_APPROVED"
+    # Resolve all prior unresolved codex findings as "fixed"
+    _codex_resolve_prior_findings "$session_id" "$cwd"
   else
     echo "BLOCKED: CODEX APPROVED without CODEX_REVIEW_RAN sentinel — review may not have completed" >&2
     log_evidence "CODEX_APPROVE_BLOCKED:no_review_ran"
@@ -147,6 +169,11 @@ if echo "$response" | grep -qx "CODEX_REVIEW_RAN" && [ -n "$codex_verdict" ]; th
       esac
       record_finding_raised "$session_id" "codex" "$fid" "$f_severity" \
         "${f_category:-other}" "${f_file:-}" "${f_line:-}" "${f_desc:-}" "$diff_hash"
+
+      # Record triage: blocking findings get "fix", others get "noted"
+      local f_action="noted"
+      if [ "$f_severity" = "blocking" ]; then f_action="fix"; fi
+      record_triage "$session_id" "$fid" "codex" "$f_severity" "$f_action"
     done < <(sed -n '/^findings\[/,/^[^ ]/{ /^  /p; }' "$findings_file" 2>/dev/null || true)
 
     non_blocking_findings=$((total_findings - blocking_findings))
@@ -170,6 +197,9 @@ if [ -n "$override_line" ]; then
   if [ -n "$override_type" ] && [ -n "$override_rationale" ]; then
     if append_triage_override "$session_id" "$override_type" "$override_rationale" "$cwd"; then
       log_evidence "TRIAGE_OVERRIDE:$override_type"
+      # Record as out-of-scope triage + overridden resolution
+      record_triage "$session_id" "override-${override_type}" "$override_type" "out-of-scope" "dismissed" "$override_rationale"
+      record_resolution "$session_id" "override-${override_type}" "$override_type" "overridden" "" "$override_rationale"
     else
       log_evidence "TRIAGE_OVERRIDE_REJECTED:$override_type"
     fi

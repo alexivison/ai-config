@@ -87,6 +87,11 @@ detect_oscillation() {
       if [ "$v1" != "$v2" ] && [ "$v2" != "$v3" ] && [ "$v1" = "$v3" ]; then
         append_triage_override "$session_id" "$agent_type" \
           "Auto-detected oscillation: verdicts alternated ($v1 → $v2 → $v3) at same diff_hash" "$cwd" 2>/dev/null || true
+        # Record metrics for the oscillation override
+        if command -v record_resolution >/dev/null 2>&1; then
+          record_resolution "$session_id" "oscillation-${agent_type}" "$agent_type" "overridden" "$local_hash" \
+            "Verdicts alternated ($v1 → $v2 → $v3) at same diff_hash"
+        fi
       fi
     fi
   fi
@@ -100,6 +105,10 @@ detect_oscillation() {
     if [ "$distinct_hashes" -ge 3 ]; then
       append_triage_override "$session_id" "$agent_type" \
         "Auto-detected cross-hash oscillation: same finding fingerprint (${finding_fp:0:12}…) across $distinct_hashes distinct hashes" "$cwd" 2>/dev/null || true
+      if command -v record_resolution >/dev/null 2>&1; then
+        record_resolution "$session_id" "xhash-${agent_type}" "$agent_type" "overridden" "" \
+          "Cross-hash oscillation: fingerprint ${finding_fp:0:12}… across $distinct_hashes hashes"
+      fi
     fi
   fi
 }

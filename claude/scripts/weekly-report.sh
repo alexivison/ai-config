@@ -298,56 +298,142 @@ except Exception:
   echo ""
 
   TRACE_LOG="$CLAUDE_DIR/logs/agent-trace.jsonl"
-  if [ -f "$TRACE_LOG" ]; then
-    python3 -c "
-import json, sys
-try:
-    since = '${SINCE}T00:00:00Z'
-    until_date = '${UNTIL}T00:00:00Z'
-    agents = {'test-runner': 'Tests', 'check-runner': 'Checks'}
-    pass_verdicts = {'PASS', 'COMPLETED', 'APPROVED', 'CLEAN'}
-    fail_verdicts = {'FAIL', 'REQUEST_CHANGES', 'ISSUES_FOUND'}
-    stats = {a: {'pass': 0, 'fail': 0} for a in agents}
-    with open('$TRACE_LOG') as f:
+  METRICS_DIR="$CLAUDE_DIR/logs/review-metrics"
+  python3 -c "
+import json, sys, os, glob
+
+since = '${SINCE}T00:00:00Z'
+until_date = '${UNTIL}T00:00:00Z'
+pass_verdicts = {'PASS', 'APPROVED', 'CLEAN'}
+fail_verdicts = {'FAIL', 'REQUEST_CHANGES', 'ISSUES_FOUND'}
+
+def in_range(ts):
+    return ts >= since and ts < until_date
+
+# ── CI Checks (test-runner, check-runner from agent trace) ──
+agents = {'test-runner': 'Tests', 'check-runner': 'Checks'}
+ci_stats = {a: {'pass': 0, 'fail': 0} for a in agents}
+trace_log = '$TRACE_LOG'
+if os.path.isfile(trace_log):
+    with open(trace_log) as f:
         for line in f:
-            line = line.strip()
-            if not line:
-                continue
             try:
-                entry = json.loads(line)
-            except json.JSONDecodeError:
+                e = json.loads(line.strip())
+            except (json.JSONDecodeError, ValueError):
                 continue
-            if not isinstance(entry, dict):
+            if e.get('event') != 'stop':
                 continue
-            if entry.get('event') != 'stop':
+            if not in_range(e.get('timestamp', '')):
                 continue
-            ts = entry.get('timestamp', '')
-            if ts < since or ts >= until_date:
-                continue
-            agent = entry.get('agent', '')
-            verdict = entry.get('verdict', '')
-            if agent in stats:
+            agent = e.get('agent', '')
+            verdict = e.get('verdict', '')
+            if agent in ci_stats:
                 if verdict in pass_verdicts:
-                    stats[agent]['pass'] += 1
+                    ci_stats[agent]['pass'] += 1
                 elif verdict in fail_verdicts:
-                    stats[agent]['fail'] += 1
-    has_data = any(stats[a]['pass'] + stats[a]['fail'] > 0 for a in stats)
-    if has_data:
-        print('| Check | Pass | Fail |')
-        print('|-------|------|------|')
-        for agent, label in agents.items():
-            p = stats[agent]['pass']
-            f = stats[agent]['fail']
-            if p + f > 0:
-                print(f'| {label} | {p} | {f} |')
-    else:
-        print('_No quality signal data this week_')
-except Exception:
-    print('_Could not parse agent trace_')
-" 2>/dev/null || echo "_Could not parse agent trace_"
-  else
-    echo "_No agent trace log found_"
-  fi
+                    ci_stats[agent]['fail'] += 1
+
+ci_has_data = any(ci_stats[a]['pass'] + ci_stats[a]['fail'] > 0 for a in ci_stats)
+if ci_has_data:
+    print('### CI Checks')
+    print('')
+    print('| Check | Pass | Fail | Rate |')
+    print('|-------|------|------|------|')
+    for agent, label in agents.items():
+        p = ci_stats[agent]['pass']
+        f = ci_stats[agent]['fail']
+        if p + f > 0:
+            rate = f'{p * 100 // (p + f)}%'
+            print(f'| {label} | {p} | {f} | {rate} |')
+    print('')
+
+# ── Review Effectiveness (from review-metrics JSONL files) ──
+metrics_dir = '$METRICS_DIR'
+findings_raised = 0
+findings_fixed = 0
+findings_dismissed = 0
+findings_overridden = 0
+findings_noted = 0
+triage_blocking = 0
+triage_nonblocking = 0
+triage_outofscope = 0
+reviewer_passes = {}  # source -> {passes, approvals}
+sessions_with_data = 0
+
+if os.path.isdir(metrics_dir):
+    for mf in glob.glob(os.path.join(metrics_dir, '*.jsonl')):
+        if 'test-' in os.path.basename(mf):
+            continue
+        session_events = []
+        with open(mf) as f:
+            for line in f:
+                try:
+                    e = json.loads(line.strip())
+                except (json.JSONDecodeError, ValueError):
+                    continue
+                if in_range(e.get('timestamp', '')):
+                    session_events.append(e)
+        if not session_events:
+            continue
+        sessions_with_data += 1
+        for e in session_events:
+            evt = e.get('event', '')
+            if evt == 'finding_raised':
+                findings_raised += 1
+            elif evt == 'triage':
+                cls = e.get('classification', '')
+                if cls == 'blocking':
+                    triage_blocking += 1
+                elif cls == 'non-blocking':
+                    triage_nonblocking += 1
+                elif cls == 'out-of-scope':
+                    triage_outofscope += 1
+            elif evt == 'resolved':
+                res = e.get('resolution', '')
+                if res == 'fixed':
+                    findings_fixed += 1
+                elif res == 'dismissed':
+                    findings_dismissed += 1
+                elif res == 'overridden':
+                    findings_overridden += 1
+            elif evt == 'findings_summary':
+                src = e.get('source', '')
+                if src not in reviewer_passes:
+                    reviewer_passes[src] = {'passes': 0, 'approvals': 0}
+                reviewer_passes[src]['passes'] += 1
+                v = e.get('verdict', '')
+                if v in pass_verdicts:
+                    reviewer_passes[src]['approvals'] += 1
+
+if reviewer_passes:
+    print('### Review Gates')
+    print('')
+    print('| Reviewer | Passes | Approvals | Approval Rate |')
+    print('|----------|--------|-----------|---------------|')
+    for src in sorted(reviewer_passes.keys()):
+        s = reviewer_passes[src]
+        rate = f\"{s['approvals'] * 100 // s['passes']}%\" if s['passes'] > 0 else '-'
+        print(f\"| {src} | {s['passes']} | {s['approvals']} | {rate} |\")
+    print('')
+
+total_triaged = triage_blocking + triage_nonblocking + triage_outofscope
+total_resolved = findings_fixed + findings_dismissed + findings_overridden
+if findings_raised > 0 or total_triaged > 0:
+    print('### Finding Lifecycle')
+    print('')
+    print(f'- **Findings raised:** {findings_raised} across {sessions_with_data} session(s)')
+    if total_triaged > 0:
+        print(f'- **Triage:** {triage_blocking} blocking, {triage_nonblocking} non-blocking, {triage_outofscope} out-of-scope')
+    if total_resolved > 0:
+        print(f'- **Resolved:** {findings_fixed} fixed, {findings_dismissed} dismissed, {findings_overridden} overridden')
+        if findings_raised > 0:
+            fix_rate = findings_fixed * 100 // findings_raised
+            print(f'- **Fix rate:** {fix_rate}%')
+    print('')
+
+if not ci_has_data and not reviewer_passes and findings_raised == 0:
+    print('_No quality signal data this week_')
+" 2>/dev/null || echo "_Could not parse quality signals_"
 
   # ── Investigation Resolution Tracking ─────────────────────────
   if $inv_found; then

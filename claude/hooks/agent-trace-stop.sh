@@ -55,7 +55,7 @@ elif echo "$verdict_region" | grep -qiE '\bPASS\b'; then
 elif echo "$verdict_region" | grep -qiE '\bCLEAN\b'; then
   verdict="CLEAN"
 elif echo "$verdict_region" | grep -qi "complete\|done\|finished"; then
-  verdict="COMPLETED"
+  verdict="PASS"
 fi
 
 # Fallback: scan full response for short agent outputs (e.g. minimizer APPROVE)
@@ -127,31 +127,130 @@ if [ "$agent_type" = "code-critic" ] || [ "$agent_type" = "minimizer" ] || [ "$a
   detect_oscillation "$session_id" "$agent_type" "$verdict" "$response" "$cwd"
 fi
 
-# ── Review metrics: extract finding counts from reviewer responses ──
-# Only for reviewer agents with APPROVED/REQUEST_CHANGES/NEEDS_DISCUSSION verdicts
+# ── Review metrics: extract findings and record triage from reviewer responses ──
 case "$agent_type" in
   code-critic|minimizer|scribe|sentinel)
     if [ -n "$response" ]; then
       diff_hash=$(compute_diff_hash "$cwd")
-      # Count findings by scanning for common patterns in structured agent output:
-      #   - [must] / [should] / [nit] tags
-      #   - Numbered findings (1. / 2. / - **Finding**)
-      #   - **BLOCKING** / **NON-BLOCKING** markers
+
+      # --- Count findings by severity ---
       blocking_count=$(echo "$response" | grep -ciE '\[must\]|\*\*blocking\*\*|\bblocking:' || true)
       blocking_count=${blocking_count:-0}
-      non_blocking_count=$(echo "$response" | grep -ciE '\[should\]|\[nit\]|\*\*non-blocking\*\*|\bnon-blocking:' || true)
+      non_blocking_count=$(echo "$response" | grep -ciE '\[should\]|\[nit\]|\[q\]|\*\*non-blocking\*\*|\bnon-blocking:' || true)
       non_blocking_count=${non_blocking_count:-0}
       total_count=$((blocking_count + non_blocking_count))
-      # If no structured tags found, estimate from numbered list items in REQUEST_CHANGES
+
+      # Fallback: estimate from numbered list items in REQUEST_CHANGES
       if [ "$total_count" -eq 0 ] && [ "$verdict" = "REQUEST_CHANGES" ]; then
         total_count=$(echo "$response" | grep -cE '^\s*[0-9]+\.\s' || true)
         total_count=${total_count:-0}
         blocking_count="$total_count"
       fi
-      # Capture a short excerpt (first 200 chars of the response tail) for context
+
       excerpt=$(echo "$response" | tail -c 500 | head -c 200 | tr '\n' ' ')
       record_findings_summary "$session_id" "$agent_type" "$diff_hash" "$verdict" \
         "$total_count" "$blocking_count" "$non_blocking_count" "$excerpt"
+
+      # --- Extract individual findings and record triage ---
+      # Parse structured findings: "- **file:line** - [tag] description"
+      # Also matches "- **`file:line`** -" and bold headers like "**file:line** —"
+      finding_idx=0
+      current_section=""
+
+      while IFS= read -r line; do
+        # Track section headers (### Must Fix, ### Questions, ### Nits, etc.)
+        if echo "$line" | grep -qE '^#{1,3}\s'; then
+          section_lower=$(echo "$line" | tr '[:upper:]' '[:lower:]')
+          case "$section_lower" in
+            *"must fix"*|*"must"*)   current_section="must" ;;
+            *"question"*)            current_section="question" ;;
+            *"nit"*)                 current_section="nit" ;;
+            *)                       current_section="" ;;
+          esac
+          continue
+        fi
+
+        # Match finding lines: "- **file:line** - description" or "- **`file:line`** — description"
+        if ! echo "$line" | grep -qE '^\s*-\s+\*\*'; then
+          continue
+        fi
+
+        finding_idx=$((finding_idx + 1))
+        fid="${agent_type:0:2}-${finding_idx}"
+
+        # Extract file path and line from **file:line** or **`file:line`**
+        f_file=$(echo "$line" | sed -n 's/.*\*\*`\?\([^`*]*\)`\?\*\*.*/\1/p' | sed 's/[[:space:]]*$//')
+        f_line=""
+        if echo "$f_file" | grep -qE ':[0-9]'; then
+          f_line=$(echo "$f_file" | grep -oE ':[0-9][-0-9]*' | head -1 | tr -d ':')
+          f_file=$(echo "$f_file" | sed 's/:[0-9][-0-9]*//')
+        fi
+
+        # Extract description (everything after the second - or —)
+        f_desc=$(echo "$line" | sed 's/^[^-]*-[^-]*[-—]\s*//')
+
+        # Determine severity from section or inline tags
+        f_severity="non-blocking"
+        f_action="noted"
+        if [ "$current_section" = "must" ] || echo "$line" | grep -qiE '\[must\]|\*\*blocking\*\*'; then
+          f_severity="blocking"
+          f_action="fix"
+        elif echo "$line" | grep -qiE '\[q\]|\[should\]'; then
+          f_severity="non-blocking"
+          f_action="noted"
+        elif echo "$line" | grep -qiE '\[nit\]'; then
+          f_severity="non-blocking"
+          f_action="noted"
+        elif [ "$current_section" = "nit" ] || [ "$current_section" = "question" ]; then
+          f_severity="non-blocking"
+          f_action="noted"
+        fi
+
+        # Detect category from inline tags
+        f_category="other"
+        case "$line" in
+          *"[SRP]"*)          f_category="srp" ;;
+          *"[DRY]"*)          f_category="dry" ;;
+          *"[YAGNI]"*)        f_category="bloat" ;;
+          *"[KISS]"*)         f_category="complexity" ;;
+          *"[LoB]"*)          f_category="locality" ;;
+          *orrectness*)       f_category="correctness" ;;
+          *ecurity*)          f_category="security" ;;
+          *est*)              f_category="testing" ;;
+          *ead*code*|*nused*) f_category="bloat" ;;
+        esac
+
+        # Record individual finding
+        record_finding_raised "$session_id" "$agent_type" "$fid" "$f_severity" \
+          "$f_category" "${f_file:-}" "${f_line:-}" "${f_desc:0:200}" "$diff_hash"
+
+        # Record triage decision
+        record_triage "$session_id" "$fid" "$agent_type" "$f_severity" "$f_action"
+
+      done <<< "$response"
+
+      # --- Record resolutions for prior findings when reviewer approves ---
+      # If this pass APPROVED, resolve all prior unresolved findings from this source as "fixed"
+      if [ "$verdict" = "APPROVED" ]; then
+        metrics_f=$(metrics_file "$session_id")
+        if [ -f "$metrics_f" ]; then
+          # Find finding_ids from prior passes of this source that were triaged as "fix"
+          # but have no "resolved" event yet
+          prior_fix_ids=$(jq -r --arg src "$agent_type" '
+            select(.event == "triage" and .source == $src and .action == "fix") | .finding_id
+          ' "$metrics_f" 2>/dev/null | sort -u)
+
+          resolved_ids=$(jq -r --arg src "$agent_type" '
+            select(.event == "resolved" and .source == $src) | .finding_id
+          ' "$metrics_f" 2>/dev/null | sort -u)
+
+          for fix_id in $prior_fix_ids; do
+            if ! echo "$resolved_ids" | grep -qxF "$fix_id"; then
+              record_resolution "$session_id" "$fix_id" "$agent_type" "fixed" "$diff_hash"
+            fi
+          done
+        fi
+      fi
     fi
     ;;
 esac
