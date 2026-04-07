@@ -179,15 +179,20 @@ case "$agent_type" in
         fid="${agent_type:0:2}-${finding_idx}"
 
         # Extract file path and line from **file:line** or **`file:line`**
-        f_file=$(echo "$line" | sed -n 's/.*\*\*`\?\([^`*]*\)`\?\*\*.*/\1/p' | sed 's/[[:space:]]*$//')
-        f_line=""
-        if echo "$f_file" | grep -qE ':[0-9]'; then
-          f_line=$(echo "$f_file" | grep -oE ':[0-9][-0-9]*' | head -1 | tr -d ':')
-          f_file=$(echo "$f_file" | sed 's/:[0-9][-0-9]*//')
+        f_file="" ; f_line="" ; f_desc=""
+        if [[ "$line" =~ \*\*\`?([^\`]+)\`?\*\* ]]; then
+          f_file="${BASH_REMATCH[1]}"
+          f_file="${f_file%"${f_file##*[![:space:]]}"}" # trim trailing whitespace
+          if [[ "$f_file" =~ :([0-9][-0-9]*) ]]; then
+            f_line="${BASH_REMATCH[1]}"
+            f_file="${f_file%%:${f_line}*}"
+          fi
         fi
 
         # Extract description (everything after the second - or —)
-        f_desc=$(echo "$line" | sed 's/^[^-]*-[^-]*[-—]\s*//')
+        if [[ "$line" =~ \*\*.*\*\*[[:space:]]*[-—][[:space:]]*(.*) ]]; then
+          f_desc="${BASH_REMATCH[1]}"
+        fi
 
         # Determine severity from section or inline tags
         f_severity="non-blocking"
