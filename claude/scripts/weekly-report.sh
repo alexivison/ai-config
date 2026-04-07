@@ -304,7 +304,7 @@ import json, sys, os, glob
 
 since = '${SINCE}T00:00:00Z'
 until_date = '${UNTIL}T00:00:00Z'
-pass_verdicts = {'PASS', 'APPROVED', 'CLEAN'}
+pass_verdicts = {'PASS', 'COMPLETED', 'APPROVED', 'CLEAN'}
 fail_verdicts = {'FAIL', 'REQUEST_CHANGES', 'ISSUES_FOUND'}
 
 def in_range(ts):
@@ -426,11 +426,11 @@ if findings_raised > 0 or total_triaged > 0:
     if total_resolved > 0:
         print(f'- **Resolved:** {findings_fixed} fixed, {findings_dismissed} dismissed, {findings_overridden} overridden')
         if findings_raised > 0:
-            fix_rate = findings_fixed * 100 // findings_raised
+            fix_rate = min(findings_fixed * 100 // findings_raised, 100)
             print(f'- **Fix rate:** {fix_rate}%')
     print('')
 
-if not ci_has_data and not reviewer_passes and findings_raised == 0:
+if not ci_has_data and not reviewer_passes and findings_raised == 0 and total_triaged == 0 and total_resolved == 0:
     print('_No quality signal data this week_')
 " 2>/dev/null || echo "_Could not parse quality signals_"
 
