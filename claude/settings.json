@@ -102,11 +102,6 @@
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/push-lint-reminder.sh",
-            "timeout": 5
-          },
-          {
-            "type": "command",
             "command": "~/.claude/hooks/wizard-guard.sh",
             "timeout": 5
           }

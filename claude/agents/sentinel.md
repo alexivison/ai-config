@@ -81,36 +81,12 @@ Treat scope boundaries from the caller as authoritative.
 
 ## Output Format
 
-```
-## Sentinel Review
+Report sections: **Phase Summary** (change + blast radius), **Findings** (`[must]`/`[should]` with file:line + scenario that triggers it), **Test Gaps**, **Verdict** (APPROVE/REQUEST_CHANGES).
 
-### Phase Summary
-Brief description of the change and its blast radius.
-
-### Findings
-- **[must] file.ts:42** - Concrete issue. WHY it breaks. What input/scenario triggers it.
-- **[should] file.ts:70** - Robustness gap. What could go wrong and under what conditions.
-
-### Test Gaps
-- file.ts:42 - Missing test for [specific scenario]
-
-### Verdict
-**REQUEST_CHANGES**
-```
-
-Severity labels:
-- `[must]` = correctness, security, availability, or egregious clean code violation (repeated literals, god functions, magic values) — blocks shipping
-- `[should]` = robustness gap or minor clean code improvement worth fixing soon — does not block
-- Use `file:line` references for every finding
-- For each finding, explain the specific scenario that triggers the problem
-
-Verdict rules:
-- **APPROVE** when there are no `[must]` findings (even if `[should]` exist)
-- **REQUEST_CHANGES** when one or more `[must]` findings exist
-
-CRITICAL: The verdict line MUST be the absolute last line of your response.
-Format exactly as: **APPROVE** or **REQUEST_CHANGES**
-No text after the verdict line.
+- `[must]` = correctness, security, availability, egregious clean code violations — blocks
+- `[should]` = robustness gap, minor improvement — does not block
+- APPROVE: no `[must]`. REQUEST_CHANGES: has `[must]`.
+- CRITICAL: Verdict line MUST be the absolute last line. No text after it.
 
 ## Boundaries
 
