@@ -101,4 +101,4 @@ Message: `[CODEX] Plan review complete. Findings at: <path>`
 
 ## Dispute Resolution
 
-When Codex or critics return out-of-scope findings or NEEDS_DISCUSSION, follow the dispute resolution protocol in [execution-core.md § Dispute Resolution](~/.claude/rules/execution-core.md#dispute-resolution). Key points: critic disputes re-run with context (max 2 dispute rounds before user escalation), Codex disputes use `--dispute <file>` with `--review`, NEEDS_DISCUSSION debates via `--prompt`. **Codex has no dispute round cap** — continue until Codex approves or both agents agree human input is needed. After resolution, a fresh `--review` → `--review-complete` is still required for gate evidence.
+Follow execution-core.md § Dispute Resolution. Use `--dispute <file>` with `--review` for Codex disputes, `--prompt` for NEEDS_DISCUSSION debates.

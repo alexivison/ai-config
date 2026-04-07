@@ -86,34 +86,10 @@ Simple code is easier to read, maintain, and test than "clever" code.
 
 ## Output Format
 
-```
-## Minimize Review
+Report sections: **Must Fix** (`[must]` with `[LoB]`/`[YAGNI]`/`[KISS]` tags, file:line + description), **Simplify Suggestions** / **Questions** / **Nits** (only when requested), **Verdict** (APPROVE/REQUEST_CHANGES/NEEDS_DISCUSSION).
 
-**Context**: {what was changed}
-
-### Must Fix
-- **[must] file.ts:42-50** - [LoB] Single-use helper extracted to utils.ts — inline it here
-- **[must] file.ts:70-85** - [YAGNI] Unnecessary complexity that should be removed now
-
-### Simplify Suggestions
-- **[q] file.ts:90-100** - [KISS] Current approach and simpler alternative (only when requested)
-
-### Questions
-- **[q] file.ts:110** - Why this seems unnecessary (only when requested)
-
-### Nits
-- **[nit] file.ts:120** - Optional polish suggestion (only when requested)
-
-### Verdict
-**APPROVE** | **REQUEST_CHANGES** | **NEEDS_DISCUSSION**
-One sentence assessment.
-```
-
-- **APPROVE**: no `[must]` findings remain.
-- **REQUEST_CHANGES**: one or more `[must]` findings.
-- **NEEDS_DISCUSSION**: iteration 3 still has unresolved `[must]`.
-
-CRITICAL: The verdict line MUST be the absolute last line of your response. No text after it.
+- APPROVE: no `[must]`. REQUEST_CHANGES: has `[must]`. NEEDS_DISCUSSION: iteration 3 unresolved.
+- CRITICAL: Verdict line MUST be the absolute last line. No text after it.
 
 ## Boundaries
 

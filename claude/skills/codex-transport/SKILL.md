@@ -98,14 +98,12 @@ Only critic types (`code-critic`, `minimizer`) can be overridden — codex and P
 **Blocking findings?** Fix the code, re-run critics, then dispatch a new `--review`. Editing code invalidates all evidence (diff_hash changes), so the full cascade re-runs naturally. There is no shortcut — the gates enforce it.
 
 ### Dispute resolution
-For out-of-scope Codex findings or NEEDS_DISCUSSION, see [execution-core.md § Dispute Resolution](~/.claude/rules/execution-core.md#dispute-resolution). The `--review` mode accepts an optional `--dispute <file>` flag for this flow.
+See execution-core.md § Dispute Resolution. `--review` accepts `--dispute <file>` for re-reviews with dismissed findings.
 
 ## Important
 
-- `--review`, `--plan-review`, and `--prompt` are NON-BLOCKING. Continue working while The Wizard processes.
-- `--review-complete` emits `CODEX_REVIEW_RAN` only after findings exist.
-- `--needs-discussion` is instant — outputs a sentinel for hook detection.
-- **You cannot self-approve.** The Wizard decides the verdict via the `VERDICT:` line in the findings file.
-- Workflow skills enforce running critics before `--review`. The hook only blocks `--approve`.
-- `--plan-review` is ungated — no evidence required or affected.
-- **Blocking Wizard findings:** fix code → commit → re-run critics → new `--review` → `--review-complete`.
+- `--review`, `--plan-review`, `--prompt` are NON-BLOCKING.
+- `--review-complete` emits `CODEX_REVIEW_RAN` after findings exist.
+- **Self-approval blocked.** Verdict comes from The Wizard's `VERDICT:` line in findings file.
+- Workflow skills enforce critics before `--review`. Hook only blocks `--approve`.
+- **Blocking findings:** fix → commit → critics → `--review` → `--review-complete`.

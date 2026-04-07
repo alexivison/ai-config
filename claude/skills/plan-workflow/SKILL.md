@@ -44,45 +44,13 @@ determines plan quality — invest here.
 
 ### Prompt Construction
 
-Write the prompt to a temp file (prompts with quotes and backticks break inline shell):
+Use the template at `templates/create-plan.md` — fill in `<goal description>`, `<context>`, and `<project-slug>`. Write to a temp file and dispatch:
 
 ```bash
 PROMPT_FILE=$(mktemp /tmp/codex-plan-prompt-XXXXXX.md)
+# Copy template, fill in goal/context/slug
 cat > "$PROMPT_FILE" << 'PROMPT_EOF'
-## Task
-Create a PLAN.md for: <goal description>
-
-## Context
-<paste or summarize the gathered context: ticket details, relevant code excerpts,
-existing architecture, constraints, user preferences>
-
-## Requirements
-- Use the canonical planning templates at `~/.codex/skills/planning/templates/` — do NOT
-  invent a parallel schema. Specifically:
-  - `plan.md` template for PLAN.md (includes checkbox-links, dependency graph, coverage matrix)
-  - `task.md` template for each TASK*.md (includes scope boundary, reference, design refs,
-    data transformation checklist, files to create/modify, tests, acceptance criteria)
-- Create BOTH a PLAN.md AND individual TASK*.md files
-- All plan artifacts go in `docs/projects/<project-slug>/`:
-  - `docs/projects/<project-slug>/PLAN.md`
-  - `docs/projects/<project-slug>/SPEC.md`
-  - `docs/projects/<project-slug>/DESIGN.md`
-  - `docs/projects/<project-slug>/tasks/TASK<N>-<kebab-case-title>.md`
-  - Any diagrams/assets alongside PLAN.md
-- PLAN.md Tasks section MUST use checkbox-link form:
-  `- [ ] [Task 1](./tasks/TASK1-short-title.md) — Description (deps: none)`
-- Keep it concise — a plan is a map, not a novel
-
-## Output
-Write the plan to: docs/projects/<project-slug>/PLAN.md
-Write task files to: docs/projects/<project-slug>/tasks/TASK<N>-<kebab-case-title>.md (one per discrete task)
-
-## Response File Contract
-After writing all files, write a summary to the response file (<response_path>) containing:
-- `STATUS: SUCCESS` or `STATUS: FAILED` with reason
-- `PLAN: <actual plan path>`
-- `TASKS:` followed by one path per line for each TASK*.md created
-- Any warnings or assumptions made
+<filled template from templates/create-plan.md>
 PROMPT_EOF
 
 ~/.claude/skills/codex-transport/scripts/tmux-codex.sh \
@@ -108,15 +76,7 @@ Check the script's stdout for sentinel strings:
 `--plan-review` is for evaluating a plan that already exists as a file. For initial
 creation, use `--prompt` with explicit instructions to write the plan file.
 
-### While Codex Works
-
-Codex dispatch is non-blocking. You are NOT idle:
-
-- **Verify file paths** mentioned in your context-gathering — do they still exist?
-- **Prepare follow-up context** — if the user mentioned related work, gather that too
-- **Draft verification questions** — what should you check when the plan arrives?
-
-Do NOT poll Codex. Wait for the `[CODEX]` notification.
+Dispatch is non-blocking — verify file paths and prepare follow-up context while waiting. Do NOT poll.
 
 ## Phase 3 — Receive and Verify
 
@@ -152,39 +112,7 @@ needs to make a decision.
 
 ## Phase 5 — Iterate
 
-If the user has feedback, relay it to Codex:
-
-```bash
-REVISION_FILE=$(mktemp /tmp/codex-plan-revision-XXXXXX.md)
-cat > "$REVISION_FILE" << 'PROMPT_EOF'
-## Plan Revision Request
-
-The user reviewed the plan at <plan_path> and has feedback:
-
-<user's feedback, verbatim or faithfully paraphrased>
-
-## Instructions
-- Read the current plan at <plan_path> and all TASK*.md files in the tasks/ subfolder
-- Apply the requested changes to BOTH PLAN.md and any affected TASK*.md files
-- If feedback changes task boundaries, ordering, or scope: regenerate affected TASK*.md files
-- Follow the canonical templates at ~/.codex/skills/planning/templates/
-- Write the updated plan to the same path (overwrite)
-- Preserve parts the user didn't comment on
-- Keep PLAN.md checkbox-links and TASK*.md files in sync
-
-## Response File Contract
-Write to the response file:
-- STATUS: SUCCESS or FAILED with reason
-- PLAN: <plan path>
-- TASKS: list of all TASK*.md paths (created, updated, or unchanged)
-- CHANGED: list of files that were modified in this revision
-PROMPT_EOF
-
-~/.claude/skills/codex-transport/scripts/tmux-codex.sh \
-  --prompt "$(cat "$REVISION_FILE")" <work_dir>
-```
-
-Repeat Phase 3–5 until the user approves.
+If the user has feedback, use the template at `templates/revise-plan.md` — fill in `<plan_path>` and `<feedback>`, dispatch via `--prompt`. Repeat Phase 3–5 until the user approves.
 
 **Add your own concerns too.** If you spotted issues in Phase 3, include them in the
 revision prompt alongside the user's feedback. You are a reviewer, not just a relay.

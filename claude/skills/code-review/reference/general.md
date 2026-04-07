@@ -4,13 +4,7 @@ This reference is loaded by the **code-critic** agent. It covers SRP, DRY, and c
 
 ---
 
-## Severity Labels
-
-| Label | Meaning | Blocks |
-|-------|---------|--------|
-| `[must]` | Bugs, security, maintainability violations | Yes |
-| `[q]` | Clarification or justification request | No |
-| `[nit]` | Style, minor suggestions | No |
+Severity labels and verdicts: see `~/.claude/reference/severity-verdict.md`.
 
 ---
 
@@ -89,10 +83,3 @@ Regressions block even if absolute values are acceptable.
 
 ---
 
-## Verdicts
-
-| Verdict | Condition |
-|---------|-----------|
-| **APPROVE** | No `[must]` findings |
-| **REQUEST_CHANGES** | Has one or more `[must]` findings |
-| **NEEDS_DISCUSSION** | Architectural concerns, unclear requirements |

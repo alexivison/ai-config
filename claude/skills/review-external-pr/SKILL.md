@@ -93,18 +93,9 @@ Multiple reviewers often flag the same issue. When findings overlap:
 
 ### Severity Classification
 
-Classify every finding before acting:
+Severity labels (`[must]`/`[q]`/`[nit]`): see `~/.claude/reference/severity-verdict.md`.
 
-| Tag | Criteria | Example |
-|-----|----------|---------|
-| `[must]` | Correctness bug, security issue, data loss risk, project rule violation, missing test for behavior change | `as` cast violating project ban, PII in monitoring payload |
-| `[q]` | Debatable design choice, unclear intent, question for the author | Trivial wrapper function, unnecessary indirection |
-| `[nit]` | Style preference, minor improvement, DRY violation in tests | Duplicated test helper, inconsistent naming |
-
-Guidelines:
-- If reviewers disagree on severity, use your judgment. A finding that one reviewer calls `[must]` and another calls `[nit]` needs careful thought.
-- Non-blocking findings that reviewers label as `[must]` should be downgraded if they don't meet the criteria above (e.g., style preferences are not blocking).
-- Out-of-scope findings (pre-existing issues in untouched code) should be dropped.
+When reviewers disagree on severity, use your judgment. Downgrade non-blocking findings mislabeled as `[must]`. Drop out-of-scope findings (pre-existing issues in untouched code).
 
 ### Line Number Resolution
 

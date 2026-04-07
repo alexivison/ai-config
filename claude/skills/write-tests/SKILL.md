@@ -15,8 +15,12 @@ Write appropriate tests based on code characteristics and Testing Trophy princip
 
 ## Reference Documentation
 
+Load ONLY the relevant reference based on the files being tested:
+
 - **Frontend (TypeScript/React)**: `~/.claude/skills/write-tests/reference/frontend/testing-reference.md`
 - **Backend (Go)**: `~/.claude/skills/write-tests/reference/backend/testing-reference.md`
+
+Do NOT load both. If testing `.ts`/`.tsx`/`.jsx` files → frontend. If testing `.go` files → backend. For mixed PRs, load each as needed when writing that language's tests.
 
 ## Workflow
 
