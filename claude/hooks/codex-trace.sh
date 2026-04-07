@@ -13,26 +13,6 @@ set -e
 source "$(dirname "$0")/lib/evidence.sh"
 source "$(dirname "$0")/lib/review-metrics.sh"
 
-# Resolve all prior unresolved codex findings as "fixed" on approval
-_codex_resolve_prior_findings() {
-  local sid="$1" cwd_arg="$2"
-  local mf dh
-  mf=$(metrics_file "$sid")
-  [ -f "$mf" ] || return 0
-  dh=$(compute_diff_hash "$cwd_arg")
-
-  local prior_fix_ids resolved_ids
-  prior_fix_ids=$(jq -r 'select(.event == "triage" and .source == "codex" and .action == "fix") | .finding_id' "$mf" 2>/dev/null | sort -u)
-  resolved_ids=$(jq -r 'select(.event == "resolved" and .source == "codex") | .finding_id' "$mf" 2>/dev/null | sort -u)
-
-  local fix_id
-  for fix_id in $prior_fix_ids; do
-    if ! echo "$resolved_ids" | grep -qxF "$fix_id"; then
-      record_resolution "$sid" "$fix_id" "codex" "fixed" "$dh"
-    fi
-  done
-}
-
 hook_input=$(cat)
 
 # Validate JSON input — fail open on parse errors
@@ -89,7 +69,17 @@ if echo "$response" | grep -qx "CODEX APPROVED"; then
     append_evidence "$session_id" "codex" "APPROVED" "$cwd"
     log_evidence "CODEX_APPROVED"
     # Resolve all prior unresolved codex findings as "fixed"
-    _codex_resolve_prior_findings "$session_id" "$cwd"
+    metrics_f=$(metrics_file "$session_id")
+    if [ -f "$metrics_f" ]; then
+      codex_dh=$(compute_diff_hash "$cwd")
+      prior_fix_ids=$(jq -r 'select(.event == "triage" and .source == "codex" and .action == "fix") | .finding_id' "$metrics_f" 2>/dev/null | sort -u)
+      resolved_ids=$(jq -r 'select(.event == "resolved" and .source == "codex") | .finding_id' "$metrics_f" 2>/dev/null | sort -u)
+      for fix_id in $prior_fix_ids; do
+        if ! echo "$resolved_ids" | grep -qxF "$fix_id"; then
+          record_resolution "$session_id" "$fix_id" "codex" "fixed" "$codex_dh"
+        fi
+      done
+    fi
   else
     echo "BLOCKED: CODEX APPROVED without CODEX_REVIEW_RAN sentinel — review may not have completed" >&2
     log_evidence "CODEX_APPROVE_BLOCKED:no_review_ran"
