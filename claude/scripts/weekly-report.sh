@@ -425,9 +425,6 @@ if findings_raised > 0 or total_triaged > 0 or total_resolved > 0:
         print(f'- **Triage:** {triage_blocking} blocking, {triage_nonblocking} non-blocking, {triage_outofscope} out-of-scope')
     if total_resolved > 0:
         print(f'- **Resolved:** {findings_fixed} fixed, {findings_dismissed} dismissed, {findings_overridden} overridden')
-        if findings_raised > 0:
-            fix_rate = min(findings_fixed * 100 // findings_raised, 100)
-            print(f'- **Fix rate:** {fix_rate}%')
     print('')
 
 if not ci_has_data and not reviewer_passes and findings_raised == 0 and total_triaged == 0 and total_resolved == 0:

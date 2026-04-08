@@ -130,25 +130,27 @@ if echo "$response" | grep -qx "CODEX_REVIEW_RAN" && [ -n "$codex_verdict" ]; th
       finding_idx=$((finding_idx + 1))
       fid="codex-${finding_idx}"
 
-      # Extract fields by position using CSV-aware parsing
-      # Fields may be quoted: F1,src/app.ts,10,blocking,correctness,"desc with, commas","suggestion"
-      IFS=',' read -ra parts <<< "$row"
+      # Extract fields using Python for correct CSV parsing (handles quoted commas)
       f_file="" ; f_line="" ; f_severity="" ; f_category="" ; f_desc=""
       if [ -n "$field_list" ]; then
-        fidx=0
-        IFS=',' read -ra hfields <<< "$field_list"
-        for fn in "${hfields[@]}"; do
-          fidx=$((fidx + 1))
-          val="${parts[$((fidx - 1))]:-}"
-          val=$(echo "$val" | sed 's/^"//;s/"$//')  # strip quotes
-          case "$fn" in
-            file) f_file="$val" ;;
-            line) f_line="$val" ;;
-            severity) f_severity="$val" ;;
-            category) f_category="$val" ;;
-            description) f_desc="$val" ;;
-          esac
-        done
+        parsed=$(python3 -c "
+import csv, json, sys, io
+fields = '$field_list'.split(',')
+row = sys.stdin.read().strip()
+reader = csv.reader(io.StringIO(row))
+for parts in reader:
+    result = {}
+    for i, f in enumerate(fields):
+        if i < len(parts):
+            result[f] = parts[i]
+    print(json.dumps(result))
+    break
+" <<< "$row" 2>/dev/null || echo "{}")
+        f_file=$(echo "$parsed" | jq -r '.file // ""')
+        f_line=$(echo "$parsed" | jq -r '.line // ""')
+        f_severity=$(echo "$parsed" | jq -r '.severity // ""')
+        f_category=$(echo "$parsed" | jq -r '.category // ""')
+        f_desc=$(echo "$parsed" | jq -r '.description // ""')
       fi
 
       # Normalize severity
