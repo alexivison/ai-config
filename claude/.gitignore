@@ -38,6 +38,9 @@ settings.local.json
 scripts/*.plist
 policy-limits.json
 
+# User-specific config (Slack IDs, channel IDs, etc.)
+config/
+
 # Credentials
 .credentials.json
 
