@@ -37,6 +37,8 @@ All implementation follows `execution-core.md` regardless of what triggered it �
 - **check-runner** — run typecheck/lint
 - **code-critic + minimizer** — after implementing (MANDATORY, parallel)
 
+**NEVER run tests or checks via Bash directly.** Always delegate to test-runner / check-runner sub-agents — they discover and run the full suite regardless of project. This applies across all projects and repos.
+
 Any code change must follow the execution-core sequence and gates. No exceptions.
 
 Keep context window clean. One task per sub-agent.
