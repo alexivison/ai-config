@@ -12,6 +12,18 @@ user-invocable: false
 
 # codex-transport — Communicate with The Wizard via tmux
 
+## When to Dispatch (Autonomous)
+
+**MANDATORY — always dispatch, no exceptions:**
+- Plan created → `--plan-review`
+- Critics pass on code changes → `--review`
+- Stuck on a bug after 2 failed attempts → `--prompt` to investigate
+
+**PROACTIVE — dispatch without being asked:**
+- Architecture decision with 2+ viable approaches → `--prompt` for tradeoff analysis
+- Unfamiliar code area before major changes → `--prompt` to explain the area
+- Complex refactor spanning 3+ files → `--review` for early sanity check
+
 ## When to contact The Wizard
 
 - **For code review**: After implementing changes and passing sub-agent critics, request Wizard review

@@ -36,8 +36,6 @@ All implementation follows `execution-core.md` regardless of what triggered it �
 - **test-runner** — run tests
 - **check-runner** — run typecheck/lint
 - **code-critic + minimizer** — after implementing (MANDATORY, parallel)
-- **scribe** — requirements auditor (task-workflow only, when requirements are provided)
-- **sentinel** — after critics pass (sub-agent, advisory)
 
 Any code change must follow the execution-core sequence and gates. No exceptions.
 
@@ -49,17 +47,9 @@ Save investigation findings to `~/.claude/investigations/<issue-slug>.md`.
 
 Communicate via `tmux-codex.sh` only (never raw tmux commands — blocked by hook). Dispatch The Wizard FIRST, then launch sub-agents — keep working in parallel while The Wizard thinks. `[CODEX]` messages are from The Wizard — handle per `tmux-handler` skill. You decide verdicts; The Wizard produces findings.
 
-### When to Dispatch (Autonomous)
+### When to Dispatch
 
-**MANDATORY — always dispatch, no exceptions:**
-- Plan created → `--plan-review`
-- Critics pass on code changes → `--review`
-- Stuck on a bug after 2 failed attempts → `--prompt` to investigate
-
-**PROACTIVE — dispatch without being asked:**
-- Architecture decision with 2+ viable approaches → `--prompt` for tradeoff analysis
-- Unfamiliar code area before major changes → `--prompt` to explain the area
-- Complex refactor spanning 3+ files → `--review` for early sanity check
+See `codex-transport` skill for dispatch guidelines (mandatory and proactive triggers).
 
 ### Transport
 
@@ -70,25 +60,7 @@ Script: `~/.claude/skills/codex-transport/scripts/tmux-codex.sh`
 
 ## Master Session Mode
 
-Any party session can be promoted to master: `party.sh --promote [party-id]`. This replaces the Wizard pane with a tracker pane and sets `session_type` to `master`. Promotion is non-destructive and works mid-session.
-
-When running in a master session (`session_type == "master"` in manifest):
-- You are an **orchestrator**, not an implementor.
-- **HARD RULE:** Never use Edit or Write on production code. Investigation (Read, Grep, Glob, read-only Bash) is fine — all code changes go to a worker. No exceptions: not for "quick fixes", not for bugs found during testing, not for "obvious" one-liners.
-- There is **no Wizard pane** — `tmux-codex.sh` will return `CODEX_NOT_AVAILABLE`.
-- Skip codex review/plan-review/prompt steps entirely.
-- Use `/party-dispatch` to dispatch any number of tasks to workers (single freeform, batch tickets, or mixed).
-- Monitor workers via the tracker pane (left pane).
-
-**Communication with workers:**
-- `party-relay.sh <worker-id> "instruction"` — send a message to a worker's Claude pane
-- `party-relay.sh --broadcast "message"` — send to all workers
-- `party-relay.sh --read <worker-id>` — read the last 50 lines of a worker's Claude pane
-- `party-relay.sh --read <worker-id> --lines 200` — read more scrollback
-- `party-relay.sh --list` — show all workers and their status
-- Workers report back via `[WORKER:<session-id>]` prefixed messages to your pane
-
-**Worker report-back and PR review obligations** are defined in the `party-dispatch` skill — follow those rules for every dispatch.
+See `party-dispatch` skill for master session rules.
 
 ## Verification Principle
 

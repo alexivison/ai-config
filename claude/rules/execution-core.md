@@ -7,10 +7,10 @@ Shared rules for all workflow skills. Applies to all implementation regardless o
 This section is the single source of truth for execution order across workflow docs.
 
 ```
-/write-tests → implement → source-file updates → [code-critic + minimizer (+ scribe when requirements provided)] → codex [+ sentinel] → /pre-pr-verification → commit → PR
+/write-tests → implement → source-file updates → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
 ```
 
-Workflow skills enforce the critic-before-Codex ordering. Hooks only record evidence and block self-approval — they do not gate sequencing. Sentinel runs after critics pass. Advisory only — no gating markers.
+Workflow skills enforce the critic-before-Codex ordering. Hooks only record evidence and block self-approval — they do not gate sequencing.
 
 ## Pre-Implementation Gate
 
@@ -19,7 +19,7 @@ Workflow skills enforce the critic-before-Codex ordering. Hooks only record evid
 1. **Create worktree** — `git worktree add ../repo-branch-name -b branch-name` (or `gwta` if available). One session per worktree; never `git checkout` in shared repos.
 2. **Extract scope, requirements, and goal** from whatever triggered the work:
    - **Scope boundaries** (in scope / out of scope) — included in every sub-agent prompt
-   - **Requirements** — concrete, verifiable items for scribe validation
+   - **Requirements** — concrete, verifiable items
    - **Goal** — one-line summary for review context
 
    Sources may include TASK files, external planning tool artifacts, or direct user instructions. Read the relevant source and extract the same three items regardless of format.
@@ -58,17 +58,6 @@ Before critics:
 
 Out-of-scope touches without justification are blocking and require `NEEDS_DISCUSSION`.
 
-## Scribe Contract
-
-When requirements are provided (from any planning source), scribe runs alongside code-critic and minimizer. Pass scribe:
-
-- **Requirements** — the extracted list of concrete, verifiable items (text)
-- **Scope boundaries** — in-scope and out-of-scope boundaries (text)
-- **Diff command** — so scribe can inspect what changed
-- **Test file paths** — so scribe can verify each requirement has corresponding test coverage
-
-Scribe verifies every requirement is implemented and tested. It is workflow-enforced (runs when requirements exist) rather than gate-enforced — bugfix-workflow has no requirements source, so scribe cannot be a universal gate requirement.
-
 ## Source-File Updates
 
 After implementation, if the work source has tracking files, keep them in sync:
@@ -103,7 +92,7 @@ Metrics are tracked via hooks in `~/.claude/logs/review-metrics/`. See `~/.claud
 
 | Tier | Scope | Sequence | Gate Evidence | Limits |
 |------|-------|----------|--------------|--------|
-| **Full** (default) | All code changes | `/write-tests → implement → critics → codex → PR` | pr-verified, code-critic, minimizer, codex, test-runner, check-runner | Scribe workflow-enforced when requirements provided |
+| **Full** (default) | All code changes | `/write-tests → implement → critics → codex → PR` | pr-verified, code-critic, minimizer, codex, test-runner, check-runner | — |
 | **Quick** | Non-behavioral only (config, deps, typos, CI) | `implement → code-critic → test-runner → check-runner → PR` | quick-tier, code-critic, test-runner, check-runner | ≤30 lines, ≤3 files, 0 new files |
 | **Spec** | Spec/design docs only (no production code) | `draft → spec-review → plan-review → iterate → PR` | spec-tier, spec-review, plan-review | No src/ or test files |
 
@@ -125,7 +114,7 @@ Classify every finding before acting:
 
 **Lean loop:** Critics: two-pass mode (initial + one re-review). Codex happy-path: two passes, but continue until `VERDICT: APPROVED` regardless. `[q]`/`[nit]` are opt-in. Critics APPROVE when only non-blocking remain.
 
-**Caps:** Critics: max 3 iterations → dispute (2 rounds) → escalate. **Codex: NO cap** — continue until APPROVED. Dispute with evidence if you disagree; never bypass. Non-blocking: 1 round → accept or drop.
+**Caps:** Critics: hard cap of 2 passes (initial + one re-review) → Paladin uses own judgment on any remaining blocking findings. **Codex: NO cap** — continue until APPROVED. Dispute with evidence if you disagree; never bypass. Non-blocking: 1 round → accept or drop.
 
 **Tiered re-review:** One-symbol swap → test-runner only. Logic change → test-runner + critics. New export/signature/security path → full cascade.
 
@@ -138,15 +127,14 @@ Classify every finding before acting:
 | /write-tests | Written (RED) | Implement |
 | Implement | Done | Source-file updates |
 | Minimality + Scope Gate | PASS / Scope violation | Critics / **PAUSE** (NEEDS_DISCUSSION) |
-| Critics (code-critic, minimizer, scribe) | APPROVE or non-blocking only | Wait for others → codex |
-| Critics | REQUEST_CHANGES (blocking) | Fix batch + one re-run of all three |
-| Critics | NEEDS_DISCUSSION / oscillation / cap | Dispute resolution (2 rounds) → escalate |
+| Critics (code-critic, minimizer) | APPROVE or non-blocking only | Wait for others → codex |
+| Critics | REQUEST_CHANGES (blocking) | Fix batch + one re-run |
+| Critics | Cap reached (2 passes) | Paladin uses own judgment, proceed to codex |
 | All critics pass | — | Run codex |
 | Codex | APPROVE | /pre-pr-verification |
 | Codex | REQUEST_CHANGES (blocking) | Fix + commit + re-run critics + `--review` → `--review-complete`. **Repeat until APPROVED.** |
 | Codex | REQUEST_CHANGES (non-blocking) | Record, proceed to /pre-pr-verification |
 | Codex | Out-of-scope or NEEDS_DISCUSSION | Dispute per § Dispute Resolution. **No cap — continue until resolved.** |
-| Sentinel | Any | Advisory only — Paladin triages |
 | Spec-review / Plan-review | Same pattern as critics | See § Tiered Execution |
 | /pre-pr-verification | Pass/Fail | PR / fix |
 | Edit/Write after approval | Evidence stale | Re-run cascade |
@@ -155,19 +143,17 @@ Classify every finding before acting:
 
 ## Dispute Resolution
 
-**Critic disputes:** Re-run with context explaining dismissed findings. Max 2 dispute rounds per critic.
+**Critics:** No dispute rounds — after 2 passes, Paladin uses own judgment and proceeds.
 
-**Codex disputes:** Write dispute context file (finding IDs + rationales), pass via `--dispute <file>`. No round cap — continue until Codex accepts or you concede. For NEEDS_DISCUSSION: debate via `--prompt` with evidence-based reasoning until genuine agreement.
-
-**After resolution:** Dispatch fresh `--review` → `--review-complete` for gate evidence.
+**Codex disputes:** Write dispute context file (finding IDs + rationales), pass via `--dispute <file>`. No round cap — continue until Codex accepts or you concede. For NEEDS_DISCUSSION: debate via `--prompt` with evidence-based reasoning until genuine agreement. After resolution, dispatch fresh `--review` → `--review-complete` for gate evidence.
 
 **Escalation to user:** Security-critical dispute, both agents agree human input needed, or genuinely circular (same arguments 3+ times, no new evidence).
 
 ## Pause Conditions & Sub-Agent Behavior
 
-**Valid pause conditions:** Investigation findings, critic dispute cap (2 rounds), security-critical disagreement, oscillation, explicit blockers. Codex review is NEVER a pause condition.
+**Valid pause conditions:** Investigation findings, security-critical disagreement, oscillation, explicit blockers. Codex review is NEVER a pause condition.
 
-**Sub-agent modes:** Investigation → always pause with findings. Verification (test/check) → never pause, summary only. Critics → dispute resolution on cap/NEEDS_DISCUSSION. Codex → no cap, continue until APPROVED.
+**Sub-agent modes:** Investigation → always pause with findings. Verification (test/check) → never pause, summary only. Critics → 2 passes max, then Paladin decides. Codex → no cap, continue until APPROVED.
 
 ## Verification Principle
 

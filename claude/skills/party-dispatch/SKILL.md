@@ -283,6 +283,28 @@ When all workers have reported back (all tasks completed):
   the worker can act immediately.
 - **Review every PR** — No worker PR gets merged without a master review.
 
+## Master Session Mode
+
+Any party session can be promoted to master: `party.sh --promote [party-id]`. This replaces the Wizard pane with a tracker pane and sets `session_type` to `master`. Promotion is non-destructive and works mid-session.
+
+When running in a master session (`session_type == "master"` in manifest):
+- You are an **orchestrator**, not an implementor.
+- **HARD RULE:** Never use Edit or Write on production code. Investigation (Read, Grep, Glob, read-only Bash) is fine — all code changes go to a worker. No exceptions: not for "quick fixes", not for bugs found during testing, not for "obvious" one-liners.
+- There is **no Wizard pane** — `tmux-codex.sh` will return `CODEX_NOT_AVAILABLE`.
+- Skip codex review/plan-review/prompt steps entirely.
+- Use `/party-dispatch` to dispatch any number of tasks to workers (single freeform, batch tickets, or mixed).
+- Monitor workers via the tracker pane (left pane).
+
+**Communication with workers:**
+- `party-relay.sh <worker-id> "instruction"` — send a message to a worker's Claude pane
+- `party-relay.sh --broadcast "message"` — send to all workers
+- `party-relay.sh --read <worker-id>` — read the last 50 lines of a worker's Claude pane
+- `party-relay.sh --read <worker-id> --lines 200` — read more scrollback
+- `party-relay.sh --list` — show all workers and their status
+- Workers report back via `[WORKER:<session-id>]` prefixed messages to your pane
+
+**Worker report-back and PR review obligations** are defined in the "Ongoing Orchestration" section above — follow those rules for every dispatch.
+
 ## Important
 
 - The spawned workers run `claude --permission-mode bypassPermissions`, so they
