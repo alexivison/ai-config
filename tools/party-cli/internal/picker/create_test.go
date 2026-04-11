@@ -535,6 +535,46 @@ func TestCreateForm_Enter_FileNotDir_SetsError(t *testing.T) {
 	}
 }
 
+func TestCreateForm_SubmittingBlocksEsc(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	f, _ := NewCreateForm(false, dir)
+	f, _ = f.handleKey(tea.KeyMsg{Type: tea.KeyTab}) // focus dir
+
+	// Enter sets submitting.
+	f, _ = f.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	if !f.submitting {
+		t.Fatal("expected submitting=true after enter")
+	}
+
+	// Esc should be blocked.
+	f, cmd := f.handleKey(tea.KeyMsg{Type: tea.KeyEscape})
+	if cmd != nil {
+		t.Error("esc should be no-op while submitting")
+	}
+	if f.submitting != true {
+		t.Error("submitting should still be true after esc")
+	}
+
+	// Ctrl+C should still work.
+	_, cmd = f.handleKey(tea.KeyMsg{Type: tea.KeyCtrlC})
+	if cmd == nil {
+		t.Error("ctrl+c should still produce a quit command while submitting")
+	}
+}
+
+func TestCreateForm_SubmittingClearedOnError(t *testing.T) {
+	t.Parallel()
+	m := Model{mode: modeCreate}
+	m.createForm.submitting = true
+
+	result, _ := m.updateCreate(createResultMsg{err: os.ErrPermission})
+	rm := result.(Model)
+	if rm.createForm.submitting {
+		t.Error("submitting should be cleared on error")
+	}
+}
+
 func TestCreateForm_CompletionsClearedOnNonTabKey(t *testing.T) {
 	t.Parallel()
 	root := makeDirs(t, "apps", "api")

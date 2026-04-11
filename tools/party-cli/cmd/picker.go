@@ -65,11 +65,6 @@ func runPicker(cmd *cobra.Command, store *state.Store, client *tmux.Client, repo
 	if err != nil {
 		return err
 	}
-	if len(entries) == 0 && len(tmuxEntries) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No sessions found. Use prefix-n in tmux to create one.")
-		return nil
-	}
-
 	svc := session.NewService(store, client, repoRoot)
 	deleteFn := func(ctx context.Context, sessionID string) error {
 		if strings.HasPrefix(sessionID, "party-") {

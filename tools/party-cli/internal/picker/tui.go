@@ -351,7 +351,7 @@ func (m Model) View() string {
 	pad := strings.Repeat(" ", padLeft)
 	tabBar := pad + m.renderTabBar()
 	dividerLine := pickerDividerLineStyle.Render(strings.Repeat("─", m.width))
-	footer := pickerFooterStyle.Render(fitToWidth(pad+"⏎ resume  ^d delete  h/l switch  esc quit", m.width))
+	footer := pickerFooterStyle.Render(fitToWidth(pad+"⏎ resume  n new  N master  ^d delete  h/l switch  esc quit", m.width))
 
 	bodyH := m.height - headerHeight - footerHeight
 	if bodyH < 1 {

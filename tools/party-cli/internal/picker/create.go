@@ -27,6 +27,7 @@ type CreateForm struct {
 	dirInput    textinput.Model
 	focus       createField
 	master      bool
+	submitting  bool     // true after Enter, blocks Esc/input until startFn returns
 	completions []string // tab-completion matches (full paths)
 	compIndex   int      // cycle index (-1 = common prefix shown, 0..N-1 = cycling)
 	err         string
@@ -73,6 +74,14 @@ func (f CreateForm) Update(msg tea.Msg) (CreateForm, tea.Cmd) {
 }
 
 func (f CreateForm) handleKey(msg tea.KeyMsg) (CreateForm, tea.Cmd) {
+	// While startFn is in-flight, only allow ctrl+c to quit entirely.
+	if f.submitting {
+		if msg.String() == "ctrl+c" {
+			return f, tea.Quit
+		}
+		return f, nil
+	}
+
 	// Only preserve completions when Tab is pressed on the dir field.
 	isTabOnDir := msg.String() == "tab" && f.focus == fieldDir
 	if !isTabOnDir {
@@ -112,6 +121,7 @@ func (f CreateForm) handleKey(msg tea.KeyMsg) (CreateForm, tea.Cmd) {
 			f.err = "directory does not exist"
 			return f, nil
 		}
+		f.submitting = true
 		return f, func() tea.Msg {
 			return createRequestMsg{title: f.titleInput.Value(), dir: dir, master: f.master}
 		}
@@ -150,6 +160,7 @@ func (m Model) updateCreate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return createResultMsg{sessionID: sessionID, err: err}
 		}
 	case createResultMsg:
+		m.createForm.submitting = false
 		if msg.err != nil {
 			m.createForm.err = msg.err.Error()
 			return m, nil
@@ -258,7 +269,11 @@ func (f CreateForm) View(width, height int) string {
 	}
 
 	lines = append(lines, dividerLine)
-	lines = append(lines, pickerFooterStyle.Render(fitToWidth(pad+"⏎ create  tab complete  esc back", width)))
+	footerText := pad + "⏎ create  tab complete  esc back"
+	if f.submitting {
+		footerText = pad + "Creating session..."
+	}
+	lines = append(lines, pickerFooterStyle.Render(fitToWidth(footerText, width)))
 
 	return strings.Join(lines, "\n")
 }
