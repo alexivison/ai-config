@@ -211,23 +211,21 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+d":
 		return m, m.deleteCurrent()
 	case "n":
-		if m.startFn == nil {
-			return m, nil
-		}
-		m.mode = modeCreate
-		var cmd tea.Cmd
-		m.createForm, cmd = NewCreateForm(false, m.panePath)
-		return m, cmd
+		return m.enterCreateMode(false)
 	case "N":
-		if m.startFn == nil {
-			return m, nil
-		}
-		m.mode = modeCreate
-		var cmd tea.Cmd
-		m.createForm, cmd = NewCreateForm(true, m.panePath)
-		return m, cmd
+		return m.enterCreateMode(true)
 	}
 	return m, nil
+}
+
+func (m Model) enterCreateMode(master bool) (tea.Model, tea.Cmd) {
+	if m.startFn == nil {
+		return m, nil
+	}
+	m.mode = modeCreate
+	var cmd tea.Cmd
+	m.createForm, cmd = NewCreateForm(master, m.panePath)
+	return m, cmd
 }
 
 func (m *Model) switchTab(forward bool) {
