@@ -37,7 +37,7 @@ const (
 	ClaudeStateDotActive  = "⚡"
 	ClaudeStateDotWaiting = "◐"
 	ClaudeStateDotIdle    = "◌"
-	ClaudeStateDotDone    = "✓"
+	ClaudeStateDotDone    = "✔"
 )
 
 // WorkerFetcher loads worker data for the tracker.

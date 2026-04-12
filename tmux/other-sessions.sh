@@ -13,8 +13,10 @@ other_count=0
 while IFS= read -r sid; do
     [[ -z "$sid" ]] && continue
     if [[ "$sid" == party-* ]]; then
-        # Read @party_state from the Claude pane (window 1, pane 0)
+        # Read @party_state from the Claude pane.
+        # Sidebar layout: window 1, pane 0. Classic layout: window 0, pane 1.
         state=$(tmux show-options -p -v -t "${sid}:1.0" @party_state 2>/dev/null)
+        [[ -z "$state" ]] && state=$(tmux show-options -p -v -t "${sid}:0.1" @party_state 2>/dev/null)
         case "$state" in
             active|waiting) party_active=$((party_active + 1)) ;;
             *)              party_idle=$((party_idle + 1)) ;;

@@ -77,12 +77,6 @@ func ReadCodexStatus(runtimeDir string) (CodexStatus, error) {
 	return cs, nil
 }
 
-// ClaudeState represents the Claude session activity state.
-type ClaudeState struct {
-	State     string `json:"state"`
-	UpdatedAt string `json:"updated_at"`
-}
-
 // ReadClaudeState reads claude-state.json from a runtime directory.
 // Returns empty state (no error) when the file is missing or unreadable.
 func ReadClaudeState(runtimeDir string) string {
@@ -91,7 +85,9 @@ func ReadClaudeState(runtimeDir string) string {
 	if err != nil || len(data) == 0 {
 		return ""
 	}
-	var cs ClaudeState
+	var cs struct {
+		State string `json:"state"`
+	}
 	if json.Unmarshal(data, &cs) != nil {
 		return ""
 	}
