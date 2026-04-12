@@ -34,7 +34,7 @@ output=""
 if [[ $party_total -gt 0 ]]; then
     output="#[fg=#768390,bg=#343b45]⚔ "
     [[ $party_active -gt 0 ]] && output="${output}#[fg=#a3be8c,bg=#343b45]${party_active}▸"
-    [[ $party_idle -gt 0 ]]   && output="${output}#[fg=#555555,bg=#343b45]${party_idle}○"
+    [[ $party_idle -gt 0 ]]   && output="${output}#[fg=#768390,bg=#343b45]${party_idle}○"
 fi
 [[ $other_count -gt 0 ]] && output="${output:+$output  }#[fg=#768390,bg=#343b45]◈ ${other_count}"
 
