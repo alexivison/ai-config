@@ -9,7 +9,8 @@ all_sessions=$(tmux list-sessions -F '#{session_name}' 2>/dev/null)
 
 party_active=0
 party_idle=0
-other_count=0
+other_active=0
+other_idle=0
 while IFS= read -r sid; do
     [[ -z "$sid" ]] && continue
     if [[ "$sid" == party-* ]]; then
@@ -23,20 +24,30 @@ while IFS= read -r sid; do
             *)              party_idle=$((party_idle + 1)) ;;
         esac
     elif [[ "$sid" != "$current" ]]; then
-        other_count=$((other_count + 1))
+        # Check if any pane is running claude (active) or just a shell (idle)
+        if tmux list-panes -s -t "$sid" -F '#{pane_current_command}' 2>/dev/null | grep -q 'claude'; then
+            other_active=$((other_active + 1))
+        else
+            other_idle=$((other_idle + 1))
+        fi
     fi
 done <<< "$all_sessions"
 
 party_total=$((party_active + party_idle))
-[[ $party_total -eq 0 && $other_count -eq 0 ]] && exit 0
+other_total=$((other_active + other_idle))
+[[ $party_total -eq 0 && $other_total -eq 0 ]] && exit 0
 
 output=""
 if [[ $party_total -gt 0 ]]; then
     output="#[fg=#768390,bg=#343b45]⚔ "
     [[ $party_active -gt 0 ]] && output="${output}#[fg=#a3be8c,bg=#343b45]${party_active}▸"
-    [[ $party_idle -gt 0 ]]   && output="${output}#[fg=#555555,bg=#343b45]${party_idle}○"
+    [[ $party_idle -gt 0 ]]   && output="${output}#[fg=#768390,bg=#343b45]${party_idle}"
 fi
-[[ $other_count -gt 0 ]] && output="${output:+$output  }#[fg=#768390,bg=#343b45]◈ ${other_count}"
+if [[ $other_total -gt 0 ]]; then
+    output="${output:+$output  }#[fg=#768390,bg=#343b45]◈ "
+    [[ $other_active -gt 0 ]] && output="${output}#[fg=#a3be8c,bg=#343b45]${other_active}▸"
+    [[ $other_idle -gt 0 ]]   && output="${output}#[fg=#768390,bg=#343b45]${other_idle}"
+fi
 
 [[ -z "$output" ]] && exit 0
 # Pill-shaped segment matching SketchyBar theme
