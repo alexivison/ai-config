@@ -110,34 +110,11 @@ When invoked outside the morning briefing context (e.g., "check updates", "any r
 
 ## Daily Context File
 
-After completing the briefing (whether or not a sync message is posted), write a context
-snapshot to `~/.claude/context/<repo-name>/<YYYY-MM-DD>.md`.
+After completing the briefing (whether or not a sync message is posted), write a
+context snapshot for coding agents to consume at session start.
 
-Determine `<repo-name>` from the repo the user is working in.
-If running outside a repo, fall back to the Linear team name from `data-sources.md` (kebab-case).
-
-### File format
-
-```markdown
-# Daily Context — <YYYY-MM-DD>
-
-## Priority Stack (ordered)
-1. TICKET-ID: Title — priority, status, key context (blockers, dependencies, deadlines)
-   - Implementation-relevant detail (e.g., "BE provides X API", "scope: FE only")
-
-## Recently Completed (context only)
-- TICKET-ID: Title (PR #NNN)
-
-## Key Context
-- Cycle info, demo deadlines, team decisions, anything a coding agent should know
-```
-
-### Rules
-
-- **Overwrite** if today's file already exists (e.g., re-running sync mid-day).
-- **~30 lines / ~500 tokens max** — this gets injected into coding sessions.
-- **Prune** files older than 14 days on write.
-- Create the directory if it doesn't exist.
+Read `references/context-template.md` (relative to this skill's directory) for
+the file location, format, rules, and section guidelines. Follow it exactly.
 
 ## What This Skill Does NOT Do
 
