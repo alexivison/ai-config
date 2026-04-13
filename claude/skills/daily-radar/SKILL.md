@@ -147,9 +147,40 @@ or suggest following up on stale threads.
 - Never prescribe implementation approaches — only suggest what to work on next and why.
 - Keep to 2-3 items. Don't list every ticket.
 
+## Daily Context File
+
+After completing the radar scan, write a context snapshot to
+`~/.claude/context/<repo-name>/<YYYY-MM-DD>.md`.
+
+Determine `<repo-name>` from the repo the user is working in.
+If running outside a repo, fall back to the Linear team name from `data-sources.md` (kebab-case).
+
+### File format
+
+```markdown
+# Daily Context — <YYYY-MM-DD>
+
+## Priority Stack (ordered)
+1. TICKET-ID: Title — priority, status, key context (blockers, dependencies, deadlines)
+   - Implementation-relevant detail (e.g., "BE provides X API", "scope: FE only")
+
+## Recently Completed (context only)
+- TICKET-ID: Title (PR #NNN)
+
+## Key Context
+- Cycle info, demo deadlines, team decisions, anything a coding agent should know
+```
+
+### Rules
+
+- **Overwrite** if today's file already exists (e.g., radar after sync).
+- **~30 lines / ~500 tokens max** — this gets injected into coding sessions.
+- **Prune** files older than 14 days on write.
+- Create the directory if it doesn't exist.
+
 ## What This Skill Does NOT Do
 
-- No code editing, file writing, or PRs
+- No code editing (except the daily context file), no PRs
 - No implementation work
 - No posting to Slack
 - No architectural decisions — surface information, don't prescribe solutions

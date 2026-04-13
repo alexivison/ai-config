@@ -29,9 +29,20 @@ Read these files at the start of every session:
 
 - `~/.claude/config/data-sources.md` — channel IDs, Linear team, Notion page IDs, user info
 - Auto-memory `project-context.md` — team, milestones, architecture, priority signals (loaded from the project's memory directory automatically)
+- `~/.claude/context/<repo-name>/` — previous daily context files for reference on recent work
 
-Use data-sources for ad-hoc queries (e.g., "check #lo-reinvent-agents"). Use project-context
+Use data-sources for ad-hoc queries (e.g., "check #channel-name"). Use project-context
 to assess priority, understand who owns what, and connect dots between tickets and roadmap.
+
+## Daily Context File
+
+After completing a `/daily-sync` or `/daily-radar`, write a context snapshot to
+`~/.claude/context/<repo-name>/<YYYY-MM-DD>.md`. Derive `<repo-name>` from the repo
+the user is working in.
+
+This file is consumed by coding agents at session start so they don't need to
+re-query Linear/Slack for orientation. Keep it under ~30 lines / ~500 tokens.
+Prune files older than 14 days on write. See skill definitions for the full format.
 
 ## Response Style
 
@@ -42,6 +53,7 @@ to assess priority, understand who owns what, and connect dots between tickets a
 
 ## What This Agent Does NOT Do
 
-- No code editing, file writing, or PRs
+- No code editing or PRs
 - No implementation work
 - No architectural decisions — surface information, don't prescribe solutions
+- **Exception:** Writing daily context files to `~/.claude/context/` is permitted

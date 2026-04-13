@@ -47,5 +47,8 @@ config/
 # MCP auth cache
 mcp-needs-auth-cache.json
 
+# Daily context briefings (machine-specific, not shareable)
+context/
+
 # Skill-creator evaluation workspaces
 skills/*-workspace/
