@@ -54,6 +54,9 @@ Complementary project. That decouples execution from TASK file format; this deco
 - [ ] Existing Go tests pass with agent abstraction (backward compatibility)
 - [ ] At least one non-Codex, non-Claude adapter exists as a reference (can be a stub)
 - [ ] Graceful degradation when a companion is unavailable: missing CLI detected at startup, session runs primary-only
+- [ ] A `party-cli agent query` subcommand exists as a bridge for shell hooks to read registry/config state
+- [ ] `party-cli install` is agent-aware — detects configured agents and offers to install missing CLIs
+- [ ] All workflow skill prompts reference roles ("the companion"), not hardcoded agent names ("Codex")
 
 ## Non-Goals
 

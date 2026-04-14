@@ -18,6 +18,10 @@ Refactor all messaging functions (`Relay`, `Broadcast`, `Read`, `Report`) to res
 - TUI changes (Task 5)
 - Transport scripts (remain shell-based)
 
+**Additional call sites outside `message.go`** — also grep for `"claude"` in `ResolveRole` calls in:
+- `tools/party-cli/internal/picker/picker.go` (~line 232) — resolves Claude pane for preview. Change to `"primary"`.
+- `tools/party-cli/internal/tui/tracker_actions.go` (~line 168) — resolves Claude pane for snippet capture. This is Task 5 scope, but verify it's covered there.
+
 ## Reference Files
 
 ### Messaging (the main file being refactored)
@@ -26,12 +30,13 @@ Refactor all messaging functions (`Relay`, `Broadcast`, `Read`, `Report`) to res
   ```go
   target, err := s.client.ResolveRole(ctx, workerID, "claude", tmux.WindowWorkspace)
   ```
-  This `"claude"` string is hardcoded in 5 places:
+  This `"claude"` string is hardcoded in 4 places:
   - `Relay()` — master → worker's primary pane (line ~47)
   - `Broadcast()` — master → all workers' primary panes (line ~96)
   - `Read()` — capture worker's primary pane (line ~105)
   - `Report()` — worker → master's primary pane (line ~127)
-  - `Workers()` — check worker primary pane status (line ~140)
+
+  Note: `Workers()` does NOT call `ResolveRole` — it checks session liveness only.
 
 ### tmux helpers
 

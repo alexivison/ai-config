@@ -61,6 +61,8 @@ Rename and parameterize shell hooks to be companion-agnostic. Make `pr-gate.sh` 
 | `claude/hooks/claude-state.sh` | Replace with symlink → `primary-state.sh` |
 | `claude/hooks/tests/test-codex-gate.sh` | Modify | Update for new hook name/behavior |
 | `claude/hooks/tests/test-codex-trace.sh` | Modify | Update for new hook name/behavior |
+| `claude/hooks/tests/test-claude-state.sh` | Modify | Update for renamed `primary-state.sh` |
+| `claude/hooks/tests/run-all.sh` | Modify | Update test file references |
 
 ## Requirements
 

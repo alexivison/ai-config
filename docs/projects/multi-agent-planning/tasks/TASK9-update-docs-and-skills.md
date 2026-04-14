@@ -16,7 +16,15 @@ Update CLAUDE.md, AGENTS.md, execution-core.md, and workflow skill prompts to us
 - `claude/skills/codex-transport/SKILL.md` — Rename concept to companion-transport
 - `claude/skills/tmux-handler/SKILL.md` — Handle companion messages (not just Codex)
 - `claude/skills/party-dispatch/SKILL.md` — Agent-agnostic master mode
-- Other workflow skills that reference "Wizard" or "Codex" directly
+- `claude/skills/bugfix-workflow/SKILL.md` — References to Wizard/Codex review
+- `claude/skills/task-workflow/SKILL.md` — References to Wizard/Codex dispatch
+- `claude/skills/plan-workflow/SKILL.md` — References to Wizard plan review (and templates/)
+- `claude/skills/openspec-workflow/SKILL.md` — References to Wizard/Codex
+- `claude/skills/review-external-pr/SKILL.md` — References to Wizard (and references/)
+- `claude/skills/quick-fix-workflow/SKILL.md` — References to Codex review
+- `claude/skills/pre-pr-verification/SKILL.md` — References to Codex evidence
+- `codex/skills/tmux-handler/SKILL.md` — References to Claude/Paladin
+- `claude/skills/codex-transport/tests/test-templates.sh` — Test references
 - `README.md` — Update architecture description, add `.party.toml` docs
 
 **Out of scope:**

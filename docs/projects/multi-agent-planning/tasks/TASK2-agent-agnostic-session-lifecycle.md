@@ -108,9 +108,15 @@ In `UnmarshalJSON`, after parsing, if `Agents` is empty but old fields exist:
 ```go
 if len(m.Agents) == 0 {
     if m.ClaudeBin != "" || m.ExtraString("claude_session_id") != "" {
+        // Window depends on session type: master uses window 0 for single-window,
+        // sidebar uses window 1 for workspace. Default to 1 (most common case).
+        claudeWindow := 1
+        if m.SessionType == "master" {
+            claudeWindow = 0
+        }
         m.Agents = append(m.Agents, AgentManifest{
             Name: "claude", Role: "primary", CLI: m.ClaudeBin,
-            ResumeID: m.ExtraString("claude_session_id"), Window: 1,
+            ResumeID: m.ExtraString("claude_session_id"), Window: claudeWindow,
         })
     }
     if m.CodexBin != "" || m.ExtraString("codex_thread_id") != "" {
@@ -121,6 +127,8 @@ if len(m.Agents) == 0 {
     }
 }
 ```
+
+**Important:** The top-level `AgentPath` field is preserved as-is (not moved into `AgentManifest`). It's a session-wide PATH string shared by all agents, not per-agent state. New manifests continue to write `agent_path` at the top level.
 
 ### Launch Config Refactor
 
@@ -185,6 +193,9 @@ if opts.CodexResumeID != ""  { resumeMap["codex"] = opts.CodexResumeID }
 - Continue with old manifest (no `Agents[]`, has `claude_session_id` extra) → migration populates `Agents[]`
 - Manifest round-trip: write `Agents[]` → read back → fields preserved
 - `buildClaudeCmd()` and `buildCodexCmd()` no longer exist (compilation check)
+- Existing tests in `session_test.go` that tested `buildClaudeCmd`/`buildCodexCmd`/`persistResumeIDs`/`setResumeEnv`/`clearClaudeCodeEnv` are updated or replaced with equivalent provider tests
+
+**Note on `persistResumeIDs`:** The refactored version should iterate agents and use `agent.ResumeFileName()` to derive the file name (e.g. `"claude-session-id"` → `filepath.Join(rtDir, agent.ResumeFileName())`).
 
 ## Acceptance Criteria
 

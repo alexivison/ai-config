@@ -81,6 +81,7 @@ See DESIGN.md § Agent Interface for the full type definition. Key methods:
 - `Binary()` — executable name (`"claude"`, `"codex"`)
 - `BuildCmd(CmdOpts) string` — returns the full shell command string to launch the agent
 - `ResumeKey() string` — manifest extra key for the agent's resume/session ID
+- `ResumeFileName() string` — file name in runtime dir for the resume ID (e.g. `"claude-session-id"`, `"codex-thread-id"`)
 - `EnvVar() string` — tmux environment variable name for resume ID
 - `MasterPrompt() string` — prompt to inject when this agent is the primary in a master session
 - `StateFileName() string` — name of the state JSON file in the runtime dir
@@ -118,6 +119,7 @@ func (c *Claude) BuildCmd(opts CmdOpts) string {
 - `Name()` = `"claude"`, `DisplayName()` = `"Claude"`, `Binary()` = `"claude"`
 - `ResumeKey()` = `"claude_session_id"`, `EnvVar()` = `"CLAUDE_SESSION_ID"`
 - `BinaryEnvVar()` = `"CLAUDE_BIN"`, `FallbackPath()` = `"~/.local/bin/claude"` (expand `~` at runtime)
+- `ResumeFileName()` = `"claude-session-id"`
 - `StateFileName()` = `"claude-state.json"`
 - `MasterPrompt()` = the `masterSystemPrompt` constant from `start.go:195-199`
 - `PreLaunchSetup()` = unset `CLAUDECODE` env var (from `clearClaudeCodeEnv()`)
@@ -142,6 +144,7 @@ func (c *Codex) BuildCmd(opts CmdOpts) string {
 - `Name()` = `"codex"`, `DisplayName()` = `"The Wizard"`, `Binary()` = `"codex"`
 - `ResumeKey()` = `"codex_thread_id"`, `EnvVar()` = `"CODEX_THREAD_ID"`
 - `BinaryEnvVar()` = `"CODEX_BIN"`, `FallbackPath()` = `"/opt/homebrew/bin/codex"`
+- `ResumeFileName()` = `"codex-thread-id"`
 - `StateFileName()` = `"codex-status.json"`
 - `MasterPrompt()` = `""` (Codex doesn't support `--append-system-prompt`; master prompt goes via initial `--prompt` if Codex is primary)
 - `PreLaunchSetup()` = no-op

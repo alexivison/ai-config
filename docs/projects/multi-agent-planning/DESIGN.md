@@ -64,6 +64,7 @@ type Agent interface {
 
     // Runtime Observation
     StateFileName() string                         // "claude-state.json", "codex-status.json"
+    ResumeFileName() string                        // "claude-session-id", "codex-thread-id" — file in runtime dir
     ReadState(runtimeDir string) (AgentState, error) // Read state from runtime dir
     FilterPaneLines(raw string, max int) []string  // Extract meaningful lines from pane capture
 
@@ -148,6 +149,12 @@ cli = "codex"
   [roles.companion]
   agent = "codex"
   window = 0           # hidden tmux window (default for companion)
+
+[evidence]
+# Override required evidence types for pr-gate.
+# Default when companion exists: ["pr-verified", "code-critic", "minimizer", "<companion-name>", "test-runner", "check-runner"]
+# Default when no companion:     ["pr-verified", "code-critic", "minimizer", "test-runner", "check-runner"]
+# required = ["pr-verified", "code-critic", "minimizer", "test-runner", "check-runner"]
 ```
 
 ### Swapping agents: Codex as primary, Claude as companion
@@ -431,6 +438,8 @@ Transport scripts (`tmux-codex.sh`, `tmux-claude.sh`) keep working but use role-
 | Command building | `buildClaudeCmd()`, `buildCodexCmd()` in `start.go` | `agent.BuildCmd(opts)` per provider |
 | Binary resolution | `resolveBinary("CLAUDE_BIN", ...)` | `agent.BinaryEnvVar()` + `agent.FallbackPath()` |
 | Resume ID storage | `claude_session_id`, `codex_thread_id` in extras | `manifest.Agents[].ResumeID` |
+| Resume file names | `claude-session-id`, `codex-thread-id` in runtime dir | `agent.ResumeFileName()` per provider |
+| Evidence file path | `/tmp/claude-evidence-{session}.jsonl` hardcoded | `/tmp/{primary-name}-evidence-{session}.jsonl` or configurable |
 | Pane role tags | `"claude"`, `"codex"` hardcoded | `"primary"`, `"companion"` from role config |
 | Pane resolution in messaging | `ResolveRole(_, _, "claude", _)` | `ResolveRole(_, _, primaryRole, _)` |
 | TUI worker view | `ViewWorker` + Codex status polling | Unified tracker with per-session detail |

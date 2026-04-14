@@ -95,6 +95,8 @@ Master layout doesn't create a companion pane (unchanged behavior).
 
 Current `Resize()` looks for left pane with role `"sidebar"`, `"tracker"`, or `"codex"`. Update to also accept `"companion"` and `"primary"` as left pane roles (the companion pane is the left pane in classic layout).
 
+**No-companion edge case:** In a 2-pane layout (primary + shell only), there is no left pane to resize. `Resize()` should return a descriptive error like `"no left pane found (2-pane layout)"` or no-op gracefully. Do not error with the generic `"no left pane"` message — it should be clear that the layout simply doesn't have a left pane, not that something is broken.
+
 ### ResolveRole Fallback
 
 In `tmux/query.go`, the `ResolveRole()` function searches for `@party_role` matching the given string. Add a fallback map:

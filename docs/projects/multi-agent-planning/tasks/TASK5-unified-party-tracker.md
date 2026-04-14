@@ -154,11 +154,39 @@ Universal actions: `j`/`k` navigate, `Enter` jump/switch, `m` manifest, `q` quit
 
 ### Data Flow
 
-1. On tick (3 seconds): call `DiscoverSessions()` from `state.Store` to get all sessions
-2. For each session: read manifest for metadata, check tmux liveness via `Client.HasSession()`
-3. Build `[]SessionRow` with hierarchy (masters first, workers grouped under their master)
-4. For current session: read companion status file + evidence JSONL
+1. On tick (3 seconds): call `state.Store.DiscoverSessions()` (returns `[]string` of party IDs from state dir)
+2. For each session ID: `Store.Read(id)` for manifest, `Client.HasSession(ctx, id)` for liveness
+3. Build `[]SessionRow`:
+   - `ParentID` comes from `manifest.ExtraString("parent_session")`
+   - `SessionType`: `manifest.SessionType` (`"master"` or `""`; treat empty as `"standalone"`)
+   - `WorkerCount`: `len(manifest.Workers)`
+   - Hierarchy: sort masters first, then group workers under their master by `ParentID`
+   - Create a conversion function `manifestToSessionRow(id string, m Manifest, alive bool) SessionRow` in `tracker.go`
+4. For current session: read companion status via `ReadCompanionStatus(runtimeDir, agent.StateFileName())`, read evidence via `ReadEvidenceSummary(evidenceID, 6)`
 5. Render
+
+**Evidence path:** Currently hardcoded to `/tmp/claude-evidence-{sessionID}.jsonl`. For the initial refactor, keep this path format but use the primary agent name: `/tmp/{primary-name}-evidence-{sessionID}.jsonl`. The `ReadEvidenceSummary()` function needs a parameter for the primary name (or the full path).
+
+### Specific Code Removals/Changes
+
+**In `model.go`:**
+- Delete `refreshCodexStatus()` (line ~419) — companion status polled by tracker
+- Delete `refreshWizardSnippet()` (line ~464) — uses `tmux.CodexTarget()` directly; replaced by tracker's per-session companion pane capture using role-based `ResolveRole("companion")`
+- Delete `updateWorkerInput()` (line ~370) — sends to `tmux.CodexTarget()`. Message-companion action moves to tracker's relay input
+- Delete `defaultCodexPaneCheck()` (line ~440) — uses `tmux.CodexTarget()`. Tracker checks companion pane via `HasSession` + role-based resolution
+
+**In `sidebar_status.go`:**
+- `ReadClaudeState(runtimeDir)` (line ~82) → `ReadPrimaryState(runtimeDir, stateFileName)`. This function reads `claude-state.json` and returns a simple state string. Make it accept the file name as a parameter so it works with any agent's state file.
+- `ReadCodexStatus(runtimeDir)` → `ReadCompanionStatus(runtimeDir, stateFileName)`. Already noted in scope.
+
+**In `tracker_actions.go`:**
+- `ReadClaudeState()` call in `NewLiveWorkerFetcher` (line ~148) → use agent's `StateFileName()` or the primary role's configured state file
+- `captureWorkerSnippet()` (line ~168) → resolve `"primary"` role (not `"claude"`)
+
+**In `app.go`:**
+- `buildTrackerFactory()` currently creates a `WorkerFetcher` that only fetches workers for one master. Replace with a `SessionFetcher` that calls `DiscoverSessions()` + builds the full hierarchy. Wire this into the `TrackerModel` instead of the old `WorkerFetcher`.
+- Remove `ViewWorker`/`ViewMaster` branching in `staticResolver()` and `newAutoResolver()`; the resolver just returns session metadata, the tracker decides how to render.
+- The `SessionResolver` return type (`SessionInfo`) no longer needs a `Mode ViewMode` field since there's only one view.
 
 ### Model Simplification
 
