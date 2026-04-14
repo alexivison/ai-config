@@ -196,7 +196,7 @@ assert "Small diff with partial evidence blocked" \
 
 # ═══ Quick tier tests ════════════════════════════════════════════════════════
 
-echo "=== Quick tier: small diff + quick-tier evidence → passes with quick evidence ==="
+echo "=== Quick tier: explicit quick-tier evidence → passes with quick evidence ==="
 setup_repo
 clean_evidence
 echo "small edit" >> file.sh
@@ -206,7 +206,7 @@ append_evidence "$SESSION_ID" "code-critic" "APPROVED" "$TMPDIR_BASE"
 append_evidence "$SESSION_ID" "test-runner" "PASS" "$TMPDIR_BASE"
 append_evidence "$SESSION_ID" "check-runner" "PASS" "$TMPDIR_BASE"
 OUTPUT=$(echo "$(gate_input)" | bash "$GATE")
-assert "Quick tier: small diff with quick-tier + critic + runners passes" \
+assert "Quick tier: explicit quick-tier + critic + runners passes" \
   '! echo "$OUTPUT" | grep -q "deny"'
 
 echo "=== Quick tier: size alone insufficient without quick-tier evidence ==="
@@ -222,7 +222,7 @@ OUTPUT=$(echo "$(gate_input)" | bash "$GATE")
 assert "Quick tier: no quick-tier evidence → full gate → blocked" \
   'echo "$OUTPUT" | grep -q "deny"'
 
-echo "=== Quick tier: quick-tier evidence but large diff → full gate ==="
+echo "=== Quick tier: quick-tier evidence with large diff still passes quick gate ==="
 setup_repo
 clean_evidence
 for i in $(seq 1 40); do echo "line $i" >> file.sh; done
@@ -232,10 +232,10 @@ append_evidence "$SESSION_ID" "code-critic" "APPROVED" "$TMPDIR_BASE"
 append_evidence "$SESSION_ID" "test-runner" "PASS" "$TMPDIR_BASE"
 append_evidence "$SESSION_ID" "check-runner" "PASS" "$TMPDIR_BASE"
 OUTPUT=$(echo "$(gate_input)" | bash "$GATE")
-assert "Quick tier: large diff with quick-tier evidence → full gate → blocked" \
-  'echo "$OUTPUT" | grep -q "deny"'
+assert "Quick tier: large diff with quick-tier evidence passes" \
+  '! echo "$OUTPUT" | grep -q "deny"'
 
-echo "=== Quick tier: quick-tier evidence but new file → full gate ==="
+echo "=== Quick tier: quick-tier evidence with new file still passes quick gate ==="
 setup_repo
 clean_evidence
 echo "new" > new.sh
@@ -245,8 +245,8 @@ append_evidence "$SESSION_ID" "code-critic" "APPROVED" "$TMPDIR_BASE"
 append_evidence "$SESSION_ID" "test-runner" "PASS" "$TMPDIR_BASE"
 append_evidence "$SESSION_ID" "check-runner" "PASS" "$TMPDIR_BASE"
 OUTPUT=$(echo "$(gate_input)" | bash "$GATE")
-assert "Quick tier: new file with quick-tier evidence → full gate → blocked" \
-  'echo "$OUTPUT" | grep -q "deny"'
+assert "Quick tier: new file with quick-tier evidence passes" \
+  '! echo "$OUTPUT" | grep -q "deny"'
 
 # ═══ Full gate: stale critics blocked (no phase-2 relaxation) ═════════════
 

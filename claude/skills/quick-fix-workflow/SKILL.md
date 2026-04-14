@@ -1,86 +1,65 @@
 ---
 name: quick-fix-workflow
 description: >-
-  Fast workflow for non-behavioral changes: config edits, dependency bumps,
-  typo/comment fixes, CI/build tweaks, docs-with-code. Skips critics, codex,
-  and sentinel review — requires only test-runner + check-runner. Use when
-  the user asks for a small config change, dependency update, typo fix, CI tweak,
-  or any change that doesn't touch runtime logic. Also use when the user says
-  "quick fix", "small change", or invokes /quick-fix-workflow. REJECT and suggest
-  task-workflow or bugfix-workflow if the change modifies runtime logic, control
-  flow, API surface, or security-relevant code.
+  Fast workflow for small or straightforward changes. Routes the session
+  through the quick tier via explicit quick-tier evidence and requires only
+  code-critic + test-runner + check-runner before PR creation. Use when the
+  user asks for a quick fix, small change, or invokes /quick-fix-workflow.
 user-invocable: true
 ---
 
 # Quick Fix Workflow
 
-Lightweight workflow for non-behavioral changes. Skips the full review cascade
-(critics, codex, sentinel review) because the change doesn't affect runtime
-behavior. The tiered PR gate requires only test-runner + check-runner evidence
-plus explicit quick-tier authorization from this skill.
+Lightweight workflow for small or straightforward changes. It routes the
+session through the quick tier when this skill writes explicit `quick-tier`
+evidence. The gate no longer imposes category or size restrictions once that
+evidence exists.
 
-## Scope Constraints (Enforced)
+## Scope Guidance
 
-These constraints exist because the quick tier skips code review. Behavioral
-changes without review are a safety hole — the constraints prevent this.
+Use this workflow when speed matters and the requested change seems
+contained. There is no category whitelist or hard size rejection in this skill.
+Instead:
 
-**Allowed changes:**
-- Config file edits (non-runtime: CI, linting, formatting, editor config)
-- Dependency bumps (package.json, go.mod, Cargo.toml — version only, not new deps)
-- Typo/comment fixes in code or docs
-- CI/build pipeline tweaks
-- Docs-with-code changes (README, CHANGELOG alongside a non-behavioral code edit)
-
-**REJECT if the change touches ANY of these — suggest task-workflow or bugfix-workflow:**
-- Runtime logic or control flow
-- API surface (new/changed endpoints, exports, function signatures)
-- Security-relevant code (auth, crypto, permissions, input validation)
-- Feature flags or gates
-- New dependencies (adding, not bumping)
-- Database schemas or migrations
-
-**Size guardrail (hard limit):**
-- More than 30 changed lines (additions + deletions) → reject
-- More than 3 changed files → reject
-- Any new files → reject
-
-If any guardrail trips, explain why and suggest the appropriate full workflow.
+- Record `quick-tier` evidence for work explicitly routed through this workflow.
+- Satisfy the quick-tier gate with `code-critic`, `test-runner`, and `check-runner`.
+- If the work turns into deep debugging or broad planned implementation,
+  switching to `bugfix-workflow` or `task-workflow` may still be the cleaner
+  framing, but it is a judgment call rather than an enforced gate.
 
 ## Pre-Fix Gate
 
 **Before writing ANY code:**
 
 1. **Create worktree** — `git worktree add ../repo-branch-name -b branch-name`
-2. **Scope check** — Verify the change is non-behavioral per the constraints above
-3. **If uncertain** — Ask the user. When in doubt, use task-workflow instead
+2. **Understand scope** — Confirm what the user wants changed and whether behavior is likely to change
+3. **Note verification needs** — Decide what tests and checks are needed for the requested change
 
-State the scope assessment before proceeding.
+State the scope assessment before proceeding, but do not reject the work merely
+because it touches logic, API surface, or a larger diff.
 
 ## Execution Flow
 
 After passing the gate, execute continuously — **no stopping until PR is created**.
 
 1. **Implement** the change
-2. **Size guardrail** — Check diff stats. If over threshold, stop and suggest task-workflow
-3. **Write quick-tier evidence** — Append `quick-tier` evidence to the session log:
+2. **Write quick-tier evidence** — Append `quick-tier` evidence to the session log:
    ```bash
    source ~/.claude/hooks/lib/evidence.sh
    append_evidence "$SESSION_ID" "quick-tier" "AUTHORIZED" "$CWD"
    ```
-   This signals to the PR gate that this change was explicitly routed through the quick-fix workflow. The gate will not apply the quick tier without this evidence — size alone is insufficient.
-4. **Run code-critic** — Single pass. Triage any blocking findings before proceeding.
-5. **Run test-runner + check-runner** — Launch both sub-agents in parallel
-6. **Commit & PR** — Create commit and draft PR
+   This signals to the PR gate that this change was explicitly routed through the quick-fix workflow.
+3. **Run code-critic** — Single pass. Triage any blocking findings before proceeding.
+4. **Run test-runner + check-runner** — Launch both sub-agents in parallel
+5. **Commit & PR** — Create commit and draft PR
 
-## What This Workflow Skips (and Why That's OK)
+## What This Workflow Optimizes
 
-- **No RED phase** — Non-behavioral changes don't need failing-then-passing tests
-- **No minimizer** — The change is already size-gated; minimality is inherent
-- **No codex review** — The code-critic catches quality issues; codex deep-review is overkill for config/typo changes
-- **No sentinel review** — No security or correctness surface to probe
-- **No /pre-pr-verification** — test-runner + check-runner cover the same ground
+- **Direct quick tier routing** — `quick-tier + code-critic + test-runner + check-runner` is sufficient for the PR gate
+- **No category guardrails** — Runtime logic, API edits, and larger diffs are no longer auto-rejected here
+- **Manual workflow choice** — Use `task-workflow` or `bugfix-workflow` when you want the fuller pipeline, not because the gate requires it
 
-The safety net is the code-critic plus the test suite. The critic catches anything a non-behavioral change shouldn't be doing; tests catch regressions.
+The safety net is deliberate workflow choice plus the quick-tier evidence chain.
 
 ## Core Reference
 

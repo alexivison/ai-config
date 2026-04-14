@@ -36,7 +36,7 @@ All implementation follows `execution-core.md` regardless of what triggered it �
 
 - **Planned work** (TASK files, external planning tool output, or any source providing scope + requirements) → `task-workflow`
 - **Bug fix / debugging** → `bugfix-workflow`
-- **Non-behavioral small changes** → `quick-fix-workflow` (config, deps, typos, CI — ≤30 lines, ≤3 files, no new files)
+- **Quick fixes / small or straightforward changes** → `quick-fix-workflow`
 
 ## Autonomous Flow (CRITICAL)
 

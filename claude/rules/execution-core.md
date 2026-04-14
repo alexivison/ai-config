@@ -94,12 +94,12 @@ Metrics are tracked via hooks in `~/.claude/logs/review-metrics/`. See `~/.claud
 |------|-------|----------|--------------|--------|
 | **Full** (default) | All code changes | `/write-tests → implement → critics → codex → PR` | pr-verified, code-critic, minimizer, codex, test-runner, check-runner | — |
 | **CI-gate** | Repos with CI review bots | `/write-tests → implement → test-runner → check-runner → PR` | pr-verified, test-runner, check-runner | Hook-assigned via `skill-marker.sh` |
-| **Quick** | Non-behavioral only (config, deps, typos, CI) | `implement → code-critic → test-runner → check-runner → PR` | quick-tier, code-critic, test-runner, check-runner | ≤30 lines, ≤3 files, 0 new files |
+| **Quick** | Changes explicitly routed through `quick-fix-workflow` | `implement → code-critic → test-runner → check-runner → PR` | quick-tier, code-critic, test-runner, check-runner | Explicit `quick-tier` evidence |
 | **Spec** | Spec/design docs only (no production code) | `draft → spec-review → plan-review → iterate → PR` | spec-tier, spec-review, plan-review | No src/ or test files |
 
 CI-gate tier is assigned by `skill-marker.sh` when a mapped skill is invoked. The tier evidence is hash-independent — it persists across code changes within the session. By convention, only the hook writes it — no skill instructions reference `execution-tier`.
 
-Quick tier requires explicit `quick-tier` evidence. Forbidden for: features, bug fixes, logic/API/security changes.
+Quick tier requires explicit `quick-tier` evidence. Without it, the PR gate falls back to the full tier.
 
 Spec-review checks: atomicity, normative language (SHALL/MUST), testable scenarios (GIVEN/WHEN/THEN), non-overlapping requirements. Plan-review checks: architecture coherence, feasibility, completeness. Both follow review governance rules.
 
