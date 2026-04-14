@@ -10,10 +10,10 @@ Update CLI flags (`--resume-claude`/`--resume-codex` → `--resume-agent`), upda
 ## Scope Boundary
 
 **In scope:**
-- `tools/party-cli/cmd/start.go` — New `--resume-agent` flag, keep old flags as hidden aliases
+- `tools/party-cli/cmd/start.go` — New `--primary`, `--companion`, `--no-companion`, `--resume-agent` flags; keep old flags as hidden aliases
 - `tools/party-cli/cmd/spawn.go` — Same flag changes
 - `claude/settings.json` — Update hook paths from old names to new names
-- `session/party.sh` — Update `--resume-claude`/`--resume-codex` to generic form
+- `session/party.sh` — Forward new flags, keep old flag aliases
 - `install.sh` — Agent-aware CLI detection
 
 **Out of scope:**
@@ -59,6 +59,30 @@ Update CLI flags (`--resume-claude`/`--resume-codex` → `--resume-agent`), upda
 
 ## Requirements
 
+### New CLI Flags: `--primary`, `--companion`, `--no-companion`
+
+These flags override `.party.toml` agent selection per-session:
+
+```go
+var primaryAgent, companionAgent string
+var noCompanion bool
+cmd.Flags().StringVar(&primaryAgent, "primary", "", "agent to use as primary (e.g. codex, claude)")
+cmd.Flags().StringVar(&companionAgent, "companion", "", "agent to use as companion (e.g. claude, codex)")
+cmd.Flags().BoolVar(&noCompanion, "no-companion", false, "run without a companion agent")
+```
+
+In `RunE`, pass to registry via `ConfigOverrides`:
+```go
+overrides := &agent.ConfigOverrides{
+    Primary:     primaryAgent,
+    Companion:   companionAgent,
+    NoCompanion: noCompanion,
+}
+registry, err := agent.NewRegistry(agent.LoadConfig(cwd, overrides))
+```
+
+These flags go on both `start` and `spawn` commands.
+
 ### New CLI Flag: `--resume-agent`
 
 New syntax: `--resume-agent primary=<id>` or `--resume-agent companion=<id>`. Can be specified multiple times.
@@ -99,7 +123,22 @@ The symlinks from Task 7 mean the old paths also work, but settings.json should 
 
 ### party.sh Flag Updates
 
-Add `--resume-agent` flag forwarding. Keep `--resume-claude` and `--resume-codex` as aliases:
+Add `--primary`, `--companion`, `--no-companion`, and `--resume-agent` flag forwarding. Keep `--resume-claude` and `--resume-codex` as aliases:
+
+```bash
+--primary) _party_primary="${2:?--primary requires an agent name}"; shift 2 ;;
+--companion) _party_companion="${2:?--companion requires an agent name}"; shift 2 ;;
+--no-companion) _party_no_companion=1; shift ;;
+```
+
+Then pass to party-cli:
+```bash
+[[ -n "$_party_primary" ]]       && start_args+=(--primary "$_party_primary")
+[[ -n "$_party_companion" ]]     && start_args+=(--companion "$_party_companion")
+[[ "$_party_no_companion" -eq 1 ]] && start_args+=(--no-companion)
+```
+
+For resume flags:
 
 ```bash
 --resume-agent) _party_resume_agents+=("${2:?--resume-agent requires ROLE=ID}"); shift 2 ;;
@@ -124,6 +163,10 @@ The install script currently has hardcoded Claude and Codex setup. Make it agent
 
 ## Tests
 
+- `--primary codex` overrides `.party.toml` → session starts with Codex as primary
+- `--companion claude` overrides `.party.toml` → session starts with Claude as companion
+- `--no-companion` → session starts with no companion (single-agent mode)
+- `--primary codex --no-companion` → Codex solo session
 - `--resume-agent primary=abc` correctly maps to primary agent resume
 - `--resume-claude abc` (old flag) still works, maps to resume for Claude
 - Both old and new flags in same command → both applied

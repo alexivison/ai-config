@@ -197,11 +197,34 @@ companion → Codex agent,  @party_role="companion", window=0 (hidden)
 
 This matches today's behavior exactly.
 
-### Config Resolution Order
+### Config Resolution Order (flags override file override defaults)
 
-1. `.party.toml` in CWD
-2. Walk up to git root
+1. **CLI flags** (`--primary`, `--companion`) — per-session override, highest priority
+2. `.party.toml` in CWD → walk up to git root — per-project defaults
 3. Hardcoded defaults (Claude primary + Codex companion)
+
+This means you can set a repo-wide default in `.party.toml` but override per-session:
+
+```bash
+# Use repo default (from .party.toml or Claude+Codex)
+party.sh "task A"
+
+# Override primary for this session only
+party.sh --primary codex "task B"
+
+# Override both roles
+party.sh --primary codex --companion claude "task C"
+
+# No companion for this session
+party.sh --primary claude --no-companion "task D"
+```
+
+Flags are passed through to `party-cli start`:
+```bash
+party-cli start --primary codex --companion claude "task title"
+```
+
+The registry resolves: flags → `.party.toml` → defaults. Flags modify the loaded config before building the registry — they don't bypass config parsing entirely (so `.party.toml` agent definitions are still available).
 
 ## Manifest Schema Evolution
 
@@ -457,3 +480,4 @@ Transport scripts (`tmux-codex.sh`, `tmux-claude.sh`) keep working but use role-
 | Window constants | `WindowCodex = 0`, `WindowWorkspace = 1` | From role binding `Window` field |
 | Master prompt | `masterSystemPrompt` constant | `agent.MasterPrompt()` per provider |
 | CLI flags | `--resume-claude`, `--resume-codex` | `--resume primary=<id>` (old flags kept as hidden aliases) |
+| Agent selection | N/A (hardcoded) | `--primary <agent>`, `--companion <agent>`, `--no-companion` flags override `.party.toml` per-session |

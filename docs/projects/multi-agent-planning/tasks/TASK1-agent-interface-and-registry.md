@@ -180,9 +180,23 @@ type RoleConfig struct {
 }
 ```
 
-Resolution: `.party.toml` in CWD → walk up to git root → hardcoded defaults. Use `github.com/BurntSushi/toml`.
+Resolution order: CLI flags → `.party.toml` in CWD → walk up to git root → hardcoded defaults. Use `github.com/BurntSushi/toml`.
 
-Default config (no file found):
+The config parser should accept optional overrides that take precedence over the file:
+
+```go
+type ConfigOverrides struct {
+    Primary     string // agent name to use as primary (empty = no override)
+    Companion   string // agent name to use as companion (empty = no override)
+    NoCompanion bool   // if true, remove companion role entirely
+}
+
+func LoadConfig(cwd string, overrides *ConfigOverrides) (*Config, error)
+```
+
+`LoadConfig` parses `.party.toml` (or defaults), then applies overrides if non-nil. This allows CLI flags (`--primary codex`, `--companion claude`, `--no-companion`) to override per-session without changing the file. The overrides only affect the `[roles]` section — agent definitions come from the file or defaults.
+
+Default config (no file found, no overrides):
 
 ```go
 func DefaultConfig() *Config {
@@ -229,9 +243,12 @@ Register the subcommand in `cmd/root.go` via `root.AddCommand(newAgentCmd(repoRo
 ## Tests
 
 ### Registry tests
-- `NewRegistry` with no `.party.toml` → returns registry with two bindings (primary=claude, companion=codex)
+- `NewRegistry` with no `.party.toml`, no overrides → returns registry with two bindings (primary=claude, companion=codex)
 - `NewRegistry` with `.party.toml` setting codex as primary → primary binding returns Codex
 - `NewRegistry` with `.party.toml` omitting companion → `HasRole(RoleCompanion)` returns false
+- `LoadConfig` with overrides `{Primary: "codex"}` → primary role uses Codex regardless of file
+- `LoadConfig` with overrides `{NoCompanion: true}` → companion role absent
+- `LoadConfig` with overrides `{Companion: "claude"}` on a file that sets codex as companion → Claude wins
 - `Get("claude")` returns Claude agent with correct metadata
 - `Get("unknown")` returns error
 - `ForRole(RolePrimary)` returns the primary binding

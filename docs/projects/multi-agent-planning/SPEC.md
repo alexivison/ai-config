@@ -30,11 +30,13 @@ Complementary project. That decouples execution from TASK file format; this deco
 | Scenario | User Action | Expected Result |
 |----------|-------------|-----------------|
 | Current setup (no change) | Run `party.sh "task"` with no `.party.toml` | Claude launches as primary, Codex as companion — identical to today |
-| Codex as primary | Set `roles.primary.agent = "codex"` in `.party.toml` | Codex launches in the primary pane, Claude (or nothing) as companion |
-| Gemini as primary | Add `[agents.gemini]` + set `roles.primary.agent = "gemini"` | Gemini CLI launches as primary; requires a Go adapter file for Gemini |
-| No companion | Omit `[roles.companion]` from `.party.toml` | Session runs primary-only; companion evidence requirements skipped in gates |
-| TUI sidebar | Any session | Unified party tracker shows all sessions with master→worker hierarchy, companion status inline |
-| Master session | Any primary agent | Master mode works — agent receives orchestration instructions via prompt injection or initial prompt |
+| Codex as primary (per-session) | Run `party.sh --primary codex "task"` | Codex launches in the primary pane for this session only |
+| Codex as primary (per-repo) | Set `roles.primary.agent = "codex"` in `.party.toml` | All sessions in this repo use Codex as primary |
+| Override repo default | `.party.toml` says Codex primary, run `party.sh --primary claude "task"` | This session uses Claude despite repo config |
+| Gemini as primary | Add `[agents.gemini]` to `.party.toml` + `--primary gemini` | Gemini CLI launches; requires a Go adapter file |
+| No companion | Run `party.sh --no-companion "task"` | Session runs primary-only; companion evidence skipped |
+| TUI sidebar | Any session | Unified party tracker shows all sessions with master→worker hierarchy |
+| Master session | Any primary agent | Master mode works — agent receives orchestration instructions via prompt |
 
 ## Acceptance Criteria
 
