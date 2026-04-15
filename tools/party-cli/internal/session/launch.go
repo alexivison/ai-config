@@ -56,8 +56,7 @@ func (s *Service) launchSession(ctx context.Context, lc launchConfig) error {
 	}
 
 	if lc.master {
-		primaryCmd := lc.agentCmds[agent.RolePrimary]
-		if primaryCmd == "" {
+		if lc.agentCmds[agent.RolePrimary] == "" {
 			return fmt.Errorf("primary agent command not configured")
 		}
 		if err := s.persistResumeIDs(lc.runtimeDir, lc.agentResume); err != nil {
@@ -66,7 +65,7 @@ func (s *Service) launchSession(ctx context.Context, lc launchConfig) error {
 		if err := s.setResumeEnv(ctx, lc.sessionID, lc.agentResume); err != nil {
 			return err
 		}
-		if err := s.launchMaster(ctx, lc.sessionID, lc.cwd, primaryCmd); err != nil {
+		if err := s.launchMaster(ctx, lc.sessionID, lc.cwd, lc.agentCmds); err != nil {
 			return err
 		}
 	} else {
@@ -78,11 +77,9 @@ func (s *Service) launchSession(ctx context.Context, lc launchConfig) error {
 			return err
 		}
 
-		primaryCmd := lc.agentCmds[agent.RolePrimary]
-		if primaryCmd == "" {
+		if lc.agentCmds[agent.RolePrimary] == "" {
 			return fmt.Errorf("primary agent command not configured")
 		}
-		companionCmd := lc.agentCmds[agent.RoleCompanion]
 		if err := s.persistResumeIDs(lc.runtimeDir, lc.agentResume); err != nil {
 			return err
 		}
@@ -91,11 +88,11 @@ func (s *Service) launchSession(ctx context.Context, lc launchConfig) error {
 		}
 
 		if layout == LayoutSidebar {
-			if err := s.launchSidebar(ctx, lc.sessionID, lc.cwd, companionCmd, primaryCmd, lc.title, lc.worker); err != nil {
+			if err := s.launchSidebar(ctx, lc.sessionID, lc.cwd, lc.title, lc.worker, lc.agentCmds); err != nil {
 				return err
 			}
 		} else {
-			if err := s.launchClassic(ctx, lc.sessionID, lc.cwd, companionCmd, primaryCmd); err != nil {
+			if err := s.launchClassic(ctx, lc.sessionID, lc.cwd, lc.agentCmds); err != nil {
 				return err
 			}
 		}

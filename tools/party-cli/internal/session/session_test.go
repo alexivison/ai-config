@@ -274,6 +274,16 @@ func setupService(t *testing.T) (*Service, *mockRunner) {
 	return svc, runner
 }
 
+func launchCmds(primary, companion string) map[agent.Role]string {
+	cmds := map[agent.Role]string{
+		agent.RolePrimary: primary,
+	}
+	if companion != "" {
+		cmds[agent.RoleCompanion] = companion
+	}
+	return cmds
+}
+
 func createTestManifest(t *testing.T, store *state.Store, id, title, cwd, sessionType string) {
 	t.Helper()
 	m := state.Manifest{
@@ -1158,9 +1168,12 @@ func TestStart_SidebarLayout(t *testing.T) {
 		t.Fatal("session not created")
 	}
 
-	// Sidebar layout should have codex in window 0, sidebar in window 1
-	if runner.paneRoles[result.SessionID+":0.0"] != "codex" {
-		t.Errorf("expected codex in 0.0, got %q", runner.paneRoles[result.SessionID+":0.0"])
+	// Sidebar layout should have companion in window 0, tracker in window 1.
+	if runner.paneRoles[result.SessionID+":0.0"] != "companion" {
+		t.Errorf("expected companion in 0.0, got %q", runner.paneRoles[result.SessionID+":0.0"])
+	}
+	if runner.paneRoles[result.SessionID+":1.0"] != "tracker" {
+		t.Errorf("expected tracker in 1.0, got %q", runner.paneRoles[result.SessionID+":1.0"])
 	}
 }
 
@@ -1439,7 +1452,7 @@ func TestStart_CodexPrimaryRegistry(t *testing.T) {
 
 func TestStart_NoCompanionRegistry(t *testing.T) {
 	t.Parallel()
-	svc, _ := setupService(t)
+	svc, runner := setupService(t)
 	svc.Now = func() int64 { return 6666 }
 	claudeCLI := filepath.Join(t.TempDir(), "claude-bin")
 	if err := os.WriteFile(claudeCLI, []byte("#!/bin/sh\n"), 0o755); err != nil {
@@ -1477,6 +1490,15 @@ func TestStart_NoCompanionRegistry(t *testing.T) {
 	}
 	if m.Agents[0].Role != "primary" || m.Agents[0].Name != "claude" {
 		t.Fatalf("primary agent: got %+v", m.Agents[0])
+	}
+	if runner.paneRoles[result.SessionID+":0.0"] != "primary" {
+		t.Fatalf("expected primary in 0.0, got %q", runner.paneRoles[result.SessionID+":0.0"])
+	}
+	if runner.paneRoles[result.SessionID+":0.1"] != "shell" {
+		t.Fatalf("expected shell in 0.1, got %q", runner.paneRoles[result.SessionID+":0.1"])
+	}
+	if _, ok := runner.paneRoles[result.SessionID+":0.2"]; ok {
+		t.Fatalf("expected 2-pane classic layout, got unexpected pane 0.2 role %q", runner.paneRoles[result.SessionID+":0.2"])
 	}
 }
 
@@ -1652,14 +1674,14 @@ func TestLaunchMaster_Success(t *testing.T) {
 	svc, runner := setupService(t)
 	runner.sessions["party-lm"] = true
 
-	if err := svc.launchMaster(t.Context(), "party-lm", "/tmp", "echo claude"); err != nil {
+	if err := svc.launchMaster(t.Context(), "party-lm", "/tmp", launchCmds("echo claude", "echo codex")); err != nil {
 		t.Fatalf("launchMaster: %v", err)
 	}
 	if runner.paneRoles["party-lm:0.0"] != "tracker" {
 		t.Errorf("expected tracker in 0.0, got %q", runner.paneRoles["party-lm:0.0"])
 	}
-	if runner.paneRoles["party-lm:0.1"] != "claude" {
-		t.Errorf("expected claude in 0.1, got %q", runner.paneRoles["party-lm:0.1"])
+	if runner.paneRoles["party-lm:0.1"] != "primary" {
+		t.Errorf("expected primary in 0.1, got %q", runner.paneRoles["party-lm:0.1"])
 	}
 	if runner.paneRoles["party-lm:0.2"] != "shell" {
 		t.Errorf("expected shell in 0.2, got %q", runner.paneRoles["party-lm:0.2"])
@@ -1672,40 +1694,113 @@ func TestLaunchClassic_Success(t *testing.T) {
 	svc, runner := setupService(t)
 	runner.sessions["party-lc"] = true
 
-	if err := svc.launchClassic(t.Context(), "party-lc", "/tmp", "echo codex", "echo claude"); err != nil {
+	if err := svc.launchClassic(t.Context(), "party-lc", "/tmp", launchCmds("echo claude", "echo codex")); err != nil {
 		t.Fatalf("launchClassic: %v", err)
 	}
-	if runner.paneRoles["party-lc:0.0"] != "codex" {
-		t.Errorf("expected codex in 0.0, got %q", runner.paneRoles["party-lc:0.0"])
+	if runner.paneRoles["party-lc:0.0"] != "companion" {
+		t.Errorf("expected companion in 0.0, got %q", runner.paneRoles["party-lc:0.0"])
 	}
-	if runner.paneRoles["party-lc:0.1"] != "claude" {
-		t.Errorf("expected claude in 0.1, got %q", runner.paneRoles["party-lc:0.1"])
+	if runner.paneRoles["party-lc:0.1"] != "primary" {
+		t.Errorf("expected primary in 0.1, got %q", runner.paneRoles["party-lc:0.1"])
 	}
 	if runner.paneRoles["party-lc:0.2"] != "shell" {
 		t.Errorf("expected shell in 0.2, got %q", runner.paneRoles["party-lc:0.2"])
 	}
 }
 
-// Test launchSidebar successful path directly
+func TestLaunchClassic_NoCompanion(t *testing.T) {
+	t.Parallel()
+	svc, runner := setupService(t)
+	runner.sessions["party-lc2"] = true
+
+	if err := svc.launchClassic(t.Context(), "party-lc2", "/tmp", launchCmds("echo claude", "")); err != nil {
+		t.Fatalf("launchClassic: %v", err)
+	}
+	if runner.paneRoles["party-lc2:0.0"] != "primary" {
+		t.Errorf("expected primary in 0.0, got %q", runner.paneRoles["party-lc2:0.0"])
+	}
+	if runner.paneRoles["party-lc2:0.1"] != "shell" {
+		t.Errorf("expected shell in 0.1, got %q", runner.paneRoles["party-lc2:0.1"])
+	}
+	if _, ok := runner.paneRoles["party-lc2:0.2"]; ok {
+		t.Fatalf("expected no pane 0.2 in 2-pane layout, got role %q", runner.paneRoles["party-lc2:0.2"])
+	}
+}
+
 func TestLaunchSidebar_Success(t *testing.T) {
 	t.Parallel()
 	svc, runner := setupService(t)
 	runner.sessions["party-ls"] = true
 
-	if err := svc.launchSidebar(t.Context(), "party-ls", "/tmp", "echo codex", "echo claude", "test", false); err != nil {
+	if err := svc.launchSidebar(t.Context(), "party-ls", "/tmp", "test", false, launchCmds("echo claude", "echo codex")); err != nil {
 		t.Fatalf("launchSidebar: %v", err)
 	}
-	if runner.paneRoles["party-ls:0.0"] != "codex" {
-		t.Errorf("expected codex in 0.0, got %q", runner.paneRoles["party-ls:0.0"])
+	if runner.paneRoles["party-ls:0.0"] != "companion" {
+		t.Errorf("expected companion in 0.0, got %q", runner.paneRoles["party-ls:0.0"])
 	}
-	if runner.paneRoles["party-ls:1.0"] != "sidebar" {
-		t.Errorf("expected sidebar in 1.0, got %q", runner.paneRoles["party-ls:1.0"])
+	if runner.paneRoles["party-ls:1.0"] != "tracker" {
+		t.Errorf("expected tracker in 1.0, got %q", runner.paneRoles["party-ls:1.0"])
 	}
-	if runner.paneRoles["party-ls:1.1"] != "claude" {
-		t.Errorf("expected claude in 1.1, got %q", runner.paneRoles["party-ls:1.1"])
+	if runner.paneRoles["party-ls:1.1"] != "primary" {
+		t.Errorf("expected primary in 1.1, got %q", runner.paneRoles["party-ls:1.1"])
 	}
 	if runner.paneRoles["party-ls:1.2"] != "shell" {
 		t.Errorf("expected shell in 1.2, got %q", runner.paneRoles["party-ls:1.2"])
+	}
+}
+
+func TestLaunchSidebar_NoCompanion(t *testing.T) {
+	t.Parallel()
+	svc, runner := setupService(t)
+	runner.sessions["party-ls2"] = true
+
+	if err := svc.launchSidebar(t.Context(), "party-ls2", "/tmp", "test", false, launchCmds("echo claude", "")); err != nil {
+		t.Fatalf("launchSidebar: %v", err)
+	}
+	if runner.paneRoles["party-ls2:0.0"] != "tracker" {
+		t.Errorf("expected tracker in 0.0, got %q", runner.paneRoles["party-ls2:0.0"])
+	}
+	if runner.paneRoles["party-ls2:0.1"] != "primary" {
+		t.Errorf("expected primary in 0.1, got %q", runner.paneRoles["party-ls2:0.1"])
+	}
+	if runner.paneRoles["party-ls2:0.2"] != "shell" {
+		t.Errorf("expected shell in 0.2, got %q", runner.paneRoles["party-ls2:0.2"])
+	}
+	if _, ok := runner.paneRoles["party-ls2:1.0"]; ok {
+		t.Fatalf("expected no workspace window 1 without companion, got role %q", runner.paneRoles["party-ls2:1.0"])
+	}
+}
+
+func TestResize_UsesCompanionPane(t *testing.T) {
+	t.Parallel()
+	svc, runner := setupService(t)
+	runner.paneRoles["party-r:0.0"] = "companion"
+	runner.paneRoles["party-r:0.1"] = "primary"
+	runner.paneRoles["party-r:0.2"] = "shell"
+
+	if err := svc.Resize(t.Context(), "party-r"); err != nil {
+		t.Fatalf("Resize: %v", err)
+	}
+	if !runner.hasCall("resize-pane", "-t", "party-r:0.0", "-x", leftPaneWidth) {
+		t.Fatalf("expected companion pane resize, calls=%v", runner.calls)
+	}
+	if !runner.hasCall("resize-pane", "-t", "party-r:0.2", "-x", shellPaneWidth) {
+		t.Fatalf("expected shell pane resize, calls=%v", runner.calls)
+	}
+}
+
+func TestResize_NoLeftPaneInTwoPaneClassic(t *testing.T) {
+	t.Parallel()
+	svc, runner := setupService(t)
+	runner.paneRoles["party-r2:0.0"] = "primary"
+	runner.paneRoles["party-r2:0.1"] = "shell"
+
+	err := svc.Resize(t.Context(), "party-r2")
+	if err == nil {
+		t.Fatal("expected resize error for 2-pane layout")
+	}
+	if !strings.Contains(err.Error(), "2-pane layout") {
+		t.Fatalf("expected 2-pane layout error, got %v", err)
 	}
 }
 
@@ -1950,7 +2045,7 @@ func TestLaunchClassic_ErrorOnFirstPane(t *testing.T) {
 	}
 	runner.sessions["party-err"] = true
 
-	err := svc.launchClassic(t.Context(), "party-err", "/tmp", "codex", "claude")
+	err := svc.launchClassic(t.Context(), "party-err", "/tmp", launchCmds("claude", "codex"))
 	if err == nil {
 		t.Fatal("expected error from launchClassic")
 	}
@@ -1972,7 +2067,7 @@ func TestLaunchClassic_ErrorOnSecondSplit(t *testing.T) {
 	}
 	runner.sessions["party-err2"] = true
 
-	err := svc.launchClassic(t.Context(), "party-err2", "/tmp", "codex", "claude")
+	err := svc.launchClassic(t.Context(), "party-err2", "/tmp", launchCmds("claude", "codex"))
 	if err == nil {
 		t.Fatal("expected error from launchClassic on second split")
 	}
@@ -1991,7 +2086,7 @@ func TestLaunchMaster_ErrorOnRespawn(t *testing.T) {
 
 	runner.sessions["party-merr"] = true
 
-	err := svc.launchMaster(t.Context(), "party-merr", "/tmp", "claude")
+	err := svc.launchMaster(t.Context(), "party-merr", "/tmp", launchCmds("claude", "codex"))
 	if err == nil {
 		t.Fatal("expected error from launchMaster")
 	}
@@ -2012,7 +2107,7 @@ func TestLaunchMaster_ErrorOnSplit(t *testing.T) {
 
 	runner.sessions["party-merr2"] = true
 
-	err := svc.launchMaster(t.Context(), "party-merr2", "/tmp", "claude")
+	err := svc.launchMaster(t.Context(), "party-merr2", "/tmp", launchCmds("claude", "codex"))
 	if err == nil {
 		t.Fatal("expected error from launchMaster on split")
 	}
@@ -2031,7 +2126,7 @@ func TestLaunchSidebar_ErrorOnRename(t *testing.T) {
 
 	runner.sessions["party-serr2"] = true
 
-	err := svc.launchSidebar(t.Context(), "party-serr2", "/tmp", "codex", "claude", "test", false)
+	err := svc.launchSidebar(t.Context(), "party-serr2", "/tmp", "test", false, launchCmds("claude", "codex"))
 	if err == nil {
 		t.Fatal("expected error from launchSidebar on rename")
 	}
@@ -2054,7 +2149,7 @@ func TestLaunchSidebar_ErrorPropagation(t *testing.T) {
 
 	runner.sessions["party-serr"] = true
 
-	err := svc.launchSidebar(t.Context(), "party-serr", "/tmp", "codex", "claude", "test", false)
+	err := svc.launchSidebar(t.Context(), "party-serr", "/tmp", "test", false, launchCmds("claude", "codex"))
 	if err == nil {
 		t.Fatal("expected error from launchSidebar")
 	}
@@ -2121,7 +2216,7 @@ func TestStart_ClassicExplicit(t *testing.T) {
 	if !runner.sessions[result.SessionID] {
 		t.Fatal("session not created")
 	}
-	if runner.paneRoles[result.SessionID+":0.0"] != "codex" {
-		t.Errorf("expected codex in 0.0, got %q", runner.paneRoles[result.SessionID+":0.0"])
+	if runner.paneRoles[result.SessionID+":0.0"] != "companion" {
+		t.Errorf("expected companion in 0.0, got %q", runner.paneRoles[result.SessionID+":0.0"])
 	}
 }

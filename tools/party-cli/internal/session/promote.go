@@ -49,7 +49,7 @@ func (s *Service) Promote(ctx context.Context, sessionID string) error {
 	_ = s.Client.UnsetEnvironment(ctx, sessionID, "CODEX_THREAD_ID")
 
 	// Rename the live tmux window to reflect the new master role.
-	winIdx := tmux.WindowCodex // classic: single window 0
+	winIdx := tmux.WindowCompanion // classic: single window 0
 	if layout == "sidebar" {
 		winIdx = tmux.WindowWorkspace
 	}
@@ -106,6 +106,6 @@ func (s *Service) promoteSidebar(ctx context.Context, sessionID, cwd, cliCmd str
 	}
 
 	// Kill the hidden Codex window — master mode doesn't use the Wizard.
-	codexWindow := fmt.Sprintf("%s:%d", sessionID, tmux.WindowCodex)
+	codexWindow := fmt.Sprintf("%s:%d", sessionID, tmux.WindowCompanion)
 	return s.Client.KillWindow(ctx, codexWindow)
 }
