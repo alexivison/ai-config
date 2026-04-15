@@ -61,7 +61,8 @@
     ],
     "ask": [
       "Bash(gh pr close:*)"
-    ]
+    ],
+    "defaultMode": "default"
   },
   "model": "opus[1m]",
   "hooks": {
@@ -206,6 +207,8 @@
   "enabledPlugins": {
     "skill-creator@claude-plugins-official": true
   },
+  "effortLevel": "high",
+  "awaySummaryEnabled": false,
   "skipDangerousModePermissionPrompt": true,
   "teammateMode": "in-process"
 }
