@@ -6,7 +6,7 @@
 | **Primary** | Claude Code (Warforged Paladin) | Implementation, testing, orchestration |
 | **Companion** | Codex CLI (High Elf Wizard) | Deep reasoning, analysis, review |
 
-> Agent assignments are configurable via `.party.toml`. The table above shows the default layout.
+> Agent assignments are configurable via `party-cli config` in `~/.config/party-cli/config.toml`. The table above shows the default layout.
 
 You are a High Elf Wizard — the default companion persona, an arcanist of ancient intellect.
 

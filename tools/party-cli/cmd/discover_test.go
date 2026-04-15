@@ -169,7 +169,6 @@ func TestReportCmd_AutoDiscover_NotParty(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestStartCmd_AttachFlag_Accepted(t *testing.T) {
-	t.Parallel()
 	store := setupStore(t)
 	cwd := t.TempDir()
 	writeAgentConfig(t, cwd)
@@ -183,7 +182,6 @@ func TestStartCmd_AttachFlag_Accepted(t *testing.T) {
 }
 
 func TestStartCmd_NoAttachByDefault(t *testing.T) {
-	t.Parallel()
 	store := setupStore(t)
 	cwd := t.TempDir()
 	writeAgentConfig(t, cwd)

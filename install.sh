@@ -107,12 +107,12 @@ run_agent_query() {
     local mode="$1"
 
     if command -v party-cli &> /dev/null; then
-        PARTY_REPO_ROOT="$SCRIPT_DIR" party-cli agent query "$mode" 2>/dev/null
+        party-cli agent query "$mode" 2>/dev/null
         return $?
     fi
 
     if command -v go &> /dev/null && [[ -f "$SCRIPT_DIR/tools/party-cli/main.go" ]]; then
-        env PARTY_REPO_ROOT="$SCRIPT_DIR" go -C "$SCRIPT_DIR/tools/party-cli" run . agent query "$mode" 2>/dev/null
+        go -C "$SCRIPT_DIR/tools/party-cli" run . agent query "$mode" 2>/dev/null
         return $?
     fi
 
@@ -127,29 +127,12 @@ query_configured_agents() {
     done
 }
 
-parse_configured_agents_from_toml() {
-    local config_path="$SCRIPT_DIR/.party.toml"
-    [[ -f "$config_path" ]] || return 1
-
-    awk '
-        /^\[roles\.(primary|companion)\]$/ { in_role=1; next }
-        /^\[/ { in_role=0 }
-        in_role && match($0, /^[[:space:]]*agent[[:space:]]*=[[:space:]]*"([^"]+)"/, m) { print m[1] }
-    ' "$config_path"
-}
-
 detect_configured_agents() {
     CONFIGURED_AGENTS=()
 
     while IFS= read -r name; do
         append_configured_agent "$name"
     done < <(query_configured_agents || true)
-
-    if [[ ${#CONFIGURED_AGENTS[@]} -eq 0 ]]; then
-        while IFS= read -r name; do
-            append_configured_agent "$name"
-        done < <(parse_configured_agents_from_toml || true)
-    fi
 
     if [[ ${#CONFIGURED_AGENTS[@]} -eq 0 ]]; then
         CONFIGURED_AGENTS=(claude codex)

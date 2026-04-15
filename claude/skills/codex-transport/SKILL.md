@@ -14,7 +14,7 @@ user-invocable: false
 
 # codex-transport — Communicate with the Companion via tmux
 
-This is the default companion transport layer. The companion role is configurable via `.party.toml`, but the skill name and script path stay `codex-transport` / `tmux-codex.sh` for backward compatibility.
+This is the default companion transport layer. The companion role is configurable via `party-cli config`, but the skill name and script path stay `codex-transport` / `tmux-codex.sh` for backward compatibility.
 
 ## When to Dispatch (Autonomous)
 

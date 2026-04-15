@@ -18,6 +18,7 @@ TMPDIR_BASE=""
 
 setup_repo() {
   TMPDIR_BASE=$(mktemp -d)
+  export XDG_CONFIG_HOME="$TMPDIR_BASE/.config"
   cd "$TMPDIR_BASE"
   git init -q
   git checkout -q -b main
@@ -30,6 +31,10 @@ setup_repo() {
   git commit -q -m "add impl"
 }
 
+config_path() {
+  printf '%s\n' "$XDG_CONFIG_HOME/party-cli/config.toml"
+}
+
 clean_evidence() {
   rm -f "$(evidence_file "$SESSION")"
   rm -f "/tmp/claude-evidence-${SESSION}.lock"
@@ -37,11 +42,12 @@ clean_evidence() {
 }
 
 clear_config() {
-  rm -f "$TMPDIR_BASE/.party.toml" 2>/dev/null || true
+  rm -f "$(config_path)" 2>/dev/null || true
 }
 
 write_stub_companion_config() {
-  cat > "$TMPDIR_BASE/.party.toml" <<'EOF'
+  mkdir -p "$(dirname "$(config_path)")"
+  cat > "$(config_path)" <<'EOF'
 [agents.stub]
 cli = "stub"
 
@@ -57,6 +63,7 @@ EOF
 full_cleanup() {
   clean_evidence
   clear_config
+  unset XDG_CONFIG_HOME
   if [ -n "$TMPDIR_BASE" ] && [ -d "$TMPDIR_BASE" ]; then
     rm -rf "$TMPDIR_BASE"
   fi

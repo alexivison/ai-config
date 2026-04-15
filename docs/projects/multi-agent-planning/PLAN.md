@@ -2,7 +2,7 @@
 
 > **Goal:** Make the party harness fully agent-agnostic — any CLI coding agent can fill the primary or companion role — and replace the two separate TUI modes with a unified party tracker showing master→worker hierarchy.
 >
-> **Architecture:** Introduce a Go `Agent` interface, role-based registry, `.party.toml` project config, agent-agnostic session lifecycle, and unified party tracker TUI.
+> **Architecture:** Introduce a Go `Agent` interface, role-based registry, user-global config, agent-agnostic session lifecycle, and unified party tracker TUI.
 >
 > **Tech Stack:** Go (agent package, session, state, tui, cmd), TOML (project config), Bash (hooks and existing transport wrappers, with `party-cli agent query` bridge)
 >
@@ -18,7 +18,7 @@
 
 This plan covers:
 - Agent interface and provider implementations (Claude, Codex, stub)
-- Role system and `.party.toml` config
+- Role system and user-global config
 - Agent-agnostic session lifecycle (start, continue, spawn, promote)
 - Manifest schema evolution with backward compatibility
 - Unified party tracker TUI with master→worker hierarchy
@@ -42,7 +42,7 @@ All work is done on a feature branch: `feature/multi-agent-planning`. PRs from t
 
 ## Tasks
 
-- [x] [Task 1](./tasks/TASK1-agent-interface-and-registry.md) — Create Go `Agent` interface, registry, `.party.toml` config parser, Claude/Codex/stub providers, and `party-cli agent query` subcommand (deps: none)
+- [x] [Task 1](./tasks/TASK1-agent-interface-and-registry.md) — Create Go `Agent` interface, registry, the initial config parser, Claude/Codex/stub providers, and `party-cli agent query` subcommand (deps: none)
 - [x] [Task 2](./tasks/TASK2-agent-agnostic-session-lifecycle.md) — Refactor session start/continue/spawn to use agent registry; evolve manifest schema (deps: Task 1)
 - [x] [Task 3](./tasks/TASK3-agent-agnostic-layouts.md) — Refactor layout functions to use role-based `@party_role` values and role→command maps (deps: Task 2)
 - [x] [Task 4](./tasks/TASK4-agent-agnostic-messaging.md) — Refactor messaging and shell transport helpers/scripts to resolve panes by role (deps: Task 3)
@@ -52,6 +52,7 @@ All work is done on a feature branch: `feature/multi-agent-planning`. PRs from t
 - [x] [Task 8](./tasks/TASK8-cli-flags-and-compat.md) — Update CLI flags (`--resume-agent`), backward-compatible aliases, settings.json hook paths, and install script (deps: Task 7)
 - [x] [Task 9](./tasks/TASK9-update-docs-and-skills.md) — Update CLAUDE.md, AGENTS.md, execution-core.md, workflow skill prompts to role-based language (deps: Tasks 2-6)
 - [x] [Task 10](./tasks/TASK10-tests-and-compat-verification.md) — Extend tests for multi-agent scenarios, verify zero-config backward compatibility, manifest migration (deps: all)
+- [x] [Task 11](./tasks/TASK11-relocate-config-to-user-global.md) — Relocate agent config to `~/.config/party-cli/config.toml` and add `party-cli config` (deps: Tasks 1-10)
 
 ## Dependency Graph
 
@@ -92,9 +93,9 @@ Task 10 is the final verification gate.
 ## Definition of Done
 
 - [x] All task checkboxes complete
-- [x] Running `party.sh "test"` with NO `.party.toml` works exactly as today (Claude primary + Codex companion)
-- [x] Running with `.party.toml` setting Codex as primary routes correctly
-- [x] Running with `.party.toml` omitting companion starts primary-only session
+- [x] Running `party.sh "test"` with NO user config file works exactly as today (Claude primary + Codex companion)
+- [x] Running with user-global config setting Codex as primary routes correctly
+- [x] Running with user-global config omitting companion starts primary-only session
 - [x] `tmux-codex.sh` / `tmux-claude.sh` still route correctly after the role-tag migration
 - [x] Unified party tracker shows master→worker hierarchy
 - [x] All Go tests pass (existing + new)

@@ -211,13 +211,11 @@ func newAutoResolver(store *state.Store, tc *tmux.Client) SessionResolver {
 }
 
 func registryForManifest(manifest state.Manifest) *agent.Registry {
-	if manifest.Cwd != "" {
-		cfg, err := agent.LoadConfig(manifest.Cwd, nil)
-		if err == nil {
-			registry, regErr := agent.NewRegistry(cfg)
-			if regErr == nil {
-				return registry
-			}
+	cfg, err := agent.LoadConfig(nil)
+	if err == nil {
+		registry, regErr := agent.NewRegistry(cfg)
+		if regErr == nil {
+			return registry
 		}
 	}
 	return builtinAgentRegistry

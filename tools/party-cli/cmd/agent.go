@@ -2,37 +2,27 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/anthropics/ai-party/tools/party-cli/internal/agent"
 	"github.com/spf13/cobra"
 )
 
-func newAgentCmd(repoRoot string) *cobra.Command {
+func newAgentCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "agent",
 		Short: "Query configured agents and roles",
 	}
-	cmd.AddCommand(newAgentQueryCmd(repoRoot))
+	cmd.AddCommand(newAgentQueryCmd())
 	return cmd
 }
 
-func newAgentQueryCmd(repoRoot string) *cobra.Command {
+func newAgentQueryCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "query <mode>",
 		Short: "Query agent config for hooks and scripts",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cwd := repoRoot
-			if cwd == "" {
-				var err error
-				cwd, err = os.Getwd()
-				if err != nil {
-					return fmt.Errorf("get working directory: %w", err)
-				}
-			}
-
-			cfg, err := agent.LoadConfig(cwd, nil)
+			cfg, err := agent.LoadConfig(nil)
 			if err != nil {
 				return err
 			}

@@ -25,6 +25,7 @@ assert() {
 
 setup_repo() {
   TMPDIR_BASE=$(mktemp -d)
+  export XDG_CONFIG_HOME="$TMPDIR_BASE/.config"
   cd "$TMPDIR_BASE"
   git init -q
   git checkout -q -b main
@@ -37,15 +38,20 @@ setup_repo() {
   git commit -q -m "add impl"
 }
 
+config_path() {
+  printf '%s\n' "$XDG_CONFIG_HOME/party-cli/config.toml"
+}
+
 clean_evidence() {
   rm -f "$(evidence_file "$SESSION_ID")"
   rm -f "/tmp/claude-evidence-${SESSION_ID}.lock"
   rmdir "/tmp/claude-evidence-${SESSION_ID}.lock.d" 2>/dev/null || true
-  rm -f "$TMPDIR_BASE/.party.toml" 2>/dev/null || true
+  rm -f "$(config_path)" 2>/dev/null || true
 }
 
 full_cleanup() {
   clean_evidence
+  unset XDG_CONFIG_HOME
   if [ -n "$TMPDIR_BASE" ] && [ -d "$TMPDIR_BASE" ]; then
     rm -rf "$TMPDIR_BASE"
   fi
@@ -125,7 +131,8 @@ assert "--review-complete allowed" \
 
 # Test: no companion configured -> fail open
 clean_evidence
-cat > "$TMPDIR_BASE/.party.toml" <<'EOF'
+mkdir -p "$(dirname "$(config_path)")"
+cat > "$(config_path)" <<'EOF'
 [roles.primary]
 agent = "claude"
 EOF

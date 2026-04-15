@@ -44,15 +44,7 @@ it is a master session.`,
 				masterID = id
 			}
 
-			registryCwd := opts.cwd
-			if registryCwd == "" {
-				masterManifest, err := store.Read(masterID)
-				if err != nil {
-					return fmt.Errorf("read master manifest: %w", err)
-				}
-				registryCwd = masterManifest.Cwd
-			}
-			registry, err := loadSessionRegistryWithOverrides(registryCwd, opts.agentFlags.ConfigOverrides())
+			registry, err := loadSessionRegistryWithOverrides(opts.agentFlags.ConfigOverrides())
 			if err != nil {
 				return err
 			}

@@ -16,7 +16,7 @@ Shared configuration and orchestration for an adventuring party of AI coding ass
 | **Primary** | Claude Code (Warforged Paladin) | Living construct of steel and divine fire. Implementation, testing, orchestration. |
 | **Companion** | Codex CLI (High Elf Wizard) | Ancient arcanist of deep intellect. Deep reasoning, analysis, review. |
 
-> Agent assignments are configurable via `.party.toml`. These defaults are used when no repo config is present.
+> Agent assignments are configurable via `party-cli config` in the user-global config file at `~/.config/party-cli/config.toml`. The table above shows the default layout.
 
 ## Structure
 
@@ -84,24 +84,17 @@ Removes symlinks but keeps the repository.
 
 ## Configuration
 
-Create a `.party.toml` in your repo root to customize agent assignments:
+Use `party-cli config` to manage your default agent assignments:
 
-```toml
-[agents.codex]
-cli = "codex"
-
-[agents.claude]
-cli = "claude"
-
-[roles.primary]
-agent = "codex"
-
-[roles.companion]
-agent = "claude"
-window = 0
+```bash
+party-cli config init
+party-cli config show
+party-cli config set-primary codex
+party-cli config set-companion claude
+party-cli config unset-companion
 ```
 
-Without a `.party.toml`, the default configuration is Claude as primary and Codex as companion. Omit `[roles.companion]` to run primary-only sessions for a repo.
+The config file lives at `~/.config/party-cli/config.toml` (or `$XDG_CONFIG_HOME/party-cli/config.toml` when `XDG_CONFIG_HOME` is set). Without a user config file, the default configuration is Claude as primary and Codex as companion. Use `party-cli config unset-companion` to make primary-only sessions the default.
 
 ## Migrating from ai-config
 

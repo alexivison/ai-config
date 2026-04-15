@@ -18,11 +18,10 @@ func newContinueCmd(store *state.Store, client *tmux.Client, repoRoot string) *c
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			sessionID := args[0]
-			manifest, err := store.Read(sessionID)
-			if err != nil {
+			if _, err := store.Read(sessionID); err != nil {
 				return err
 			}
-			registry, err := loadSessionRegistry(manifest.Cwd)
+			registry, err := loadSessionRegistry()
 			if err != nil {
 				return err
 			}

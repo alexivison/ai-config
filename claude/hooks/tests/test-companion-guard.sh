@@ -22,6 +22,7 @@ assert() {
 
 setup_repo() {
   TMPDIR_BASE=$(mktemp -d)
+  export XDG_CONFIG_HOME="$TMPDIR_BASE/.config"
   cd "$TMPDIR_BASE"
   git init -q
   git checkout -q -b main
@@ -30,7 +31,13 @@ setup_repo() {
   git commit -q -m "initial commit"
 }
 
+config_path() {
+  printf '%s\n' "$XDG_CONFIG_HOME/party-cli/config.toml"
+}
+
 cleanup() {
+  rm -f "$(config_path)" 2>/dev/null || true
+  unset XDG_CONFIG_HOME
   if [ -n "$TMPDIR_BASE" ] && [ -d "$TMPDIR_BASE" ]; then
     rm -rf "$TMPDIR_BASE"
   fi
@@ -43,7 +50,8 @@ hook_input() {
 }
 
 no_companion_config() {
-  cat > "$TMPDIR_BASE/.party.toml" <<'EOF'
+  mkdir -p "$(dirname "$(config_path)")"
+  cat > "$(config_path)" <<'EOF'
 [roles.primary]
 agent = "claude"
 EOF
@@ -74,7 +82,7 @@ OUTPUT=$(echo "$(hook_input 'tmux send-keys -t companion:0.0 Enter')" | bash "$H
 assert "no companion configured fails open" \
   '! echo "$OUTPUT" | grep -q "deny"'
 
-rm -f "$TMPDIR_BASE/.party.toml"
+rm -f "$(config_path)"
 OUTPUT=$(echo "$(hook_input 'tmux send-keys -t companion:0.0 Enter')" | PATH="/usr/bin:/bin:/usr/sbin:/sbin" bash "$HOOK")
 assert "missing party-cli fails open" \
   '! echo "$OUTPUT" | grep -q "deny"'

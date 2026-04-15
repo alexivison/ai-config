@@ -98,7 +98,6 @@ func manifestResumeID(agents []state.AgentManifest, role string) string {
 // ---------------------------------------------------------------------------
 
 func TestStartCmd_Basic(t *testing.T) {
-	t.Parallel()
 	store := setupStore(t)
 	cwd := t.TempDir()
 	writeAgentConfig(t, cwd)
@@ -110,7 +109,6 @@ func TestStartCmd_Basic(t *testing.T) {
 }
 
 func TestStartCmd_PrimaryOverrideAndNoCompanion(t *testing.T) {
-	t.Parallel()
 	store := setupStore(t)
 	cwd := t.TempDir()
 	writeAgentConfig(t, cwd)
@@ -127,7 +125,6 @@ func TestStartCmd_PrimaryOverrideAndNoCompanion(t *testing.T) {
 }
 
 func TestStartCmd_LegacyResumeFlagsRemainAgentSpecific(t *testing.T) {
-	t.Parallel()
 	store := setupStore(t)
 	cwd := t.TempDir()
 	writeAgentConfig(t, cwd)
@@ -159,7 +156,6 @@ func TestStartCmd_LegacyResumeFlagsRemainAgentSpecific(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestContinueCmd_AlreadyRunning(t *testing.T) {
-	t.Parallel()
 	store := setupStore(t)
 	cwd := t.TempDir()
 	writeAgentConfig(t, cwd)
@@ -253,7 +249,6 @@ func TestPromoteCmd_AlreadyMaster(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSpawnCmd_Basic(t *testing.T) {
-	t.Parallel()
 	store := setupStore(t)
 	cwd := t.TempDir()
 	writeAgentConfig(t, cwd)
@@ -266,7 +261,6 @@ func TestSpawnCmd_Basic(t *testing.T) {
 }
 
 func TestSpawnCmd_ResumeAgentUsesResolvedRole(t *testing.T) {
-	t.Parallel()
 	store := setupStore(t)
 	cwd := t.TempDir()
 	writeAgentConfig(t, cwd)

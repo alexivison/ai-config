@@ -31,7 +31,7 @@ func newStartCmd(store *state.Store, client *tmux.Client, repoRoot string) *cobr
 				opts.title = args[0]
 			}
 
-			registry, err := loadSessionRegistryWithOverrides(opts.cwd, opts.agentFlags.ConfigOverrides())
+			registry, err := loadSessionRegistryWithOverrides(opts.agentFlags.ConfigOverrides())
 			if err != nil {
 				return err
 			}
@@ -83,12 +83,12 @@ func newStartCmd(store *state.Store, client *tmux.Client, repoRoot string) *cobr
 	return cmd
 }
 
-func loadSessionRegistry(cwd string) (*agent.Registry, error) {
-	return loadSessionRegistryWithOverrides(cwd, nil)
+func loadSessionRegistry() (*agent.Registry, error) {
+	return loadSessionRegistryWithOverrides(nil)
 }
 
-func loadSessionRegistryWithOverrides(cwd string, overrides *agent.ConfigOverrides) (*agent.Registry, error) {
-	cfg, err := agent.LoadConfig(cwd, overrides)
+func loadSessionRegistryWithOverrides(overrides *agent.ConfigOverrides) (*agent.Registry, error) {
+	cfg, err := agent.LoadConfig(overrides)
 	if err != nil {
 		return nil, err
 	}

@@ -10,9 +10,9 @@ import (
 )
 
 func TestNewRegistry_DefaultConfig(t *testing.T) {
-	t.Parallel()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	cfg, err := LoadConfig(t.TempDir(), nil)
+	cfg, err := LoadConfig(nil)
 	if err != nil {
 		t.Fatalf("LoadConfig: %v", err)
 	}
@@ -35,14 +35,12 @@ func TestNewRegistry_DefaultConfig(t *testing.T) {
 }
 
 func TestNewRegistry_CodexPrimaryFromConfig(t *testing.T) {
-	t.Parallel()
-
-	root := setupRepoWithConfig(t, `
+	setupRepoWithConfig(t, `
 [roles.primary]
 agent = "codex"
 `)
 
-	cfg, err := LoadConfig(root, nil)
+	cfg, err := LoadConfig(nil)
 	if err != nil {
 		t.Fatalf("LoadConfig: %v", err)
 	}
@@ -61,14 +59,12 @@ agent = "codex"
 }
 
 func TestNewRegistry_NoCompanion(t *testing.T) {
-	t.Parallel()
-
-	root := setupRepoWithConfig(t, `
+	setupRepoWithConfig(t, `
 [roles.primary]
 agent = "claude"
 `)
 
-	cfg, err := LoadConfig(root, nil)
+	cfg, err := LoadConfig(nil)
 	if err != nil {
 		t.Fatalf("LoadConfig: %v", err)
 	}
@@ -85,9 +81,7 @@ agent = "claude"
 }
 
 func TestLoadConfig_Overrides(t *testing.T) {
-	t.Parallel()
-
-	root := setupRepoWithConfig(t, `
+	setupRepoWithConfig(t, `
 [roles.primary]
 agent = "claude"
 
@@ -95,7 +89,7 @@ agent = "claude"
 agent = "codex"
 `)
 
-	cfg, err := LoadConfig(root, &ConfigOverrides{Primary: "codex"})
+	cfg, err := LoadConfig(&ConfigOverrides{Primary: "codex"})
 	if err != nil {
 		t.Fatalf("LoadConfig primary override: %v", err)
 	}
@@ -103,7 +97,7 @@ agent = "codex"
 		t.Fatalf("primary override: got %q, want codex", got)
 	}
 
-	cfg, err = LoadConfig(root, &ConfigOverrides{Companion: "claude"})
+	cfg, err = LoadConfig(&ConfigOverrides{Companion: "claude"})
 	if err != nil {
 		t.Fatalf("LoadConfig companion override: %v", err)
 	}
@@ -111,7 +105,7 @@ agent = "codex"
 		t.Fatalf("companion override: got %+v, want claude", cfg.Roles.Companion)
 	}
 
-	cfg, err = LoadConfig(root, &ConfigOverrides{NoCompanion: true})
+	cfg, err = LoadConfig(&ConfigOverrides{NoCompanion: true})
 	if err != nil {
 		t.Fatalf("LoadConfig no-companion override: %v", err)
 	}
@@ -121,9 +115,9 @@ agent = "codex"
 }
 
 func TestLoadConfig_DefaultWithoutFile(t *testing.T) {
-	t.Parallel()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	cfg, err := LoadConfig(t.TempDir(), nil)
+	cfg, err := LoadConfig(nil)
 	if err != nil {
 		t.Fatalf("LoadConfig: %v", err)
 	}
@@ -136,9 +130,7 @@ func TestLoadConfig_DefaultWithoutFile(t *testing.T) {
 }
 
 func TestLoadConfig_ValidFile(t *testing.T) {
-	t.Parallel()
-
-	root := setupRepoWithConfig(t, `
+	setupRepoWithConfig(t, `
 [agents.codex]
 cli = "codex-beta"
 
@@ -151,7 +143,7 @@ agent = "claude"
 window = 2
 `)
 
-	cfg, err := LoadConfig(root, nil)
+	cfg, err := LoadConfig(nil)
 	if err != nil {
 		t.Fatalf("LoadConfig: %v", err)
 	}
@@ -166,36 +158,27 @@ window = 2
 	}
 }
 
-func TestLoadConfig_WalksUpToGitRoot(t *testing.T) {
-	t.Parallel()
+func TestUserConfigPath_UsesXDGConfigHome(t *testing.T) {
+	configRoot := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", configRoot)
 
-	root := setupRepoWithConfig(t, `
-[roles.primary]
-agent = "codex"
-`)
-	nested := filepath.Join(root, "a", "b", "c")
-	if err := os.MkdirAll(nested, 0o755); err != nil {
-		t.Fatalf("MkdirAll: %v", err)
-	}
-
-	cfg, err := LoadConfig(nested, nil)
+	path, err := UserConfigPath()
 	if err != nil {
-		t.Fatalf("LoadConfig: %v", err)
+		t.Fatalf("UserConfigPath: %v", err)
 	}
-	if got := cfg.Roles.Primary.Agent; got != "codex" {
-		t.Fatalf("walk-up primary: got %q, want codex", got)
+	want := filepath.Join(configRoot, "party-cli", "config.toml")
+	if path != want {
+		t.Fatalf("UserConfigPath = %q, want %q", path, want)
 	}
 }
 
 func TestLoadConfig_MissingCompanionSection(t *testing.T) {
-	t.Parallel()
-
-	root := setupRepoWithConfig(t, `
+	setupRepoWithConfig(t, `
 [roles.primary]
 agent = "claude"
 `)
 
-	cfg, err := LoadConfig(root, nil)
+	cfg, err := LoadConfig(nil)
 	if err != nil {
 		t.Fatalf("LoadConfig: %v", err)
 	}
@@ -374,13 +357,16 @@ func setupRepoWithConfig(t *testing.T, tomlBody string) string {
 	t.Helper()
 
 	root := t.TempDir()
-	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
-		t.Fatalf("mkdir .git: %v", err)
+	t.Setenv("XDG_CONFIG_HOME", root)
+
+	path := filepath.Join(root, "party-cli", "config.toml")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir config dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".party.toml"), []byte(strings.TrimSpace(tomlBody)+"\n"), 0o644); err != nil {
-		t.Fatalf("write .party.toml: %v", err)
+	if err := os.WriteFile(path, []byte(strings.TrimSpace(tomlBody)+"\n"), 0o644); err != nil {
+		t.Fatalf("write config.toml: %v", err)
 	}
-	return root
+	return path
 }
 
 type unsetCall struct {

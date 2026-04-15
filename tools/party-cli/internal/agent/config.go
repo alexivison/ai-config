@@ -8,7 +8,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// Config is the parsed .party.toml configuration.
+// Config is the parsed user-global party-cli configuration.
 type Config struct {
 	Agents   map[string]AgentConfig `toml:"agents"`
 	Roles    RolesConfig            `toml:"roles"`
@@ -58,26 +58,36 @@ func DefaultConfig() *Config {
 	}
 }
 
-// LoadConfig resolves .party.toml from cwd up to the git root, then applies
-// optional per-session role overrides.
-func LoadConfig(cwd string, overrides *ConfigOverrides) (*Config, error) {
-	if cwd == "" {
-		var err error
-		cwd, err = os.Getwd()
-		if err != nil {
-			return nil, fmt.Errorf("get working directory: %w", err)
-		}
+// UserConfigPath returns the user-global config path for party-cli.
+func UserConfigPath() (string, error) {
+	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
+		return filepath.Join(xdg, "party-cli", "config.toml"), nil
 	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve user home dir: %w", err)
+	}
+	return filepath.Join(home, ".config", "party-cli", "config.toml"), nil
+}
 
-	path, found, err := findConfigPath(cwd)
+// LoadConfig reads the user-global config file, falling back to defaults when
+// the file does not exist, then applies optional per-session role overrides.
+func LoadConfig(overrides *ConfigOverrides) (*Config, error) {
+	path, err := UserConfigPath()
 	if err != nil {
 		return nil, err
 	}
 
 	var cfg *Config
-	if !found {
+	info, err := os.Stat(path)
+	switch {
+	case os.IsNotExist(err):
 		cfg = DefaultConfig()
-	} else {
+	case err != nil:
+		return nil, fmt.Errorf("stat %s: %w", path, err)
+	case info.IsDir():
+		return nil, fmt.Errorf("config path %s is a directory", path)
+	default:
 		cfg, err = loadConfigFile(path)
 		if err != nil {
 			return nil, err
@@ -136,35 +146,6 @@ func loadConfigFile(path string) (*Config, error) {
 	}
 
 	return cfg, nil
-}
-
-func findConfigPath(cwd string) (string, bool, error) {
-	current, err := filepath.Abs(cwd)
-	if err != nil {
-		return "", false, fmt.Errorf("resolve %s: %w", cwd, err)
-	}
-
-	for {
-		path := filepath.Join(current, ".party.toml")
-		if fi, err := os.Stat(path); err == nil && !fi.IsDir() {
-			return path, true, nil
-		} else if err != nil && !os.IsNotExist(err) {
-			return "", false, fmt.Errorf("stat %s: %w", path, err)
-		}
-
-		gitPath := filepath.Join(current, ".git")
-		if _, err := os.Stat(gitPath); err == nil {
-			return "", false, nil
-		} else if err != nil && !os.IsNotExist(err) {
-			return "", false, fmt.Errorf("stat %s: %w", gitPath, err)
-		}
-
-		parent := filepath.Dir(current)
-		if parent == current {
-			return "", false, nil
-		}
-		current = parent
-	}
 }
 
 func applyOverrides(cfg *Config, overrides *ConfigOverrides) {

@@ -28,6 +28,7 @@ assert() {
 
 setup_repo() {
   TMPDIR_BASE=$(mktemp -d)
+  export XDG_CONFIG_HOME="$TMPDIR_BASE/.config"
   cd "$TMPDIR_BASE"
   git init -q
   git checkout -q -b main
@@ -37,15 +38,20 @@ setup_repo() {
   git checkout -q -b feature
 }
 
+config_path() {
+  printf '%s\n' "$XDG_CONFIG_HOME/party-cli/config.toml"
+}
+
 clean_evidence() {
   rm -f "$(evidence_file "$SESSION_ID")"
   rm -f "/tmp/claude-evidence-${SESSION_ID}.lock"
   rmdir "/tmp/claude-evidence-${SESSION_ID}.lock.d" 2>/dev/null || true
-  rm -f "$TMPDIR_BASE/.party.toml" 2>/dev/null || true
+  rm -f "$(config_path)" 2>/dev/null || true
 }
 
 full_cleanup() {
   clean_evidence
+  unset XDG_CONFIG_HOME
   if [ -n "$TMPDIR_BASE" ] && [ -d "$TMPDIR_BASE" ]; then
     rm -rf "$TMPDIR_BASE"
   fi
@@ -66,7 +72,8 @@ add_all_evidence() {
 }
 
 write_custom_evidence_config() {
-  cat > "$TMPDIR_BASE/.party.toml" <<'EOF'
+  mkdir -p "$(dirname "$(config_path)")"
+  cat > "$(config_path)" <<'EOF'
 [evidence]
 required = ["pr-verified", "test-runner", "check-runner"]
 EOF

@@ -9,10 +9,6 @@ party_cli_query() {
 
   [ -n "$mode" ] || return 1
 
-  if [ -z "$query_root" ]; then
-    query_root=$(pwd)
-  fi
-
   if output=$(party-cli agent query "$mode" 2>/dev/null); then
     printf '%s\n' "$output"
     return 0
@@ -30,7 +26,7 @@ party_cli_query() {
 
   output=$(
     cd "$repo_root/tools/party-cli" &&
-      PARTY_REPO_ROOT="$query_root" go run . agent query "$mode"
+      go run . agent query "$mode"
   2>/dev/null) || return 1
 
   printf '%s\n' "$output"

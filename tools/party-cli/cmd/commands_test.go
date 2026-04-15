@@ -111,7 +111,7 @@ func ageManifest(t *testing.T, store *state.Store, id string, days int) {
 	}
 }
 
-func writeAgentConfig(t *testing.T, cwd string) {
+func writeAgentConfig(t *testing.T, _ string) {
 	t.Helper()
 	const configBody = `
 [agents.claude]
@@ -126,8 +126,15 @@ agent = "claude"
 [roles.companion]
 agent = "codex"
 `
-	if err := os.WriteFile(filepath.Join(cwd, ".party.toml"), []byte(strings.TrimSpace(configBody)+"\n"), 0o644); err != nil {
-		t.Fatalf("write .party.toml: %v", err)
+
+	configRoot := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", configRoot)
+	configPath := filepath.Join(configRoot, "party-cli", "config.toml")
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
+		t.Fatalf("mkdir config dir: %v", err)
+	}
+	if err := os.WriteFile(configPath, []byte(strings.TrimSpace(configBody)+"\n"), 0o644); err != nil {
+		t.Fatalf("write config.toml: %v", err)
 	}
 }
 
