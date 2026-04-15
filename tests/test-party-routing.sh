@@ -52,9 +52,27 @@ result=$(party_role_pane_target "party-test" "claude")
 assert "role resolver: claude resolves to pane 1" \
   '[ "$result" = "party-test:0.1" ]'
 
+result=$(party_role_pane_target "party-test" "primary")
+assert "role resolver: primary falls back to legacy claude pane" \
+  '[ "$result" = "party-test:0.1" ]'
+
+result=$(party_role_pane_target "party-test" "companion")
+assert "role resolver: companion falls back to legacy codex pane" \
+  '[ "$result" = "party-test:0.0" ]'
+
 result=$(party_role_pane_target "party-test" "shell")
 assert "role resolver: shell resolves to pane 2" \
   '[ "$result" = "party-test:0.2" ]'
+
+MOCK_PANE_DATA=$'0 companion\n1 primary\n2 shell'
+
+result=$(party_role_pane_target "party-test" "primary")
+assert "role resolver: primary resolves directly on new sessions" \
+  '[ "$result" = "party-test:0.1" ]'
+
+result=$(party_role_pane_target "party-test" "companion")
+assert "role resolver: companion resolves directly on new sessions" \
+  '[ "$result" = "party-test:0.0" ]'
 
 # Missing role → ROLE_NOT_FOUND
 if party_role_pane_target "party-test" "missing" 2>/dev/null; then
@@ -133,6 +151,28 @@ fi
 err=$(party_role_pane_target "party-test" "codex" 2>&1 >/dev/null || true)
 assert "wrapper: duplicate role propagates ROLE_AMBIGUOUS" \
   '[[ "$err" == *"ROLE_AMBIGUOUS"* ]]'
+
+# === party_role_message_prefix ===
+
+MOCK_PANE_DATA=$'0 companion\n1 primary\n2 shell'
+
+prefix=$(party_role_message_prefix "party-test" "primary")
+assert "prefix: new primary sessions use [PRIMARY]" \
+  '[ "$prefix" = "[PRIMARY]" ]'
+
+prefix=$(party_role_message_prefix "party-test" "companion")
+assert "prefix: new companion sessions use [COMPANION]" \
+  '[ "$prefix" = "[COMPANION]" ]'
+
+MOCK_PANE_DATA=$'0 codex\n1 claude\n2 shell'
+
+prefix=$(party_role_message_prefix "party-test" "primary")
+assert "prefix: legacy primary sessions keep [CLAUDE]" \
+  '[ "$prefix" = "[CLAUDE]" ]'
+
+prefix=$(party_role_message_prefix "party-test" "companion")
+assert "prefix: legacy companion sessions keep [CODEX]" \
+  '[ "$prefix" = "[CODEX]" ]'
 
 # === Sidebar mode: multi-window routing ===
 # In sidebar mode, Codex lives in window 0 and workspace in window 1.

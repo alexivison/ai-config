@@ -378,7 +378,7 @@ func (m Model) updateWorkerInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		val := m.workerInput.Value()
 		if val != "" && m.tmuxClient != nil {
 			ctx := context.Background()
-			target := tmux.CodexTarget(m.SessionID)
+			target := tmux.CompanionTarget(m.SessionID)
 			result := m.tmuxClient.Send(ctx, target, val)
 			m.workerErr = result.Err
 		}
@@ -440,7 +440,7 @@ func (m Model) refreshCodexStatus() tea.Cmd {
 func defaultCodexPaneCheck(sessionID string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	target := tmux.CodexTarget(sessionID)
+	target := tmux.CompanionTarget(sessionID)
 	runner := tmux.ExecRunner{}
 	_, err := runner.Run(ctx, "display-message", "-t", target, "-p", "")
 	return err == nil
@@ -469,7 +469,7 @@ func (m Model) refreshWizardSnippet() tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		target := tmux.CodexTarget(sessionID)
+		target := tmux.CompanionTarget(sessionID)
 		captured, err := tmux.ExecRunner{}.Run(ctx, "capture-pane", "-t", target, "-p", "-S", "-500")
 		if err != nil {
 			return wizardSnippetMsg{}

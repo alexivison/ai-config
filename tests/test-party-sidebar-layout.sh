@@ -71,11 +71,11 @@ echo "--- test-party-sidebar-layout.sh ---"
 echo ""
 echo "  === party_layout_mode ==="
 
-# Default (no env var) → classic
+# Default (no env var) → sidebar
 unset PARTY_LAYOUT
 result=$(party_layout_mode)
-assert "layout_mode: default is classic" \
-  '[ "$result" = "classic" ]'
+assert "layout_mode: default is sidebar" \
+  '[ "$result" = "sidebar" ]'
 
 # Explicit classic
 PARTY_LAYOUT=classic
@@ -98,37 +98,50 @@ assert "layout_mode: unknown value falls back to classic" \
 unset PARTY_LAYOUT
 
 # ===========================================================================
-# party_codex_pane_target — sidebar mode routes to window 0
+# party_companion_pane_target — sidebar mode routes to window 0
 # ===========================================================================
 
 echo ""
-echo "  === party_codex_pane_target ==="
+echo "  === party_companion_pane_target ==="
 
-# Sidebar mode: Codex is in window 0 pane 0 (hidden window)
+# Sidebar mode: companion is in window 0 pane 0 (hidden window)
 PARTY_LAYOUT=sidebar
-result=$(party_codex_pane_target "party-test")
-assert "codex_target: sidebar mode resolves to session:0.0" \
+result=$(party_companion_pane_target "party-test")
+assert "companion_target: sidebar mode resolves to session:0.0" \
   '[ "$result" = "party-test:0.0" ]'
 
-# Classic mode: uses role-based resolution (Codex in window 0 pane 0 in the classic 3-pane layout)
+# Classic mode: uses role-based resolution on canonical tags.
 PARTY_LAYOUT=classic
-MOCK_PANE_DATA=$'0 codex\n1 claude\n2 shell'
+MOCK_PANE_DATA=$'0 companion\n1 primary\n2 shell'
 MOCK_WINDOW_LIST="0"
-result=$(party_codex_pane_target "party-test")
-assert "codex_target: classic mode uses role resolution" \
+result=$(party_companion_pane_target "party-test")
+assert "companion_target: classic mode uses canonical role resolution" \
   '[ "$result" = "party-test:0.0" ]'
 
-# Classic mode with Codex in different pane position → resolves correctly
-MOCK_PANE_DATA=$'0 claude\n1 codex\n2 shell'
-result=$(party_codex_pane_target "party-test")
-assert "codex_target: classic mode resolves codex at pane 1" \
+# Classic mode with companion in different pane position → resolves correctly
+MOCK_PANE_DATA=$'0 primary\n1 companion\n2 shell'
+result=$(party_companion_pane_target "party-test")
+assert "companion_target: classic mode resolves companion at pane 1" \
   '[ "$result" = "party-test:0.1" ]'
 
-# Sidebar mode ignores pane data — always window 0 pane 0
+# Classic mode falls back to legacy codex tag.
+MOCK_PANE_DATA=$'0 codex\n1 claude\n2 shell'
+result=$(party_companion_pane_target "party-test")
+assert "companion_target: classic mode falls back to legacy codex" \
+  '[ "$result" = "party-test:0.0" ]'
+
+# Sidebar mode ignores pane data — always window 0 pane 0.
 PARTY_LAYOUT=sidebar
 MOCK_PANE_DATA=$'0 claude\n1 shell'
+result=$(party_companion_pane_target "party-test")
+assert "companion_target: sidebar always returns 0.0 regardless of pane data" \
+  '[ "$result" = "party-test:0.0" ]'
+
+# Backward-compatible wrapper delegates to companion helper.
+PARTY_LAYOUT=classic
+MOCK_PANE_DATA=$'0 companion\n1 primary\n2 shell'
 result=$(party_codex_pane_target "party-test")
-assert "codex_target: sidebar always returns 0.0 regardless of pane data" \
+assert "codex_target: wrapper delegates to companion helper" \
   '[ "$result" = "party-test:0.0" ]'
 
 unset PARTY_LAYOUT

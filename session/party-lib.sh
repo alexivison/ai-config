@@ -221,13 +221,33 @@ tmux_send() {
 # Role-based pane routing
 # ---------------------------------------------------------------------------
 
-# Resolve a pane target by @party_role metadata.
-# Usage: party_role_pane_target SESSION ROLE
-# stdout: target pane (e.g. "session:0.1")
-# exit 0: resolved | exit 1: not found or ambiguous
-party_role_pane_target() {
+# Map canonical role names to their legacy pane tags.
+_party_role_fallback() {
+  case "${1:-}" in
+    primary) printf 'claude\n' ;;
+    companion) printf 'codex\n' ;;
+    *) return 1 ;;
+  esac
+}
+
+_party_role_label() {
+  case "${1:-}" in
+    primary) printf 'PRIMARY\n' ;;
+    companion) printf 'COMPANION\n' ;;
+    claude) printf 'CLAUDE\n' ;;
+    codex) printf 'CODEX\n' ;;
+    *) printf '%s\n' "${1^^}" ;;
+  esac
+}
+
+# Resolve an exact @party_role match without legacy fallback.
+# On success, PARTY_ROLE_TARGET contains the tmux target.
+# On failure, PARTY_ROLE_ERROR contains the human-readable error.
+_party_role_resolve_exact() {
   local session="${1:?Usage: party_role_pane_target SESSION ROLE}"
   local role="${2:?Missing role}"
+  PARTY_ROLE_TARGET=""
+  PARTY_ROLE_ERROR=""
 
   # Auto-discover the window this pane is in. TMUX_PANE gives the exact pane ID
   # (e.g. %5), so -t ensures we get OUR window, not the client's active window.
@@ -259,18 +279,73 @@ party_role_pane_target() {
     done <<< "$pane_list"
 
     if [[ ${#found[@]} -gt 1 ]]; then
-      echo "ROLE_AMBIGUOUS: Multiple panes with @party_role='$role' in session '$session:$win'" >&2
+      PARTY_ROLE_ERROR="ROLE_AMBIGUOUS: Multiple panes with @party_role='$role' in session '$session:$win'"
       return 1
     fi
 
     if [[ ${#found[@]} -eq 1 ]]; then
-      printf '%s:%s.%s\n' "$session" "$win" "${found[0]}"
+      PARTY_ROLE_TARGET=$(printf '%s:%s.%s' "$session" "$win" "${found[0]}")
       return 0
     fi
   done
 
-  echo "ROLE_NOT_FOUND: No pane with @party_role='$role' in session '$session'" >&2
+  PARTY_ROLE_ERROR="ROLE_NOT_FOUND: No pane with @party_role='$role' in session '$session'"
   return 1
+}
+
+# Resolve a pane target by @party_role metadata, accepting canonical role names
+# with legacy fallback for sessions still tagged claude/codex.
+# Usage: party_role_pane_target SESSION ROLE
+# stdout: target pane (e.g. "session:0.1")
+# exit 0: resolved | exit 1: not found or ambiguous
+party_role_pane_target() {
+  local session="${1:?Usage: party_role_pane_target SESSION ROLE}"
+  local role="${2:?Missing role}"
+
+  if _party_role_resolve_exact "$session" "$role"; then
+    printf '%s\n' "$PARTY_ROLE_TARGET"
+    return 0
+  fi
+
+  local exact_error="$PARTY_ROLE_ERROR"
+  if [[ "$exact_error" == ROLE_NOT_FOUND:* ]]; then
+    local fallback_role
+    fallback_role=$(_party_role_fallback "$role" 2>/dev/null || true)
+    if [[ -n "$fallback_role" ]]; then
+      if _party_role_resolve_exact "$session" "$fallback_role"; then
+        printf '%s\n' "$PARTY_ROLE_TARGET"
+        return 0
+      fi
+      if [[ "$PARTY_ROLE_ERROR" == ROLE_AMBIGUOUS:* ]]; then
+        echo "$PARTY_ROLE_ERROR" >&2
+        return 1
+      fi
+    fi
+  fi
+
+  echo "${exact_error:-ROLE_NOT_FOUND: No pane with @party_role='$role' in session '$session'}" >&2
+  return 1
+}
+
+# Return the transport prefix for messages sent by the given logical role.
+# New sessions use [PRIMARY]/[COMPANION]; legacy sessions keep [CLAUDE]/[CODEX].
+party_role_message_prefix() {
+  local session="${1:?Usage: party_role_message_prefix SESSION ROLE}"
+  local role="${2:?Missing role}"
+
+  if _party_role_resolve_exact "$session" "$role"; then
+    printf '[%s]\n' "$(_party_role_label "$role")"
+    return 0
+  fi
+
+  local fallback_role
+  fallback_role=$(_party_role_fallback "$role" 2>/dev/null || true)
+  if [[ -n "$fallback_role" ]] && _party_role_resolve_exact "$session" "$fallback_role"; then
+    printf '[%s]\n' "$(_party_role_label "$fallback_role")"
+    return 0
+  fi
+
+  printf '[%s]\n' "$(_party_role_label "$role")"
 }
 
 # ---------------------------------------------------------------------------
@@ -288,16 +363,28 @@ party_layout_mode() {
   esac
 }
 
-# Resolve the Codex pane target, layout-aware.
+# Resolve the primary pane target in a session.
+party_primary_pane_target() {
+  local session="${1:?Usage: party_primary_pane_target SESSION}"
+  party_role_pane_target "$session" "primary"
+}
+
+# Resolve the companion pane target, layout-aware.
 # sidebar → always ${session}:0.0 (hidden window 0)
 # classic → role-based resolution via party_role_pane_target
-party_codex_pane_target() {
-  local session="${1:?Usage: party_codex_pane_target SESSION}"
+party_companion_pane_target() {
+  local session="${1:?Usage: party_companion_pane_target SESSION}"
   if [[ "$(party_layout_mode)" == "sidebar" ]]; then
     printf '%s:0.0\n' "$session"
     return 0
   fi
-  party_role_pane_target "$session" "codex"
+  party_role_pane_target "$session" "companion"
+}
+
+# Backward-compatible wrapper for older callers.
+party_codex_pane_target() {
+  local session="${1:?Usage: party_codex_pane_target SESSION}"
+  party_companion_pane_target "$session"
 }
 
 # Resolve party-cli as an array-safe command for CLI delegation.

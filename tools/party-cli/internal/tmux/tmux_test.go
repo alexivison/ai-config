@@ -884,12 +884,12 @@ func TestPopupArgs(t *testing.T) {
 // Window-management helpers
 // ---------------------------------------------------------------------------
 
-func TestCodexTarget(t *testing.T) {
+func TestCompanionTarget(t *testing.T) {
 	t.Parallel()
 
-	got := CodexTarget("party-abc")
+	got := CompanionTarget("party-abc")
 	if got != "party-abc:0" {
-		t.Errorf("CodexTarget: got %q, want %q", got, "party-abc:0")
+		t.Errorf("CompanionTarget: got %q, want %q", got, "party-abc:0")
 	}
 }
 

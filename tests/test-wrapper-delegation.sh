@@ -154,8 +154,8 @@ assert "party-master.sh is retired (not sourced by party.sh)" \
 assert "party.sh does not source party-lib.sh" \
   '! grep -q "source.*party-lib.sh" "$REPO_ROOT/session/party.sh"'
 
-assert "party-relay.sh does not source party-lib.sh" \
-  '! grep -q "source.*party-lib.sh" "$REPO_ROOT/session/party-relay.sh"'
+assert "party-relay.sh --wizard routes through companion helper" \
+  'grep -q "party_companion_pane_target" "$REPO_ROOT/session/party-relay.sh"'
 
 # ---- Verify vestigial scripts are deleted ----
 assert "party-picker.sh is deleted" \

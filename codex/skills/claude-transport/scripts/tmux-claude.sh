@@ -26,10 +26,11 @@ if [[ -n "${CODEX_THREAD_ID:-}" && ! -s "$STATE_DIR/codex-thread-id" ]]; then
   fi
 fi
 
-CLAUDE_PANE=$(party_role_pane_target "$SESSION_NAME" "claude") || {
-  echo "Error: Cannot resolve Claude pane in session '$SESSION_NAME'" >&2
+PRIMARY_PANE=$(party_primary_pane_target "$SESSION_NAME") || {
+  echo "Error: Cannot resolve primary pane in session '$SESSION_NAME'" >&2
   exit 1
 }
+SENDER_PREFIX=$(party_role_message_prefix "$SESSION_NAME" "companion")
 
 # Detect completion messages by prefix-anchored patterns matching actual call sites.
 # Mid-task traffic (questions, status) does not match and leaves status unchanged.
@@ -42,7 +43,7 @@ esac
 
 # Send with exit-76 handling: keys sent but buffer check failed → treat as delivered
 _send_rc=0
-tmux_send "$CLAUDE_PANE" "[CODEX] $MESSAGE" "tmux-claude.sh" || _send_rc=$?
+tmux_send "$PRIMARY_PANE" "$SENDER_PREFIX $MESSAGE" "tmux-claude.sh" || _send_rc=$?
 
 if [[ $_send_rc -eq 0 || $_send_rc -eq 76 ]]; then
   if [[ $_send_rc -eq 76 ]]; then

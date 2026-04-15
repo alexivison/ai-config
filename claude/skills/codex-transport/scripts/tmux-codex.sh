@@ -34,10 +34,11 @@ _require_session() {
     echo "CODEX_NOT_AVAILABLE: Master sessions have no Wizard pane. Route review work through a worker session." >&2
     exit 1
   fi
-  CODEX_PANE=$(party_codex_pane_target "$SESSION_NAME") || {
-    echo "Error: Cannot resolve Codex pane in session '$SESSION_NAME'" >&2
+  COMPANION_PANE=$(party_companion_pane_target "$SESSION_NAME") || {
+    echo "Error: Cannot resolve companion pane in session '$SESSION_NAME'" >&2
     exit 1
   }
+  SENDER_PREFIX=$(party_role_message_prefix "$SESSION_NAME" "primary")
 }
 
 # Delivery-confirmed send. Exit 76 (keys sent but buffer check failed)
@@ -105,9 +106,12 @@ case "$MODE" in
       "SCOPE_SECTION=$SCOPE_SECTION" \
       "DISPUTE_SECTION=$DISPUTE_SECTION" \
       "REREVEW_SECTION=$REREVEW_SECTION")
+    if [[ "$MSG" == "[CLAUDE] "* ]]; then
+      MSG="$SENDER_PREFIX ${MSG#"[CLAUDE] "}"
+    fi
 
     RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
-    if _send_with_retry "$CODEX_PANE" "$MSG" "tmux-codex.sh:review"; then
+    if _send_with_retry "$COMPANION_PANE" "$MSG" "tmux-codex.sh:review"; then
       write_codex_status "$RUNTIME_DIR" "working" "$BASE" "review"
       echo "CODEX_REVIEW_REQUESTED"
       echo "Claude is NOT blocked. Codex will notify via tmux when complete."
@@ -134,9 +138,12 @@ case "$MODE" in
       "PLAN_PATH=$PLAN_PATH" \
       "FINDINGS_FILE=$FINDINGS_FILE" \
       "NOTIFY_CMD=$NOTIFY_CMD")
+    if [[ "$MSG" == "[CLAUDE] "* ]]; then
+      MSG="$SENDER_PREFIX ${MSG#"[CLAUDE] "}"
+    fi
 
     RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
-    if _send_with_retry "$CODEX_PANE" "$MSG" "tmux-codex.sh:plan-review"; then
+    if _send_with_retry "$COMPANION_PANE" "$MSG" "tmux-codex.sh:plan-review"; then
       write_codex_status "$RUNTIME_DIR" "working" "$PLAN_PATH" "plan-review"
       echo "CODEX_PLAN_REVIEW_REQUESTED"
       echo "Claude is NOT blocked. Codex will notify via tmux when complete."
@@ -157,9 +164,9 @@ case "$MODE" in
 
     NOTIFY_SCRIPT="$(cd "$SCRIPT_DIR/../../../../codex/skills/claude-transport/scripts" && pwd)/tmux-claude.sh"
 
-    MSG="[CLAUDE] cd '$WORK_DIR' && $PROMPT_TEXT — Write response to: $RESPONSE_FILE — When done, run: $NOTIFY_SCRIPT \"Task complete. Response at: $RESPONSE_FILE\""
+    MSG="$SENDER_PREFIX cd '$WORK_DIR' && $PROMPT_TEXT — Write response to: $RESPONSE_FILE — When done, run: $NOTIFY_SCRIPT \"Task complete. Response at: $RESPONSE_FILE\""
     RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
-    if _send_with_retry "$CODEX_PANE" "$MSG" "tmux-codex.sh:prompt"; then
+    if _send_with_retry "$COMPANION_PANE" "$MSG" "tmux-codex.sh:prompt"; then
       write_codex_status "$RUNTIME_DIR" "working" "$PROMPT_TEXT" "prompt"
       echo "CODEX_TASK_REQUESTED"
       echo "Codex will notify via tmux when complete."

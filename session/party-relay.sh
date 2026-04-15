@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # party-relay.sh — Thin wrapper for master/worker communication via party-cli.
-# Does not depend on party-lib.sh — master validation is handled by party-cli.
+# The --wizard transport path sources party-lib.sh for pane routing helpers.
 #
 # Usage:
 #   party-relay.sh <worker-id> "message"          # relay to one worker
@@ -35,6 +35,13 @@ _resolve_party_cli() {
 }
 
 PARTY_CLI_CMD=()
+
+_load_transport_helpers() {
+  local repo_root
+  repo_root="${PARTY_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)}"
+  # shellcheck source=session/party-lib.sh
+  source "$repo_root/session/party-lib.sh"
+}
 
 relay_usage() {
   cat <<'EOF'
@@ -110,12 +117,12 @@ case "$1" in
     exec "${PARTY_CLI_CMD[@]}" relay "$_file_worker" "Read relay instructions at $_file_path"
     ;;
   --wizard)
-    relay_discover_master
+    _load_transport_helpers
     shift
     _wiz_worker="${1:?--wizard requires a worker ID}"
     _wiz_msg="${2:?--wizard requires a message}"
-    _wiz_pane=$(party_codex_pane_target "$_wiz_worker") || {
-      echo "Error: Cannot resolve Wizard pane in worker '$_wiz_worker'" >&2
+    _wiz_pane=$(party_companion_pane_target "$_wiz_worker") || {
+      echo "Error: Cannot resolve companion pane in worker '$_wiz_worker'" >&2
       exit 1
     }
     _wiz_rc=0

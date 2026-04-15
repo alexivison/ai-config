@@ -14,9 +14,8 @@ func PopupArgs(target string, widthPct, heightPct int, cmd string) []string {
 	}
 }
 
-// CodexTarget returns the tmux target for the companion window in a session.
-// Kept for backward compatibility with older callers.
-func CodexTarget(sessionID string) string {
+// CompanionTarget returns the tmux target for the companion window in a session.
+func CompanionTarget(sessionID string) string {
 	return fmt.Sprintf("%s:%d", sessionID, WindowCompanion)
 }
 
