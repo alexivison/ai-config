@@ -137,13 +137,11 @@ func (tm *TrackerModel) refreshSessions() {
 	tm.detail = snapshot.Current
 	tm.lastErr = nil
 
-	switch {
-	case selectedID != "":
-		tm.cursor = tm.indexOfSession(selectedID)
-	case tm.current.ID != "":
-		tm.cursor = tm.indexOfSession(tm.current.ID)
-	default:
-		tm.cursor = 0
+	tm.cursor = 0
+	if idx := tm.indexOfSession(selectedID); selectedID != "" && idx >= 0 {
+		tm.cursor = idx
+	} else if idx := tm.indexOfSession(tm.current.ID); tm.current.ID != "" && idx >= 0 {
+		tm.cursor = idx
 	}
 
 	if tm.cursor < 0 {

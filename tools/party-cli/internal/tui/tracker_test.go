@@ -358,6 +358,31 @@ func TestTrackerFooterShowsStopDeleteOutsideMaster(t *testing.T) {
 	}
 }
 
+func TestTrackerRefreshSessionsFallsBackToCurrentWhenSelectionDisappears(t *testing.T) {
+	t.Parallel()
+
+	tm := newTestTracker(SessionInfo{ID: "party-current"}, TrackerSnapshot{
+		Sessions: []SessionRow{
+			{ID: "party-current", Title: "current", Status: "active", SessionType: "standalone", IsCurrent: true},
+			{ID: "party-target", Title: "target", Status: "active", SessionType: "standalone"},
+		},
+	}, &fakeActions{})
+	tm.cursor = 1
+	tm.fetcher = snapshotFetcher(TrackerSnapshot{
+		Sessions: []SessionRow{
+			{ID: "party-current", Title: "current", Status: "active", SessionType: "standalone", IsCurrent: true},
+			{ID: "party-other", Title: "other", Status: "active", SessionType: "standalone"},
+		},
+	})
+
+	tm.refreshSessions()
+
+	row, ok := tm.selectedSession()
+	if !ok || row.ID != "party-current" {
+		t.Fatalf("expected refresh to fall back to current session, got %#v", row)
+	}
+}
+
 func TestTrackerViewShowsCurrentIndicator(t *testing.T) {
 	t.Parallel()
 
