@@ -42,7 +42,7 @@ func (s *Service) Spawn(ctx context.Context, masterID string, opts SpawnOpts) (S
 	registry := opts.Registry
 	if registry == nil {
 		var err error
-		registry, err = WorkerSpawnRegistry(m, nil)
+		registry, err = WorkerSpawnRegistryWithBase(m, s.Registry, nil)
 		if err != nil {
 			return StartResult{}, fmt.Errorf("resolve worker agent layout: %w", err)
 		}
@@ -67,6 +67,10 @@ func (s *Service) Spawn(ctx context.Context, masterID string, opts SpawnOpts) (S
 // Workers inherit the master's primary agent and, by default, run without a
 // companion so orchestration stays single-threaded until explicitly requested.
 func WorkerSpawnRegistry(master state.Manifest, overrides *agent.ConfigOverrides) (*agent.Registry, error) {
+	return WorkerSpawnRegistryWithBase(master, nil, overrides)
+}
+
+func WorkerSpawnRegistryWithBase(master state.Manifest, base *agent.Registry, overrides *agent.ConfigOverrides) (*agent.Registry, error) {
 	effective := overrides
 	if effective == nil {
 		effective = &agent.ConfigOverrides{
@@ -77,6 +81,13 @@ func WorkerSpawnRegistry(master state.Manifest, overrides *agent.ConfigOverrides
 	cfg, err := agent.LoadConfig(effective)
 	if err != nil {
 		return nil, err
+	}
+	if base != nil {
+		for name := range cfg.Agents {
+			if provider, err := base.Get(name); err == nil && provider.Binary() != "" {
+				cfg.Agents[name] = agent.AgentConfig{CLI: provider.Binary()}
+			}
+		}
 	}
 	return agent.NewRegistry(cfg)
 }
