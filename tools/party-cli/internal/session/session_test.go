@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -1667,7 +1666,7 @@ func TestStart_CodexPrimaryRegistry(t *testing.T) {
 	}
 }
 
-func TestStart_CodexPrimaryMasterUsesDeveloperInstructions(t *testing.T) {
+func TestStart_CodexPrimaryMasterIncludesPrompt(t *testing.T) {
 	t.Parallel()
 	svc, runner := setupService(t)
 	svc.Now = func() int64 { return 7788 }
@@ -1699,20 +1698,13 @@ func TestStart_CodexPrimaryMasterUsesDeveloperInstructions(t *testing.T) {
 		t.Fatalf("start master: %v", err)
 	}
 
-	wantConfig := "developer_instructions=" + strconv.Quote(agent.NewCodex(agent.AgentConfig{}).MasterPrompt())
+	wantPrompt := agent.NewCodex(agent.AgentConfig{}).MasterPrompt() + "\n\nTask: triage the backlog"
 	foundMasterCmd := false
 	for _, call := range runner.calls {
 		if len(call.args) >= 1 && call.args[0] == "split-window" && strings.Contains(call.args[len(call.args)-1], codexCLI) {
 			foundMasterCmd = true
-			cmd := call.args[len(call.args)-1]
-			if !strings.Contains(cmd, wantConfig) {
-				t.Fatalf("master Codex command missing config %q in %q", wantConfig, cmd)
-			}
-			if !strings.HasSuffix(cmd, " 'triage the backlog'") {
-				t.Fatalf("master Codex command should keep user prompt unchanged: %q", cmd)
-			}
-			if strings.Contains(cmd, "Task: triage the backlog") {
-				t.Fatalf("master Codex command should not prefix prompt with task marker: %q", cmd)
+			if !strings.Contains(call.args[len(call.args)-1], wantPrompt) {
+				t.Fatalf("master Codex command missing prompt %q in %q", wantPrompt, call.args[len(call.args)-1])
 			}
 		}
 	}
