@@ -2,4 +2,4 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "$SCRIPT_DIR/../../agent-transport/scripts/tmux-primary.sh" "$@"
+exec "$SCRIPT_DIR/../../../../shared/skills/agent-transport/scripts/toon-transport.sh" "$@"

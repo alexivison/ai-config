@@ -2,7 +2,7 @@
 
 Adapt these templates to the specific PR. Replace placeholders with actual values.
 
-## Wizard Prompt
+## Companion Prompt
 
 ```
 Review PR #{number}: '{title}'.

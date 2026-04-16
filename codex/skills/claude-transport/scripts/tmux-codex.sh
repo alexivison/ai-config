@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "$SCRIPT_DIR/../../../../claude/skills/codex-transport/scripts/tmux-codex.sh" "$@"
+SCRIPT_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "$SCRIPT_DIR/../../agent-transport/scripts/tmux-companion.sh" "$@"

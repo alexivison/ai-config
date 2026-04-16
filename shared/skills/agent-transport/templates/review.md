@@ -1,4 +1,4 @@
-[CLAUDE] cd '{{WORK_DIR}}' && Review the changes on this branch against {{BASE}}.
+[PRIMARY] cd '{{WORK_DIR}}' && Review the changes on this branch against {{BASE}}.
 
 Title: {{TITLE}}
 

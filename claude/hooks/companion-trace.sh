@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Companion Trace Hook
 # 1. Creates companion APPROVED evidence directly when --review-complete emits CODEX APPROVED
-#    (happens when findings file contains VERDICT: APPROVED from The Wizard).
+#    (happens when findings file contains VERDICT: APPROVED from the companion).
 #    Requires CODEX_REVIEW_RAN sentinel in the same response as proof of review completion.
 # 2. Creates triage override evidence when --triage-override emits TRIAGE_OVERRIDE
 #
@@ -20,7 +20,7 @@ escape_regex() {
 
 transport_pattern() {
   local companion_name="${1:-}"
-  local script_pattern='([^ ]*/)?tmux-codex\.sh'
+  local script_pattern='([^ ]*/)?tmux-companion\.sh|([^ ]*/)?tmux-codex\.sh'
   if [ -n "$companion_name" ]; then
     local escaped_name
     escaped_name=$(escape_regex "$companion_name")
@@ -81,7 +81,7 @@ fi
 ts=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 log_evidence() { echo "$ts | companion-trace | $1 | $session_id" >> "$HOME/.claude/logs/evidence-trace.log"; }
 
-# --- Evidence: Wizard approval (via verdict in findings file) ---
+# --- Evidence: companion approval (via verdict in findings file) ---
 # --review-complete emits both CODEX_REVIEW_RAN and CODEX APPROVED when findings
 # contain VERDICT: APPROVED. The CODEX_REVIEW_RAN sentinel proves the review
 # actually completed (findings file exists). We require it before writing approval.

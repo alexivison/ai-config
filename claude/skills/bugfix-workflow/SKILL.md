@@ -26,7 +26,7 @@ Debug and fix bugs. Follows the same execution flow as task-workflow with these 
 
 1. **Create worktree first** — `git worktree add ../repo-branch-name -b branch-name`
 2. **Understand the bug** — Read relevant code, reproduce if possible
-3. **Complex bug?** → Dispatch the companion via the default transport script `tmux-codex.sh --prompt` → `[wait for user]`
+3. **Complex bug?** → Dispatch the companion via the default transport script `tmux-companion.sh --prompt` → `[wait for user]`
 
 Investigation agents ALWAYS require user review before proceeding.
 

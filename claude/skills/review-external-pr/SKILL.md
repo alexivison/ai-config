@@ -54,12 +54,12 @@ Launch all four reviewers in the **same message** so they run concurrently:
 
 ### The Companion
 
-Dispatch via tmux-codex.sh:
+Dispatch via tmux-companion.sh:
 ```bash
-~/.claude/skills/codex-transport/scripts/tmux-codex.sh --prompt "<prompt>" <work_dir>
+~/.claude/skills/agent-transport/scripts/tmux-companion.sh --prompt "<prompt>" <work_dir>
 ```
 
-The companion prompt should include the diff path, PR title, summary of changes, and ask for severity-labeled findings (`[must]`, `[q]`, `[nit]`) with file:line references. The default companion (the Wizard / Codex) excels at deep reasoning — ask it to focus on correctness bugs, architectural concerns, subtle edge cases, and design-doc compliance.
+The companion prompt should include the diff path, PR title, summary of changes, and ask for severity-labeled findings (`[must]`, `[q]`, `[nit]`) with file:line references. The default companion excels at deep reasoning — ask it to focus on correctness bugs, architectural concerns, subtle edge cases, and design-doc compliance.
 
 ### Code Critic (background Agent, subagent_type: code-critic)
 

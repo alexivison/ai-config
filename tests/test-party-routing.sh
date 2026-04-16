@@ -53,11 +53,11 @@ assert "role resolver: claude resolves to pane 1" \
   '[ "$result" = "party-test:0.1" ]'
 
 result=$(party_role_pane_target "party-test" "primary")
-assert "role resolver: primary falls back to legacy claude pane" \
+assert "role resolver: primary falls back to legacy primary pane" \
   '[ "$result" = "party-test:0.1" ]'
 
 result=$(party_role_pane_target "party-test" "companion")
-assert "role resolver: companion falls back to legacy codex pane" \
+assert "role resolver: companion falls back to legacy companion pane" \
   '[ "$result" = "party-test:0.0" ]'
 
 result=$(party_role_pane_target "party-test" "shell")

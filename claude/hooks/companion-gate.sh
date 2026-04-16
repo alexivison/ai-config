@@ -16,7 +16,7 @@ escape_regex() {
 
 transport_pattern() {
   local companion_name="${1:-}"
-  local script_pattern='([^ ]*/)?tmux-codex\.sh'
+  local script_pattern='([^ ]*/)?tmux-companion\.sh|([^ ]*/)?tmux-codex\.sh'
   if [ -n "$companion_name" ]; then
     local escaped_name
     escaped_name=$(escape_regex "$companion_name")

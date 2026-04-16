@@ -13,8 +13,8 @@ You see a message in your pane prefixed with `[PRIMARY]`, `[COMPANION]`, `[CLAUD
 
 Choose the transport by your current role:
 
-- If you are **companion**: `~/.codex/skills/claude-transport/scripts/tmux-claude.sh "<message>"`
-- If you are **primary**: `~/.codex/skills/claude-transport/scripts/tmux-codex.sh --prompt "<message>" "$(pwd)"`
+- If you are **companion**: `~/.codex/skills/agent-transport/scripts/tmux-primary.sh "<message>"`
+- If you are **primary**: `~/.codex/skills/agent-transport/scripts/tmux-companion.sh --prompt "<message>" "$(pwd)"`
 
 ## TOON findings format
 
@@ -45,14 +45,14 @@ stats:
 
 When Bash is available, do not hand-type structured TOON.
 
-Use `~/.codex/skills/claude-transport/scripts/toon-transport.sh`:
+Use `~/.codex/skills/agent-transport/scripts/toon-transport.sh`:
 
 - Encode canonical findings JSON to raw TOON:
-  `~/.codex/skills/claude-transport/scripts/toon-transport.sh encode-findings /tmp/findings.json <findings_file>`
+  `~/.codex/skills/agent-transport/scripts/toon-transport.sh encode-findings /tmp/findings.json <findings_file>`
 - Decode a TOON findings file to JSON for inspection:
-  `~/.codex/skills/claude-transport/scripts/toon-transport.sh decode <findings_file>`
+  `~/.codex/skills/agent-transport/scripts/toon-transport.sh decode <findings_file>`
 - Validate a TOON findings file:
-  `~/.codex/skills/claude-transport/scripts/toon-transport.sh validate-findings <findings_file>`
+  `~/.codex/skills/agent-transport/scripts/toon-transport.sh validate-findings <findings_file>`
 
 Preferred emission flow:
 1. Draft findings as canonical JSON in a temp file.
@@ -63,8 +63,8 @@ Preferred emission flow:
 
 | Agent calling | Script to use | Direction |
 |---|---|---|
-| Primary agent (default: Claude) | `tmux-codex.sh` | primary → companion |
-| Companion agent (default: Codex) | `tmux-claude.sh` | companion → primary |
+| Primary agent (default: Claude) | `tmux-companion.sh` | primary → companion |
+| Companion agent (default: Codex) | `tmux-primary.sh` | companion → primary |
 
 ## Message types
 
@@ -132,4 +132,4 @@ The primary agent asks for information or your opinion.
 3. **Structured findings response**: When the primary agent requests structured findings and provides a `.toon` response path, emit canonical TOON with the helper workflow above — not markdown.
 4. **Narrative Q&A**: When the request is conversational, write concise text. A `.toon` extension alone does not mean the payload must be structured TOON.
 5. Write response to the exact path the primary agent specified (do not change the extension).
-6. Notify the other agent using the reply direction above.
+6. Notify the other agent using the canonical completion notice `Task complete. Response at: <response_file>`. Legacy `Response ready at:` remains accepted on read, but do not emit it for new replies.

@@ -39,7 +39,7 @@ Do NOT write a plan yourself. Proceed to dispatch.
 
 ## Phase 2 — Dispatch to the Companion
 
-Compose a rich prompt and send it to the companion via the default transport skill (`codex-transport`, via `--prompt`). The prompt quality directly
+Compose a rich prompt and send it to the companion via the default transport skill (`agent-transport`, via `tmux-companion.sh --prompt`). The prompt quality directly
 determines plan quality — invest here.
 
 ### Prompt Construction
@@ -53,7 +53,7 @@ cat > "$PROMPT_FILE" << 'PROMPT_EOF'
 <filled template from templates/create-plan.md>
 PROMPT_EOF
 
-~/.claude/skills/codex-transport/scripts/tmux-codex.sh \
+~/.claude/skills/agent-transport/scripts/tmux-companion.sh \
   --prompt "$(cat "$PROMPT_FILE")" <work_dir>
 ```
 
@@ -126,7 +126,7 @@ Once the user approves:
 2. **Dispatch plan review (MANDATORY)** — Per CLAUDE.md contract, every created plan
    must go through `--plan-review`. This is not optional:
    ```bash
-   ~/.claude/skills/codex-transport/scripts/tmux-codex.sh \
+   ~/.claude/skills/agent-transport/scripts/tmux-companion.sh \
      --plan-review "<plan_path>" <work_dir>
    ```
    When `[COMPANION] Plan review complete. Findings at: <path>` arrives (legacy: `[CODEX] ...`), triage findings
@@ -140,7 +140,7 @@ Once the user approves:
 | Phase | Primary Agent's Job | Companion's Job |
 |-------|---------------------|-----------------|
 | Gather | Read code, fetch tickets, assemble context | — |
-| Dispatch | Compose prompt, send via tmux-codex.sh | Research, write PLAN.md + TASK*.md (canonical templates) |
+| Dispatch | Compose prompt, send via tmux-companion.sh | Research, write PLAN.md + TASK*.md (canonical templates) |
 | Verify | Check paths, scope, completeness | — |
 | Present | Summarize plan, flag concerns | — |
 | Iterate | Relay feedback + own concerns | Revise plan |

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # party-lib.sh — Shared helpers for party session discovery and tmux transport
-# Sourced by thin wrappers (party.sh, party-relay.sh, etc.) and tmux-codex.sh
+# Sourced by thin wrappers (party.sh, party-relay.sh, etc.) and the role-based
+# tmux transport scripts.
 #
 # Manifest CRUD (create, set_field, get_field, add_worker, remove_worker)
 # has been retired — party-cli (Go) is the sole manifest writer.
@@ -19,7 +20,8 @@ party_runtime_dir() {
   printf '/tmp/%s\n' "$session"
 }
 
-# Write codex-status.json atomically via .tmp + mv.
+# Write the companion status file atomically via .tmp + mv.
+# The filename remains codex-status.json for backward compatibility.
 # Usage: write_codex_status RUNTIME_DIR STATE [TARGET] [MODE] [VERDICT] [ERROR]
 write_codex_status() {
   local runtime_dir="${1:?Usage: write_codex_status RUNTIME_DIR STATE [TARGET] [MODE] [VERDICT] [ERROR]}"
@@ -56,6 +58,10 @@ write_codex_status() {
     > "$tmp_file"
 
   mv "$tmp_file" "$final_file"
+}
+
+write_companion_status() {
+  write_codex_status "$@"
 }
 
 # ---------------------------------------------------------------------------
@@ -111,7 +117,7 @@ party_transport_response_handoff_instruction() {
   local response_path="${2:?Usage: party_transport_response_handoff_instruction NOTIFY_SCRIPT RESPONSE_PATH}"
   local completion_message
   completion_message="$(party_transport_response_completion_message "$response_path")"
-  printf '%s' "Do not poll the response file. Wait for the tmux completion notice, then read it. When done, run: $notify_script --prompt \"$completion_message\" \"\$(pwd)\""
+  printf '%s' "Do not poll the response file. Wait for the tmux completion notice, then read it. When done, run: $notify_script \"$completion_message\""
 }
 
 # Attach or switch to a party session. Uses switch-client inside tmux,
