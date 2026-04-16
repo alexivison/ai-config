@@ -139,10 +139,14 @@ func TestTrackerViewShowsHierarchy(t *testing.T) {
 			t.Fatalf("expected secondary row detail %q in view, got:\n%s", needle, view)
 		}
 	}
-	for _, needle := range []string{"claude", "codex", "❯ make test", "⏺ review queued", "❯ npm test"} {
+	for _, needle := range []string{"❯ make test", "⏺ review queued", "❯ npm test"} {
 		if !strings.Contains(view, needle) {
-			t.Fatalf("expected tracker signal %q in view, got:\n%s", needle, view)
+			t.Fatalf("expected snippet %q in view, got:\n%s", needle, view)
 		}
+	}
+	// Status dots should be present for active sessions.
+	if !strings.Contains(view, "●") {
+		t.Fatalf("expected status dot in view, got:\n%s", view)
 	}
 	if !strings.Contains(view, "│ party-1230") {
 		t.Fatalf("expected master connector on metadata row, got:\n%s", view)
@@ -151,7 +155,7 @@ func TestTrackerViewShowsHierarchy(t *testing.T) {
 		t.Fatalf("expected worker connector on metadata row, got:\n%s", view)
 	}
 	if !strings.Contains(view, "●") {
-		t.Fatalf("expected master/standalone glyph in view, got:\n%s", view)
+		t.Fatalf("expected status dots in view, got:\n%s", view)
 	}
 	if !strings.Contains(view, "│") {
 		t.Fatalf("expected worker glyph in view, got:\n%s", view)
@@ -183,15 +187,18 @@ func TestTrackerViewShowsCurrentSessionDetail(t *testing.T) {
 	tm := newTestTracker(SessionInfo{ID: "party-2001", SessionType: "worker"}, snapshot, &fakeActions{})
 	view := tm.View()
 
-	for _, needle := range []string{"This session", "bugfix", "worker", "codex", "~/Code/project", "companion: codex (idle, APPROVED, mode=review, target=main)", "evidence:", "code-critic", "─"} {
+	for _, needle := range []string{"companion: codex (idle, APPROVED, mode=review, target=main)", "evidence:", "code-critic", "─"} {
 		if !strings.Contains(view, needle) {
 			t.Fatalf("expected %q in detail view, got:\n%s", needle, view)
 		}
 	}
+	if strings.Contains(view, "This session") {
+		t.Fatalf("did not expect 'This session' header in detail view, got:\n%s", view)
+	}
 	if strings.Contains(view, "workers:") {
 		t.Fatalf("did not expect worker count in current-session detail, got:\n%s", view)
 	}
-	if strings.Index(view, "This session") > strings.Index(view, "> │ bugfix") {
+	if strings.Index(view, "companion:") > strings.Index(view, "> │ bugfix") {
 		t.Fatalf("expected current-session detail above the session list, got:\n%s", view)
 	}
 }

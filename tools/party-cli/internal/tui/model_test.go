@@ -68,10 +68,8 @@ func TestModelViewUsesUnifiedTracker(t *testing.T) {
 	if !strings.Contains(view, "Party: party-master") {
 		t.Fatalf("expected unified tracker title, got:\n%s", view)
 	}
-	for _, needle := range []string{"This session", "master", "companion: codex"} {
-		if !strings.Contains(view, needle) {
-			t.Fatalf("expected tracker content %q, got:\n%s", needle, view)
-		}
+	if !strings.Contains(view, "companion: codex") {
+		t.Fatalf("expected tracker content, got:\n%s", view)
 	}
 	if !strings.Contains(view, "●") {
 		t.Fatalf("expected tracker content, got:\n%s", view)
