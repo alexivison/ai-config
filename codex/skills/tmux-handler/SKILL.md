@@ -114,7 +114,7 @@ The primary agent sends a structured position on a disputed finding — either f
 3. Responses must be evidence-based — "I still think this is wrong" without a file:line reference is not a valid counter
 4. **No fixed exchange cap.** Continue the discussion — each round should make progress (concede valid points, counter with new evidence, or propose concrete compromises). If the discussion becomes genuinely circular (same arguments repeated 3+ times with no new evidence from either side), state your final position clearly so the primary agent can escalate to the user with both sides summarized
 5. Write response to the specified path
-6. Notify the other agent using the reply direction above.
+6. Notify the other agent using the canonical completion notice `Task complete. Response at: <response_file>`. Legacy `Response ready at:` remains accepted on read, but do not emit it for new replies.
 
 ### Plan review request
 The primary agent shares a plan and asks for your assessment.

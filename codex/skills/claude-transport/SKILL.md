@@ -56,7 +56,7 @@ If you are the primary agent, send the same request via:
 ~/.codex/skills/claude-transport/scripts/tmux-codex.sh --prompt "Question: <your question>. Write response to: $RESPONSE_FILE" "$(pwd)"
 ```
 
-After sending a request with a response file, do not poll the file as though it were already the answer. Wait for the companion's return notice (`Response ready at:` or `Task complete. Response at:`), then read the file and relay the result.
+After sending a request with a response file, do not poll the file as though it were already the answer. Wait for the companion's completion notice (`Task complete. Response at:`; legacy `Response ready at:` is still accepted), then read the file and relay the result. That notice is the stop signal.
 
 If you need structured findings rather than narrative prose, say so explicitly and have Claude emit canonical TOON via `~/.claude/skills/codex-transport/scripts/toon-transport.sh`. A `.toon` response path alone does not guarantee a structured payload.
 
@@ -79,7 +79,7 @@ If you are the primary agent and need to notify the companion instead, use:
 
 ## Handling Claude's responses
 
-When you see a message in your pane from Claude (e.g., "Response ready at: <path>"):
+When you see a message in your pane from Claude (e.g., "Task complete. Response at: <path>"):
 1. Read the response file
 2. Incorporate the answer into your current work
 3. Continue — you have full context of what you were doing before asking

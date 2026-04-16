@@ -165,8 +165,9 @@ export MOCK_CURRENT_ROLE="primary"
 > "$MOCK_LOG"
 run_and_capture "$SESSION_NEW" bash "$REPO_ROOT/codex/skills/claude-transport/scripts/tmux-claude.sh" "Question: tell me a joke. Write response to: /tmp/resp.toon"
 assert_log "${SESSION_NEW}:0.0" "[PRIMARY] Question: tell me a joke. Write response to: /tmp/resp.toon"
+assert_log_contains 'Do not poll the response file. Wait for the tmux completion notice, then read it.'
 assert_log_contains 'When done, run:'
-assert_log_contains 'Response ready at: /tmp/resp.toon'
+assert_log_contains 'Task complete. Response at: /tmp/resp.toon'
 unset TMUX_PANE
 unset MOCK_CURRENT_ROLE
 
@@ -184,18 +185,28 @@ export MOCK_WINDOW_LIST=$'0\n1'
 export MOCK_PANES_0=$'0 companion'
 export MOCK_PANES_1=$'0 tracker\n1 primary\n2 shell'
 > "$MOCK_LOG"
-run_and_capture "$SESSION_NEW" bash "$REPO_ROOT/claude/skills/codex-transport/scripts/tmux-codex.sh" --prompt "inspect this" /tmp/work
+prompt_output="$(PARTY_SESSION="$SESSION_NEW" bash "$REPO_ROOT/claude/skills/codex-transport/scripts/tmux-codex.sh" --prompt "inspect this" /tmp/work)"
 assert_log "${SESSION_NEW}:0.0" "[PRIMARY] cd '/tmp/work' && inspect this"
+assert "primary prompt output tells requester not to poll" \
+  'printf "%s" "$prompt_output" | grep -Fq "Do not poll the response file. Wait for '\''[COMPANION] Task complete. Response at:"'
 
 export TMUX_PANE="%41"
 export MOCK_CURRENT_ROLE="companion"
 export CURRENT_ROLE="primary"
 > "$MOCK_LOG"
-run_and_capture "$SESSION_NEW" bash "$REPO_ROOT/claude/skills/codex-transport/scripts/tmux-codex.sh" --prompt "Response ready at: /tmp/resp.toon" /tmp/work
-assert_log "${SESSION_NEW}:1.1" "[COMPANION] Response ready at: /tmp/resp.toon"
+run_and_capture "$SESSION_NEW" bash "$REPO_ROOT/claude/skills/codex-transport/scripts/tmux-codex.sh" --prompt "Task complete. Response at: /tmp/resp.toon" /tmp/work
+assert_log "${SESSION_NEW}:1.1" "[COMPANION] Task complete. Response at: /tmp/resp.toon"
 unset TMUX_PANE
 unset MOCK_CURRENT_ROLE
 unset CURRENT_ROLE
+
+export MOCK_CURRENT_ROLE="companion"
+> "$MOCK_LOG"
+run_and_capture "$SESSION_NEW" bash "$REPO_ROOT/codex/skills/claude-transport/scripts/tmux-claude.sh" "Response ready at: /tmp/legacy-resp.toon"
+assert_log "${SESSION_NEW}:1.1" "[COMPANION] Response ready at: /tmp/legacy-resp.toon"
+assert "legacy response-ready alias still marks status idle" \
+  '[[ "$(jq -r ".state" "/tmp/'"$SESSION_NEW"'/codex-status.json")" == "idle" ]]'
+unset MOCK_CURRENT_ROLE
 
 export MOCK_WINDOW_LIST="0"
 export MOCK_PANES_0=$'0 codex\n1 claude\n2 shell'

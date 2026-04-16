@@ -58,6 +58,62 @@ write_codex_status() {
   mv "$tmp_file" "$final_file"
 }
 
+# ---------------------------------------------------------------------------
+# File handoff contract helpers
+# ---------------------------------------------------------------------------
+
+# Return the canonical completion notice for a file-backed response handoff.
+party_transport_response_completion_message() {
+  local response_path="${1:?Usage: party_transport_response_completion_message RESPONSE_PATH}"
+  printf 'Task complete. Response at: %s\n' "$response_path"
+}
+
+# Return 0 when the message is a recognized transport completion notice.
+# Legacy "Response ready at:" remains accepted for compatibility.
+party_transport_is_completion_message() {
+  local message="${1:?Usage: party_transport_is_completion_message MESSAGE}"
+  case "$message" in
+    "Review complete. Findings at: "*|\
+    "Plan review complete. Findings at: "*|\
+    "Task complete. Response at: "*|\
+    "Response ready at: "*)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+# Extract the findings/response path from a recognized completion notice.
+party_transport_completion_path() {
+  local message="${1:?Usage: party_transport_completion_path MESSAGE}"
+  case "$message" in
+    "Review complete. Findings at: "*)
+      printf '%s\n' "${message#Review complete. Findings at: }"
+      ;;
+    "Plan review complete. Findings at: "*)
+      printf '%s\n' "${message#Plan review complete. Findings at: }"
+      ;;
+    "Task complete. Response at: "*)
+      printf '%s\n' "${message#Task complete. Response at: }"
+      ;;
+    "Response ready at: "*)
+      printf '%s\n' "${message#Response ready at: }"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# Append the canonical handoff instruction for file-backed task replies.
+party_transport_response_handoff_instruction() {
+  local notify_script="${1:?Usage: party_transport_response_handoff_instruction NOTIFY_SCRIPT RESPONSE_PATH}"
+  local response_path="${2:?Usage: party_transport_response_handoff_instruction NOTIFY_SCRIPT RESPONSE_PATH}"
+  local completion_message
+  completion_message="$(party_transport_response_completion_message "$response_path")"
+  printf '%s' "Do not poll the response file. Wait for the tmux completion notice, then read it. When done, run: $notify_script --prompt \"$completion_message\" \"\$(pwd)\""
+}
+
 # Attach or switch to a party session. Uses switch-client inside tmux,
 # exec attach outside tmux.
 party_attach() {

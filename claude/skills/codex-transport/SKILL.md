@@ -82,6 +82,7 @@ Short prompts can be passed directly:
 ~/.claude/skills/codex-transport/scripts/tmux-codex.sh --prompt "<task description>" <work_dir>
 ```
 `work_dir` is **REQUIRED**. Returns immediately. The companion notifies via `[COMPANION] Task complete. Response at: <path>` in new sessions and `[CODEX] ...` in legacy sessions. The response path uses `.toon` by convention. If you requested structured findings, expect canonical TOON; if you asked for narrative analysis, plain text is acceptable unless you explicitly required TOON.
+Do not poll the response file while waiting. The tmux completion notice is the success signal; read the file only after that notice arrives. Legacy `Response ready at:` notices remain accepted if an older session emits one.
 
 ### Record review completion and verdict
 **CRITICAL:** The argument is the **full path to the `.toon` findings file** from the `[COMPANION] Review complete. Findings at: <path>` notification (or legacy `[CODEX]`) — NOT a worktree path. Passing a worktree path will fail with "Findings file not found."

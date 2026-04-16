@@ -140,6 +140,15 @@ bash "$REPO_ROOT/session/party-relay.sh" --spawn "worker-title" 2>/dev/null || t
 assert "party-relay.sh --spawn delegates to party-cli (auto-discover)" \
   'grep -q "^spawn worker-title" "$MOCK_LOG"'
 
+# ---- party-relay.sh --file delegates imperative pointer wording ----
+tmp_relay_file="$(mktemp)"
+printf 'instructions\n' > "$tmp_relay_file"
+> "$MOCK_LOG"
+bash "$REPO_ROOT/session/party-relay.sh" --file "$tmp_relay_file" party-worker-1 2>/dev/null || true
+assert "party-relay.sh --file tells workers to act and report back" \
+  'grep -Fq "relay party-worker-1 Read and follow the instructions in '"$tmp_relay_file"'. Act on them now, then report back with results." "$MOCK_LOG"'
+rm -f "$tmp_relay_file"
+
 # ---- party.sh --pick-entries delegates to party-cli picker entries ----
 > "$MOCK_LOG"
 bash "$REPO_ROOT/session/party.sh" --pick-entries 2>/dev/null || true

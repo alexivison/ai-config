@@ -91,13 +91,13 @@ Message: `[COMPANION] Question: <question>. Write response to: <response_file>` 
 2. Investigate the codebase to answer the question
 3. **Structured findings response**: When the companion requests structured findings and provides a `.toon` response path, emit canonical TOON with the helper workflow above — not markdown tables. The requester controls the extension; write to the exact path provided.
 4. **Narrative Q&A**: When the request is conversational, write concise text to the provided path. A `.toon` extension alone does not force a structured TOON payload.
-5. Notify the other agent using the reply direction above. For file-based replies, name the path explicitly, for example `Response ready at: <response_file>`.
+5. Notify the other agent using the reply direction above. For file-based replies, use the canonical completion notice `Task complete. Response at: <response_file>`. Legacy `Response ready at:` remains accepted on read, but do not emit it for new replies.
 
 ### Task complete
 Message: `[COMPANION] Task complete. Response at: <path>` (legacy: `[CODEX] ...`)
 
 1. Read the response file. If the original request asked for structured findings, expect TOON; otherwise treat it as plain text.
-2. Continue your workflow with the information the companion provided
+2. Stop polling once that notice arrives, then continue your workflow with the information the companion provided
 
 ### Plan review complete
 Message: `[COMPANION] Plan review complete. Findings at: <path>` (legacy: `[CODEX] ...`)

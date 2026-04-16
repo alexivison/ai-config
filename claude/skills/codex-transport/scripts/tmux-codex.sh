@@ -197,13 +197,13 @@ case "$MODE" in
     RESPONSE_FILE="$STATE_DIR/codex-response-$(date +%s%N).toon"
 
     NOTIFY_SCRIPT="$(cd "$SCRIPT_DIR/../../../../codex/skills/claude-transport/scripts" && pwd)/tmux-claude.sh"
-
-    MSG="$SENDER_PREFIX cd '$WORK_DIR' && $PROMPT_TEXT — Write response to: $RESPONSE_FILE — When done, run: $NOTIFY_SCRIPT \"Task complete. Response at: $RESPONSE_FILE\""
+    HANDOFF_INSTRUCTION="$(party_transport_response_handoff_instruction "$NOTIFY_SCRIPT" "$RESPONSE_FILE")"
+    MSG="$SENDER_PREFIX cd '$WORK_DIR' && $PROMPT_TEXT — Write response to: $RESPONSE_FILE — $HANDOFF_INSTRUCTION"
     RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
     if _send_with_retry "$PEER_PANE" "$MSG" "tmux-codex.sh:prompt"; then
       write_codex_status "$RUNTIME_DIR" "working" "$PROMPT_TEXT" "prompt"
       echo "CODEX_TASK_REQUESTED"
-      echo "Codex will notify via tmux when complete."
+      echo "Do not poll the response file. Wait for '[COMPANION] $(party_transport_response_completion_message "$RESPONSE_FILE")' (legacy '[CODEX] Response ready at: $RESPONSE_FILE' is still accepted)."
     else
       write_codex_status "$RUNTIME_DIR" "error" "" "" "" "prompt dispatch failed: pane busy"
       echo "CODEX_TASK_DROPPED"

@@ -114,7 +114,7 @@ case "$1" in
       echo "Error: file '$_file_path' not found." >&2
       exit 1
     fi
-    exec "${PARTY_CLI_CMD[@]}" relay "$_file_worker" "Read relay instructions at $_file_path"
+    exec "${PARTY_CLI_CMD[@]}" relay "$_file_worker" "Read and follow the instructions in $_file_path. Act on them now, then report back with results."
     ;;
   --wizard)
     _load_transport_helpers

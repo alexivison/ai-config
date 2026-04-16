@@ -27,8 +27,9 @@ augment_primary_request() {
   fi
 
   local notify_script="$HOME/.claude/skills/codex-transport/scripts/tmux-codex.sh"
-  printf '%s — When done, run: %s --prompt "Response ready at: %s" "$(pwd)"\n' \
-    "$message" "$notify_script" "$response_path"
+  local handoff_instruction
+  handoff_instruction="$(party_transport_response_handoff_instruction "$notify_script" "$response_path")"
+  printf '%s — %s\n' "$message" "$handoff_instruction"
 }
 
 # Register Codex's thread ID with the party session (write-once)
@@ -70,12 +71,9 @@ SENDER_PREFIX=$(party_role_message_prefix "$SESSION_NAME" "$sender_role")
 # Detect completion messages by prefix-anchored patterns matching actual call sites.
 # Mid-task traffic (questions, status) does not match and leaves status unchanged.
 _is_completion=false
-case "$MESSAGE" in
-  "Review complete. Findings at: "*)       _is_completion=true ;;
-  "Plan review complete. Findings at: "*)  _is_completion=true ;;
-  "Task complete. Response at: "*)         _is_completion=true ;;
-  "Response ready at: "*)                  _is_completion=true ;;
-esac
+if party_transport_is_completion_message "$MESSAGE"; then
+  _is_completion=true
+fi
 
 if [[ "$sender_role" == "primary" ]]; then
   MESSAGE="$(augment_primary_request "$MESSAGE")"
@@ -92,12 +90,7 @@ if [[ $_send_rc -eq 0 || $_send_rc -eq 76 ]]; then
   if $_is_completion && [[ "$sender_role" == "companion" ]]; then
     RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
     _verdict=""
-    _findings_file=""
-    if [[ "$MESSAGE" =~ Findings\ at:\ ([^[:space:]]+) ]]; then
-      _findings_file="${BASH_REMATCH[1]}"
-    elif [[ "$MESSAGE" =~ Response\ at:\ ([^[:space:]]+) ]]; then
-      _findings_file="${BASH_REMATCH[1]}"
-    fi
+    _findings_file="$(party_transport_completion_path "$MESSAGE" 2>/dev/null || true)"
     if [[ -n "$_findings_file" && -f "$_findings_file" ]]; then
       if grep -q '^VERDICT: APPROVED' "$_findings_file" 2>/dev/null; then
         _verdict="APPROVE"
