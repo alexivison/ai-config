@@ -108,18 +108,21 @@ func TestTrackerViewShowsHierarchy(t *testing.T) {
 
 	snapshot := TrackerSnapshot{
 		Sessions: []SessionRow{
-			{ID: "party-1230", Title: "Project Alpha", Cwd: "/tmp/project-alpha", Status: "active", SessionType: "master", WorkerCount: 2, IsCurrent: true},
-			{ID: "party-1231", Title: "fix-auth", Cwd: "/tmp/fix-auth", Status: "active", SessionType: "worker", ParentID: "party-1230", PrimaryState: "active", Stage: StageCriticsOK},
-			{ID: "party-1232", Title: "dark-mode", Cwd: "/tmp/dark-mode", Status: "active", SessionType: "worker", ParentID: "party-1230", PrimaryState: "active", HasCompanion: true, CompanionState: string(CompanionIdle)},
-			{ID: "party-1236", Title: "solo task", Cwd: "/tmp/solo", Status: "active", SessionType: "standalone", PrimaryState: "active"},
+			{ID: "party-1230", Title: "Project Alpha", Cwd: "/tmp/project-alpha", Status: "active", SessionType: "master", WorkerCount: 2, PrimaryAgent: "claude", PrimaryState: "waiting", IsCurrent: true},
+			{ID: "party-1231", Title: "fix-auth", Cwd: "/tmp/fix-auth", Status: "active", SessionType: "worker", ParentID: "party-1230", PrimaryAgent: "claude", PrimaryState: "active", Stage: StageCriticsOK, Snippet: "❯ make test"},
+			{ID: "party-1232", Title: "dark-mode", Cwd: "/tmp/dark-mode", Status: "active", SessionType: "worker", ParentID: "party-1230", PrimaryAgent: "codex", HasCompanion: true, CompanionState: string(CompanionIdle), CompanionVerdict: "APPROVED", Snippet: "⏺ review queued"},
+			{ID: "party-1236", Title: "solo task", Cwd: "/tmp/solo", Status: "active", SessionType: "standalone", PrimaryAgent: "codex", Stage: StageChecks, Snippet: "❯ npm test"},
 		},
 		Current: CurrentSessionDetail{
 			ID:              "party-1230",
+			Title:           "Project Alpha",
 			SessionType:     "master",
 			Cwd:             "~/Code/project-b",
 			WorkerCount:     2,
+			PrimaryAgent:    "claude",
+			PrimaryState:    "waiting",
 			CompanionName:   "codex",
-			CompanionStatus: CompanionStatus{State: CompanionIdle, Verdict: "APPROVED"},
+			CompanionStatus: CompanionStatus{State: CompanionIdle, Verdict: "APPROVED", Mode: "review", Target: "worker"},
 		},
 	}
 
@@ -134,6 +137,11 @@ func TestTrackerViewShowsHierarchy(t *testing.T) {
 	for _, needle := range []string{"party-1231", "/tmp/fix-auth"} {
 		if !strings.Contains(view, needle) {
 			t.Fatalf("expected secondary row detail %q in view, got:\n%s", needle, view)
+		}
+	}
+	for _, needle := range []string{"claude", "codex", "❯ make test", "⏺ review queued", "❯ npm test"} {
+		if !strings.Contains(view, needle) {
+			t.Fatalf("expected tracker signal %q in view, got:\n%s", needle, view)
 		}
 	}
 	if !strings.Contains(view, "│ party-1230") {
@@ -155,15 +163,16 @@ func TestTrackerViewShowsCurrentSessionDetail(t *testing.T) {
 
 	snapshot := TrackerSnapshot{
 		Sessions: []SessionRow{
-			{ID: "party-2001", Title: "bugfix", Status: "active", SessionType: "worker", ParentID: "party-master", IsCurrent: true},
+			{ID: "party-2001", Title: "bugfix", Status: "active", SessionType: "worker", ParentID: "party-master", PrimaryAgent: "codex", CompanionVerdict: "APPROVED", Snippet: "❯ fix lint", IsCurrent: true},
 		},
 		Current: CurrentSessionDetail{
-			ID:               "party-2001",
-			SessionType:      "worker",
-			Cwd:              "~/Code/project",
-			CompanionName:    "codex",
-			CompanionStatus:  CompanionStatus{State: CompanionIdle, Verdict: "APPROVED"},
-			CompanionSnippet: "review complete",
+			ID:              "party-2001",
+			Title:           "bugfix",
+			SessionType:     "worker",
+			Cwd:             "~/Code/project",
+			PrimaryAgent:    "codex",
+			CompanionName:   "codex",
+			CompanionStatus: CompanionStatus{State: CompanionIdle, Verdict: "APPROVED", Mode: "review", Target: "main"},
 			Evidence: []EvidenceEntry{
 				{Type: "code-critic", Result: "APPROVED"},
 				{Type: "minimizer", Result: "APPROVED"},
@@ -174,7 +183,7 @@ func TestTrackerViewShowsCurrentSessionDetail(t *testing.T) {
 	tm := newTestTracker(SessionInfo{ID: "party-2001", SessionType: "worker"}, snapshot, &fakeActions{})
 	view := tm.View()
 
-	for _, needle := range []string{"companion: codex (idle, APPROVED)", "review complete", "evidence:", "code-critic", "─"} {
+	for _, needle := range []string{"This session", "bugfix", "worker", "codex", "~/Code/project", "companion: codex (idle, APPROVED, mode=review, target=main)", "evidence:", "code-critic", "─"} {
 		if !strings.Contains(view, needle) {
 			t.Fatalf("expected %q in detail view, got:\n%s", needle, view)
 		}
@@ -182,7 +191,7 @@ func TestTrackerViewShowsCurrentSessionDetail(t *testing.T) {
 	if strings.Contains(view, "workers:") {
 		t.Fatalf("did not expect worker count in current-session detail, got:\n%s", view)
 	}
-	if strings.Index(view, "companion: codex (idle, APPROVED)") > strings.Index(view, "bugfix") {
+	if strings.Index(view, "This session") > strings.Index(view, "> │ bugfix") {
 		t.Fatalf("expected current-session detail above the session list, got:\n%s", view)
 	}
 }

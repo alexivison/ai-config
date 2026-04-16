@@ -75,8 +75,8 @@ func TestReadPrimaryStateReadsClaudeStateOnly(t *testing.T) {
 func TestRenderCompanionLine(t *testing.T) {
 	t.Parallel()
 
-	line := renderCompanionLine("codex", CompanionStatus{State: CompanionIdle, Verdict: "APPROVED"}, 80)
-	if !strings.Contains(line, "companion: codex (idle, APPROVED)") {
+	line := renderCompanionLine("codex", CompanionStatus{State: CompanionIdle, Verdict: "APPROVED", Mode: "review", Target: "main"}, 120)
+	if !strings.Contains(line, "companion: codex (idle, APPROVED, mode=review, target=main)") {
 		t.Fatalf("unexpected companion line: %q", line)
 	}
 }
@@ -161,11 +161,11 @@ func TestDeriveWorkflowStage(t *testing.T) {
 	}
 }
 
-func TestSessionRowActivityLabelFallsBackToCompanionState(t *testing.T) {
+func TestSessionRowLiveStatusLabelFallsBackToCompanionState(t *testing.T) {
 	t.Parallel()
 
 	row := SessionRow{Status: "active", HasCompanion: true, CompanionState: string(CompanionIdle)}
-	if got := row.activityLabel(); got != "○ idle" {
+	if got := row.liveStatusLabel(); got != "idle" {
 		t.Fatalf("expected idle fallback, got %q", got)
 	}
 }

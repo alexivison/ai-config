@@ -63,9 +63,12 @@ type TrackerSnapshot struct {
 // CurrentSessionDetail is the expanded detail block for the running session.
 type CurrentSessionDetail struct {
 	ID               string
+	Title            string
 	SessionType      string
 	Cwd              string
 	WorkerCount      int
+	PrimaryAgent     string
+	PrimaryState     string
 	CompanionName    string
 	CompanionStatus  CompanionStatus
 	CompanionSnippet string
@@ -107,10 +110,10 @@ func NewTrackerModel(current SessionInfo, fetcher SessionFetcher, actions Tracke
 	ti.Width = 60
 
 	return TrackerModel{
-		current: current,
-		fetcher: fetcher,
-		actions: actions,
-		input:   ti,
+		current:       current,
+		fetcher:       fetcher,
+		actions:       actions,
+		input:         ti,
 		selectionPath: defaultTrackerSelectionPath,
 	}
 }
@@ -422,9 +425,12 @@ func (tm TrackerModel) renderSessionRow(row SessionRow, idx int, compact bool, i
 	}
 
 	title := row.displayTitle()
-	statusParts := make([]string, 0, 2)
-	if sessionLabel := row.sessionLabel(); sessionLabel != "" {
-		statusParts = append(statusParts, sidebarValueStyle.Render(sessionLabel))
+	statusParts := make([]string, 0, 3)
+	if sessionLabel := tm.sessionStatusLabel(row); sessionLabel != "" {
+		statusParts = append(statusParts, renderSessionStatusBadge(sessionLabel))
+	}
+	if primaryLabel := row.primaryAgentLabel(); primaryLabel != "" {
+		statusParts = append(statusParts, primaryLabel)
 	}
 	if activity != "" {
 		statusParts = append(statusParts, renderActivityLabel(activity))
@@ -459,7 +465,11 @@ func (tm TrackerModel) renderSessionRow(row SessionRow, idx int, compact bool, i
 		noteTextStyle.Render(truncate(shortHomePath(row.Cwd), max(8, innerW/2))),
 	}
 	secondLine := metaPrefix + strings.Join(metaParts, "  ")
-	return firstLine + "\n" + ansi.Truncate(secondLine, innerW, "")
+	lines := []string{firstLine, ansi.Truncate(secondLine, innerW, "")}
+	if snippet := renderRowSnippet(row, metaPrefix, innerW); snippet != "" {
+		lines = append(lines, snippet)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (tm TrackerModel) currentDetailView(innerW int) string {
@@ -473,13 +483,35 @@ func (tm TrackerModel) currentDetailView(innerW int) string {
 		return strings.Join(lines, "\n")
 	}
 
+	lines = append(lines, paneTitleStyle.Render("This session"))
+	lines = append(lines, tm.renderCurrentSessionSummary(innerW))
 	lines = append(lines, renderCompanionLine(tm.detail.CompanionName, tm.detail.CompanionStatus, innerW))
-	if snippet := renderSnippetBlock(tm.detail.CompanionSnippet, innerW); snippet != "" {
-		lines = append(lines, snippet)
-	}
 	lines = append(lines, renderEvidenceLine(tm.detail.Evidence, innerW))
 
 	return strings.Join(lines, "\n")
+}
+
+func (tm TrackerModel) renderCurrentSessionSummary(width int) string {
+	title := tm.detail.displayTitle()
+	if title == "" {
+		title = tm.detail.ID
+	}
+
+	parts := []string{sessionTitleStyle.Render(truncate(title, max(8, width/3)))}
+	if kind := sessionTypeSummaryLabel(tm.detail.SessionType); kind != "" {
+		parts = append(parts, sidebarValueStyle.Render(kind))
+	}
+	if primaryLabel := renderPrimaryAgentBadge(tm.detail.PrimaryAgent, tm.detail.PrimaryState); primaryLabel != "" {
+		parts = append(parts, primaryLabel)
+	}
+	if tm.detail.SessionType == "master" && tm.detail.WorkerCount > 0 {
+		parts = append(parts, sidebarValueStyle.Render(fmt.Sprintf("%d workers", tm.detail.WorkerCount)))
+	}
+	if tm.detail.Cwd != "" {
+		parts = append(parts, noteTextStyle.Render(truncate(shortHomePath(tm.detail.Cwd), max(12, width/2))))
+	}
+
+	return fitBar(strings.Join(parts, "  ·  "), width)
 }
 
 func (tm TrackerModel) trackerFooter(compact, showStatus bool) string {
@@ -687,13 +719,39 @@ func sameSessionGroup(prev, next SessionRow) bool {
 
 func renderActivityLabel(label string) string {
 	switch {
-	case strings.HasPrefix(label, "⚠"):
+	case label == "error":
 		return errorTextStyle.Render(label)
-	case strings.HasPrefix(label, "○"):
-		return noteTextStyle.Render(label)
 	default:
-		return activeTextStyle.Render(label)
+		return sidebarValueStyle.Render(label)
 	}
+}
+
+func renderRowSnippet(row SessionRow, prefix string, width int) string {
+	if row.SessionType == "master" || row.Snippet == "" {
+		return ""
+	}
+
+	snippet := lastSnippetLine(row.Snippet)
+	if snippet == "" {
+		return ""
+	}
+
+	available := width - lipgloss.Width(prefix)
+	if available < 8 {
+		available = 8
+	}
+	return prefix + dimTextStyle.Render(truncate(snippet, available))
+}
+
+func lastSnippetLine(snippet string) string {
+	lines := strings.Split(strings.TrimSpace(snippet), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if line != "" {
+			return line
+		}
+	}
+	return ""
 }
 
 func (s SessionRow) displayTitle() string {
@@ -701,13 +759,6 @@ func (s SessionRow) displayTitle() string {
 		return s.Title
 	}
 	return s.ID
-}
-
-func (s SessionRow) sessionLabel() string {
-	if s.Status != "active" {
-		return s.Status
-	}
-	return ""
 }
 
 func (s SessionRow) glyph() string {
@@ -726,7 +777,15 @@ func (s SessionRow) glyph() string {
 }
 
 func (s SessionRow) primaryStateDot() string {
-	switch s.PrimaryState {
+	return renderPrimaryStateDot(s.PrimaryState)
+}
+
+func (s SessionRow) primaryAgentLabel() string {
+	return renderPrimaryAgentBadge(s.PrimaryAgent, s.PrimaryState)
+}
+
+func renderPrimaryStateDot(state string) string {
+	switch state {
 	case "active":
 		return primaryStateActiveStyle.Render(PrimaryStateDotActive)
 	case "waiting":
@@ -740,35 +799,178 @@ func (s SessionRow) primaryStateDot() string {
 	}
 }
 
-func (s SessionRow) activityLabel() string {
-	if s.Status != "active" {
-		return StageStopped
+func renderPrimaryAgentBadge(agentName, primaryState string) string {
+	agentName = strings.TrimSpace(agentName)
+	if agentName == "" {
+		return ""
 	}
-	if s.Stage != "" && s.Stage != StageActive {
-		return s.Stage
+	if dot := renderPrimaryStateDot(primaryState); dot != "" {
+		return dot + " " + sidebarValueStyle.Render(agentName)
 	}
-	if !s.HasCompanion {
-		if s.Stage != "" {
-			return s.Stage
+	return sidebarValueStyle.Render(agentName)
+}
+
+func (tm TrackerModel) sessionStatusLabel(row SessionRow) string {
+	if row.Status != "active" {
+		return row.Status
+	}
+	if row.SessionType == "master" {
+		return tm.masterStatusLabel(row)
+	}
+	return row.liveStatusLabel()
+}
+
+func (tm TrackerModel) masterStatusLabel(master SessionRow) string {
+	counts := make(map[string]int)
+	total := 0
+	for _, row := range tm.sessions {
+		if row.SessionType != "worker" || row.ParentID != master.ID || row.Status != "active" {
+			continue
 		}
-		return StageActive
+		total++
+		counts[row.liveStatusLabel()]++
 	}
 
+	if total == 0 {
+		return master.liveStatusLabel()
+	}
+
+	for _, label := range []string{"error", "changes", "working", "waiting", "approved", "done", "idle", "ready"} {
+		if n := counts[label]; n > 0 {
+			if n == total {
+				return fmt.Sprintf("%d %s", total, label)
+			}
+			return fmt.Sprintf("%d/%d %s", n, total, label)
+		}
+	}
+	return fmt.Sprintf("%d workers", total)
+}
+
+func renderSessionStatusBadge(label string) string {
+	switch {
+	case label == "" || label == "stopped" || strings.HasSuffix(label, "idle"):
+		return noteTextStyle.Render(label)
+	case label == "waiting" || strings.HasSuffix(label, " waiting"):
+		return warnTextStyle.Render(label)
+	case label == "error" || label == "changes" || strings.HasSuffix(label, " error") || strings.HasSuffix(label, " changes"):
+		return errorTextStyle.Render(label)
+	default:
+		return activeTextStyle.Render(label)
+	}
+}
+
+func verdictStatusLabel(verdict string) string {
+	switch verdict {
+	case "REQUEST_CHANGES", "FAIL":
+		return "changes"
+	case "APPROVE", "APPROVED", "PASS":
+		return "approved"
+	default:
+		return ""
+	}
+}
+
+func stageStatusLabel(stage string) string {
+	switch stage {
+	case StageError:
+		return "error"
+	case StagePRReady, StageCriticsOK, StageCodexOK, StageQuick:
+		return "ready"
+	case StageTesting, StageChecks, StageCritics, StageCodex:
+		return "working"
+	default:
+		return ""
+	}
+}
+
+func stageActivityLabel(stage string) string {
+	switch stage {
+	case StageTesting:
+		return "testing"
+	case StageChecks:
+		return "checks"
+	case StageCritics:
+		return "critics"
+	case StageCriticsOK:
+		return "critics✓"
+	case StageCodex:
+		return "codex"
+	case StageCodexOK:
+		return "codex✓"
+	case StagePRReady:
+		return "pr-ready"
+	case StageQuick:
+		return "quick"
+	case StageError:
+		return "error"
+	default:
+		return ""
+	}
+}
+
+func (s SessionRow) liveStatusLabel() string {
+	if s.Status != "active" {
+		return s.Status
+	}
+	if s.CompanionState == string(CompanionError) {
+		return "error"
+	}
+	if verdict := verdictStatusLabel(s.CompanionVerdict); verdict == "changes" {
+		return verdict
+	}
 	switch s.CompanionState {
 	case string(CompanionWorking):
-		return "● working"
+		return "working"
 	case "waiting":
-		return "◐ waiting"
+		return "waiting"
+	}
+	if verdict := verdictStatusLabel(s.CompanionVerdict); verdict != "" {
+		return verdict
+	}
+	switch s.CompanionState {
 	case string(CompanionIdle):
-		return "○ idle"
+		return "idle"
 	case "done":
-		return "○ done"
-	case string(CompanionError):
-		return StageError
+		return "done"
 	}
+	if label := stageStatusLabel(s.Stage); label != "" {
+		return label
+	}
+	switch s.PrimaryState {
+	case "active":
+		return "working"
+	case "waiting":
+		return "waiting"
+	case "idle":
+		return "idle"
+	case "done":
+		return "done"
+	default:
+		return "ready"
+	}
+}
 
-	if s.Stage != "" {
-		return s.Stage
+func (s SessionRow) activityLabel() string {
+	if s.Status != "active" {
+		return ""
 	}
-	return StageActive
+	return stageActivityLabel(s.Stage)
+}
+
+func (d CurrentSessionDetail) displayTitle() string {
+	if d.Title != "" {
+		return d.Title
+	}
+	return d.ID
+}
+
+func sessionTypeSummaryLabel(sessionType string) string {
+	switch sessionType {
+	case "master", "worker":
+		return sessionType
+	case "standalone":
+		return "session"
+	default:
+		return ""
+	}
 }
