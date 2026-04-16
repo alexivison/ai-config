@@ -146,9 +146,9 @@ Claude as primary, Codex as companion.
 
 ## Acceptance Criteria
 
-- [ ] CLAUDE.md uses role-based language for companion references
-- [ ] AGENTS.md uses role-based language for primary references
-- [ ] execution-core.md says "companion review" not "Codex review"
-- [ ] Workflow skills reference roles, not specific agent names
-- [ ] README.md documents `.party.toml` configuration
-- [ ] Default persona names (Paladin, Wizard) preserved as defaults
+- [x] CLAUDE.md uses role-based language for companion references
+- [x] AGENTS.md uses role-based language for primary references
+- [x] execution-core.md says "companion review" not "Codex review"
+- [x] Workflow skills reference roles, not specific agent names
+- [x] README.md documents `.party.toml` configuration
+- [x] Default persona names (Paladin, Wizard) preserved as defaults

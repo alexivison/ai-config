@@ -4,7 +4,7 @@ description: >-
   Two-phase workflow for repos with OpenSpec and CI-based review bots.
   Phase 1 creates spec artifacts and iterates with ai-spec-review.
   Phase 2 implements from approved specs and iterates with ai-pr-review.
-  Skips local review cascade (no code-critic, minimizer, codex) because
+  Skips local review cascade (no code-critic, minimizer, companion review) because
   CI handles review. Use when working in a repo that has OpenSpec structure
   and CI review labels (ai-spec-review, ai-pr-review).
 user-invocable: true
@@ -189,4 +189,3 @@ as soon as results arrive.
   user.
 - **Never dismiss reviews preemptively** — only dismiss after addressing
   the feedback (fix or justified reply).
-

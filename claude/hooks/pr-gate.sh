@@ -16,6 +16,18 @@
 # Fails open on errors (allows operation if hook can't determine state)
 
 source "$(dirname "$0")/lib/evidence.sh"
+source "$(dirname "$0")/lib/party-cli.sh"
+
+required_evidence_types() {
+  local required
+  required=$(party_cli_query "$CWD" "evidence-required" 2>/dev/null || true)
+  if [ -n "$required" ]; then
+    echo "$required"
+    return 0
+  fi
+
+  echo "pr-verified code-critic minimizer codex test-runner check-runner"
+}
 
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
@@ -65,7 +77,7 @@ if echo "$COMMAND" | grep -qE 'gh pr create'; then
     REQUIRED="quick-tier code-critic test-runner check-runner"
   else
     # No tier evidence — full gate requires all evidence at current hash
-    REQUIRED="pr-verified code-critic minimizer codex test-runner check-runner"
+    REQUIRED=$(required_evidence_types)
   fi
 
   DIAG_FILE=$(mktemp 2>/dev/null || echo "/tmp/pr-gate-diag-$$")

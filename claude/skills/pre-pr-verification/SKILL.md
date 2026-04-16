@@ -26,7 +26,7 @@ The PR gate checks evidence against the current **committed** `diff_hash`. Re-ru
 … → commit → /pre-pr-verification → gh pr create
 ```
 
-Any edit (even a comment fix) after verification passes also invalidates evidence — re-run before pushing.
+Any edit (even a comment fix) after verification passes also invalidates evidence — re-run before pushing. Verification does not replace any required companion-review evidence; it only refreshes the test/check half of the PR gate.
 
 ## Process
 

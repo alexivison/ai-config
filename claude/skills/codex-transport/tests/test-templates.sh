@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests for codex-transport template rendering and --review flag parsing
+# Tests for codex-transport, the default companion transport, template rendering and --review flag parsing
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -176,7 +176,7 @@ assert_grep "plan-review: no unreplaced placeholders" "$TMPDIR_TEST/plan-review.
 
 echo "=== Multiline conditional sections ==="
 
-# Build a scope section using printf (same as tmux-codex.sh does)
+# Build a scope section using printf (same as the default companion transport script does)
 MULTILINE_SCOPE=$(printf '## Scope\n\nOnly review auth module changes.\nFindings outside this scope should be omitted.')
 _render_template "$TEMPLATE_DIR/review.md" \
   "WORK_DIR=/tmp/test-repo" \

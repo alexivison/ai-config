@@ -9,6 +9,28 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../../../../session/party-lib.sh"
 discover_session
 
+current_role() {
+  if [[ -n "${TMUX_PANE:-}" ]]; then
+    tmux display-message -t "$TMUX_PANE" -p '#{@party_role}' 2>/dev/null || true
+  fi
+}
+
+augment_primary_request() {
+  local message="$1"
+  local response_path=""
+  if [[ "$message" =~ Write\ response\ to:\ ([^[:space:]]+) ]]; then
+    response_path="${BASH_REMATCH[1]}"
+  fi
+  if [[ -z "$response_path" || "$message" == *"When done, run:"* ]]; then
+    printf '%s\n' "$message"
+    return
+  fi
+
+  local notify_script="$HOME/.claude/skills/codex-transport/scripts/tmux-codex.sh"
+  printf '%s — When done, run: %s --prompt "Response ready at: %s" "$(pwd)"\n' \
+    "$message" "$notify_script" "$response_path"
+}
+
 # Register Codex's thread ID with the party session (write-once)
 if [[ -n "${CODEX_THREAD_ID:-}" && ! -s "$STATE_DIR/codex-thread-id" ]]; then
   printf '%s\n' "$CODEX_THREAD_ID" > "$STATE_DIR/codex-thread-id"
@@ -26,10 +48,24 @@ if [[ -n "${CODEX_THREAD_ID:-}" && ! -s "$STATE_DIR/codex-thread-id" ]]; then
   fi
 fi
 
-CLAUDE_PANE=$(party_role_pane_target "$SESSION_NAME" "claude") || {
-  echo "Error: Cannot resolve Claude pane in session '$SESSION_NAME'" >&2
+sender_role="companion"
+target_role="primary"
+case "$(current_role)" in
+  primary|claude)
+    sender_role="primary"
+    target_role="companion"
+    ;;
+  companion|codex)
+    sender_role="companion"
+    target_role="primary"
+    ;;
+esac
+
+PEER_PANE=$(party_role_pane_target "$SESSION_NAME" "$target_role") || {
+  echo "Error: Cannot resolve $target_role pane in session '$SESSION_NAME'" >&2
   exit 1
 }
+SENDER_PREFIX=$(party_role_message_prefix "$SESSION_NAME" "$sender_role")
 
 # Detect completion messages by prefix-anchored patterns matching actual call sites.
 # Mid-task traffic (questions, status) does not match and leaves status unchanged.
@@ -38,17 +74,22 @@ case "$MESSAGE" in
   "Review complete. Findings at: "*)       _is_completion=true ;;
   "Plan review complete. Findings at: "*)  _is_completion=true ;;
   "Task complete. Response at: "*)         _is_completion=true ;;
+  "Response ready at: "*)                  _is_completion=true ;;
 esac
+
+if [[ "$sender_role" == "primary" ]]; then
+  MESSAGE="$(augment_primary_request "$MESSAGE")"
+fi
 
 # Send with exit-76 handling: keys sent but buffer check failed → treat as delivered
 _send_rc=0
-tmux_send "$CLAUDE_PANE" "[CODEX] $MESSAGE" "tmux-claude.sh" || _send_rc=$?
+tmux_send "$PEER_PANE" "$SENDER_PREFIX $MESSAGE" "tmux-claude.sh" || _send_rc=$?
 
 if [[ $_send_rc -eq 0 || $_send_rc -eq 76 ]]; then
   if [[ $_send_rc -eq 76 ]]; then
     echo "tmux_send: delivery unconfirmed (capture-pane miss)" >&2
   fi
-  if $_is_completion; then
+  if $_is_completion && [[ "$sender_role" == "companion" ]]; then
     RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
     _verdict=""
     _findings_file=""
@@ -70,7 +111,7 @@ if [[ $_send_rc -eq 0 || $_send_rc -eq 76 ]]; then
   fi
   echo "CLAUDE_MESSAGE_SENT"
 else
-  if $_is_completion; then
+  if $_is_completion && [[ "$sender_role" == "companion" ]]; then
     RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
     write_codex_status "$RUNTIME_DIR" "error" "" "" "" "completion delivery failed: Claude pane busy"
   fi

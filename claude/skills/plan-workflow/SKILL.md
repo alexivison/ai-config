@@ -1,45 +1,45 @@
 ---
 name: plan-workflow
 description: >-
-  Orchestrate plan creation by dispatching The Wizard (Codex CLI) to do deep research
-  and produce a PLAN.md. Claude gathers context, dispatches The Wizard, presents findings,
-  relays user feedback, and verifies the final plan. Use when the user wants to plan
-  a feature, investigate a ticket, design an approach, create a PLAN.md, scope work,
-  or says things like "plan this", "how should we approach", "let's think through",
-  "create a plan for", or references a Linear ticket they want planned. Also use when
-  task-workflow needs a plan that doesn't exist yet. This is NOT a skill for Claude
-  to plan alone — The Wizard does the deep reasoning; Claude orchestrates.
+  Orchestrate plan creation by dispatching the companion (default: The Wizard /
+  Codex CLI) to do deep research and produce a PLAN.md. The primary agent
+  gathers context, dispatches the companion, presents findings, relays user
+  feedback, and verifies the final plan. Use when the user wants to plan a
+  feature, investigate a ticket, design an approach, create a PLAN.md, scope
+  work, or says things like "plan this", "how should we approach", "let's
+  think through", "create a plan for", or references a Linear ticket they want
+  planned. Also use when task-workflow needs a plan that doesn't exist yet.
+  This is NOT a skill for the primary agent to plan alone — the companion does
+  the deep reasoning; the primary orchestrates.
 user-invocable: true
 ---
 
 # Plan Workflow
 
-Orchestrate The Wizard (Codex CLI) to produce a PLAN.md. You are the Paladin — your role
-is context-gathering, dispatch, verification, and relay. The Wizard does the deep research
-and plan authoring.
+Orchestrate the companion to produce a PLAN.md. You are the Paladin — the default primary persona. Your role is context-gathering, dispatch, verification, and relay. The companion does the deep research and plan authoring.
 
 ## Phase 1 — Gather Context
 
-Before dispatching The Wizard, assemble everything needed for good reasoning.
+Before dispatching the companion, assemble everything needed for good reasoning.
 
 1. **Understand the ask** — What does the user want planned? A Linear ticket, a feature
    idea, a bug investigation, an architectural change? Extract the goal and constraints.
 2. **Fetch external context** — If the user references a Linear ticket, fetch it via MCP.
    If they mention a Notion doc, fetch that. Gather all external inputs first.
 3. **Read relevant code** — Identify the files, modules, or areas of the codebase that
-   the plan will touch. Read them. Codex can read files too, but pre-loading key context
-   into the prompt reduces Codex's search time and improves plan quality.
+   the plan will touch. Read them. The default companion can read files too, but pre-loading key context
+   into the prompt reduces its search time and improves plan quality.
 4. **Check for existing plans** — Look for `PLAN.md` or `plans/*.md` in the repo. If a
    plan already exists for this work, the user may want iteration rather than creation.
 5. **Identify constraints** — Deadlines, dependencies, blocked-by items, scope limits.
-   These go into the Codex prompt so the plan accounts for them.
+   These go into the companion prompt so the plan accounts for them.
 
 **Output of Phase 1:** A mental model of the work plus all context needed for the prompt.
 Do NOT write a plan yourself. Proceed to dispatch.
 
-## Phase 2 — Dispatch to Codex
+## Phase 2 — Dispatch to the Companion
 
-Compose a rich prompt and send it to Codex via `--prompt`. The prompt quality directly
+Compose a rich prompt and send it to the companion via the default transport skill (`codex-transport`, via `--prompt`). The prompt quality directly
 determines plan quality — invest here.
 
 ### Prompt Construction
@@ -47,7 +47,7 @@ determines plan quality — invest here.
 Use the template at `templates/create-plan.md` — fill in `<goal description>`, `<context>`, and `<project-slug>`. Write to a temp file and dispatch:
 
 ```bash
-PROMPT_FILE=$(mktemp /tmp/codex-plan-prompt-XXXXXX.md)
+PROMPT_FILE=$(mktemp /tmp/companion-plan-prompt-XXXXXX.md)
 # Copy template, fill in goal/context/slug
 cat > "$PROMPT_FILE" << 'PROMPT_EOF'
 <filled template from templates/create-plan.md>
@@ -59,19 +59,19 @@ PROMPT_EOF
 
 ### Error Handling
 
-Check the script's stdout for sentinel strings:
+Check the script's stdout for the default transport sentinel strings:
 - `CODEX_TASK_REQUESTED` — success, proceed to wait
-- `CODEX_TASK_DROPPED` — Codex pane is busy. Wait briefly and retry, or inform the user.
-- `CODEX_NOT_AVAILABLE` — master session with no Codex pane. Inform the user that planning
-  requires a worker session with Codex access.
+- `CODEX_TASK_DROPPED` — the default companion pane is busy. Wait briefly and retry, or inform the user.
+- `CODEX_NOT_AVAILABLE` — master session with no companion pane. Inform the user that planning
+  requires a worker session with companion access.
 
 ### Choosing the Right Mode
 
 | Situation | Mode | Why |
 |-----------|------|-----|
-| New plan from scratch | `--prompt "<task>" <work_dir>` | Codex creates the plan file and writes it |
+| New plan from scratch | `--prompt "<task>" <work_dir>` | The companion creates the plan file and writes it |
 | Review an existing plan | `--plan-review "<plan_path>" <work_dir>` | Uses the plan-review template (ungated), returns TOON findings |
-| Iterate on Codex's draft | `--prompt "<feedback>" <work_dir>` | Send feedback, ask for revisions |
+| Iterate on the companion's draft | `--prompt "<feedback>" <work_dir>` | Send feedback, ask for revisions |
 
 `--plan-review` is for evaluating a plan that already exists as a file. For initial
 creation, use `--prompt` with explicit instructions to write the plan file.
@@ -80,9 +80,9 @@ Dispatch is non-blocking — verify file paths and prepare follow-up context whi
 
 ## Phase 3 — Receive and Verify
 
-When `[CODEX] Task complete. Response at: <path>` arrives:
+When `[COMPANION] Task complete. Response at: <path>` arrives (legacy: `[CODEX] ...`):
 
-1. **Read the response file first** — The `<path>` from the notification is Codex's
+1. **Read the response file first** — The `<path>` from the notification is the companion's
    authoritative result channel. Check `STATUS:` line — if FAILED, report to user.
    Extract `PLAN:` and `TASKS:` paths. Note any warnings.
 2. **Read the plan and task files** — Open PLAN.md and each TASK*.md at the paths from
@@ -129,7 +129,7 @@ Once the user approves:
    ~/.claude/skills/codex-transport/scripts/tmux-codex.sh \
      --plan-review "<plan_path>" <work_dir>
    ```
-   When `[CODEX] Plan review complete. Findings at: <path>` arrives, triage findings
+   When `[COMPANION] Plan review complete. Findings at: <path>` arrives (legacy: `[CODEX] ...`), triage findings
    per tmux-handler (blocking / non-blocking / out-of-scope). Present any blocking
    findings to the user and iterate if needed before proceeding.
 3. **Signal readiness** — Tell the user the plan is ready for execution. If appropriate,
@@ -137,8 +137,8 @@ Once the user approves:
 
 ## Quick Reference
 
-| Phase | Paladin's Job | Codex's Job |
-|-------|---------------|-------------|
+| Phase | Primary Agent's Job | Companion's Job |
+|-------|---------------------|-----------------|
 | Gather | Read code, fetch tickets, assemble context | — |
 | Dispatch | Compose prompt, send via tmux-codex.sh | Research, write PLAN.md + TASK*.md (canonical templates) |
 | Verify | Check paths, scope, completeness | — |
@@ -148,11 +148,11 @@ Once the user approves:
 
 ## Anti-Patterns
 
-- **Writing the plan yourself** — You are the Paladin, not the Wizard. Dispatch to Codex.
-- **Thin prompts** — "Make a plan for X" wastes Codex's cycles. Rich context = better plans.
-- **Silent corrections** — If the plan has issues, tell the user. Don't edit Codex's output.
+- **Writing the plan yourself** — You are the primary agent, not the companion. Dispatch the work.
+- **Thin prompts** — "Make a plan for X" wastes the companion's cycles. Rich context = better plans.
+- **Silent corrections** — If the plan has issues, tell the user. Don't edit the companion's output.
 - **Skipping verification** — File paths in plans go stale. Always verify against the codebase.
-- **Polling Codex** — The dispatch is non-blocking. Work on verification prep, not `sleep`.
+- **Polling the companion** — The dispatch is non-blocking. Work on verification prep, not `sleep`.
 
 ## Integration with Other Workflows
 

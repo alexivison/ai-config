@@ -17,7 +17,7 @@ Make the party harness fully agent-agnostic: any CLI coding agent can fill any r
 
 The existing `companion-abstraction` project (in this `docs/projects/` directory) abstracts only the companion (secondary) agent while keeping Claude as the fixed primary. It also depends on PR #119 (shell-to-Go migration of transport layer), which is open with merge conflicts and hasn't landed.
 
-**This project subsumes `companion-abstraction`.** Rather than abstracting the companion first and then re-abstracting the primary (touching the same files twice), we do both in one coherent refactor. The design decisions from `companion-abstraction/DESIGN.md` (Go interface, `.party.toml`, `party-cli agent query` bridge) carry forward and are extended to cover both roles.
+**This project subsumes `companion-abstraction`.** Rather than abstracting the companion first and then re-abstracting the primary (touching the same files twice), we do both in one coherent refactor. The design decisions from `companion-abstraction/DESIGN.md` (Go interface, config-driven registry, `party-cli agent query` bridge) carry forward and are extended to cover both roles.
 
 **This project does NOT depend on PR #119.** It builds on the current `main` branch. The existing shell transport scripts (`tmux-codex.sh`, `tmux-claude.sh`) are updated in place so they continue working with role-based pane tags, but they remain Bash scripts. If PR #119 lands later, the transport layer can still migrate to Go as a follow-up.
 
@@ -29,37 +29,37 @@ Complementary project. That decouples execution from TASK file format; this deco
 
 | Scenario | User Action | Expected Result |
 |----------|-------------|-----------------|
-| Current setup (no change) | Run `party.sh "task"` with no `.party.toml` | Claude launches as primary, Codex as companion — identical to today |
+| Current setup (no change) | Run `party.sh "task"` with no user config file | Claude launches as primary, Codex as companion — identical to today |
 | Codex as primary (per-session) | Run `party.sh --primary codex "task"` | Codex launches in the primary pane for this session only |
-| Codex as primary (per-repo) | Set `roles.primary.agent = "codex"` in `.party.toml` | All sessions in this repo use Codex as primary |
-| Override repo default | `.party.toml` says Codex primary, run `party.sh --primary claude "task"` | This session uses Claude despite repo config |
-| Gemini as primary | Add `[agents.gemini]` to `.party.toml` + `--primary gemini` | Gemini CLI launches; requires a Go adapter file |
+| Codex as primary (persisted default) | Run `party-cli config set-primary codex` | New sessions use Codex as primary until changed again |
+| Override persisted default | `party-cli config set-primary codex`, then run `party.sh --primary claude "task"` | This session uses Claude despite the saved default |
+| Gemini as primary | Add `[agents.gemini]` to `~/.config/party-cli/config.toml` + `--primary gemini` | Gemini CLI launches; requires a Go adapter file |
 | No companion | Run `party.sh --no-companion "task"` | Session runs primary-only; companion evidence skipped |
 | TUI sidebar | Any session | Unified party tracker shows all sessions with master→worker hierarchy |
 | Master session | Any primary agent | Master mode works — agent receives orchestration instructions via prompt |
 
 ## Acceptance Criteria
 
-- [ ] A Go `Agent` interface and registry exist that map names to CLI tools, command builders, and resume metadata
-- [ ] A `Role` system (`primary`, `companion`) maps roles to agent providers via `.party.toml` or defaults
-- [ ] Session startup creates agent panes dynamically from registry — no hardcoded `buildClaudeCmd()` or `buildCodexCmd()`
-- [ ] Manifest supports N agents (not just `ClaudeBin` / `codex_thread_id`)
-- [ ] `@party_role` pane tags use role names (`primary`, `companion`) not agent names (`claude`, `codex`)
-- [ ] All messaging (`Relay`, `Broadcast`, `Read`, `Report`) resolves panes by role, not by hardcoded `"claude"`
-- [ ] Existing shell transport helpers/scripts still route correctly after the role-tag migration, with backward-compatible fallback for old `claude`/`codex` panes
-- [ ] A unified party tracker TUI replaces both the worker sidebar and master tracker
-- [ ] The unified tracker shows master→worker hierarchy (workers indented/nested under their master)
-- [ ] The unified tracker shows companion status and evidence inline per-session
-- [ ] Master mode is agent-agnostic — any primary agent can orchestrate if given the right prompt
-- [ ] Hooks are parameterized by role/companion name — not Codex-specific
-- [ ] A `.party.toml` config drives per-project agent and role choices
-- [ ] Default behavior with no config file matches today's behavior exactly (Claude as primary, Codex as companion)
-- [ ] Existing Go tests pass with agent abstraction (backward compatibility)
-- [ ] At least one non-Codex, non-Claude adapter exists as a reference (can be a stub)
-- [ ] Graceful degradation when a companion is unavailable: missing CLI detected at startup, session runs primary-only
-- [ ] A `party-cli agent query` subcommand exists as a bridge for shell hooks to read registry/config state
-- [ ] `install.sh` is agent-aware — detects configured agents and offers to install missing CLIs
-- [ ] All workflow skill prompts reference roles ("the companion"), not hardcoded agent names ("Codex")
+- [x] A Go `Agent` interface and registry exist that map names to CLI tools, command builders, and resume metadata
+- [x] A `Role` system (`primary`, `companion`) maps roles to agent providers via user-global config or defaults
+- [x] Session startup creates agent panes dynamically from registry — no hardcoded `buildClaudeCmd()` or `buildCodexCmd()`
+- [x] Manifest supports N agents (not just `ClaudeBin` / `codex_thread_id`)
+- [x] `@party_role` pane tags use role names (`primary`, `companion`) not agent names (`claude`, `codex`)
+- [x] All messaging (`Relay`, `Broadcast`, `Read`, `Report`) resolves panes by role, not by hardcoded `"claude"`
+- [x] Existing shell transport helpers/scripts still route correctly after the role-tag migration, with backward-compatible fallback for old `claude`/`codex` panes
+- [x] A unified party tracker TUI replaces both the worker sidebar and master tracker
+- [x] The unified tracker shows master→worker hierarchy (workers indented/nested under their master)
+- [x] The unified tracker shows companion status and evidence inline per-session
+- [x] Master mode is agent-agnostic — any primary agent can orchestrate if given the right prompt
+- [x] Hooks are parameterized by role/companion name — not Codex-specific
+- [x] A user-global config drives persisted agent and role choices
+- [x] Default behavior with no config file matches today's behavior exactly (Claude as primary, Codex as companion)
+- [x] Existing Go tests pass with agent abstraction (backward compatibility)
+- [x] At least one non-Codex, non-Claude adapter exists as a reference (can be a stub)
+- [x] Graceful degradation when a companion is unavailable: missing CLI detected at startup, session runs primary-only
+- [x] A `party-cli agent query` subcommand exists as a bridge for shell hooks to read registry/config state
+- [x] `install.sh` is agent-aware — detects configured agents and offers to install missing CLIs
+- [x] All workflow skill prompts reference roles ("the companion"), not hardcoded agent names ("Codex")
 
 ## Non-Goals
 

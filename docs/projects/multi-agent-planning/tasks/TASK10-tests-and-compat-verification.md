@@ -58,7 +58,7 @@ Extend the test suite for multi-agent scenarios, verify zero-config backward com
 | `tools/party-cli/internal/message/message_test.go` | Modify | Update role strings in test fixtures |
 | `claude/hooks/tests/test-codex-gate.sh` | Modify | Point to new hook, test companion-generic behavior |
 | `claude/hooks/tests/test-codex-trace.sh` | Modify | Point to new hook, test companion-generic behavior |
-| `tests/shell-transport-compat.sh` | Create | Smoke-test `party_role_pane_target`, `tmux-codex.sh`, and `tmux-claude.sh` against new role tags |
+| `tests/test-transport-role-routing.sh` | Create | Smoke-test `party_role_pane_target`, `tmux-codex.sh`, and `tmux-claude.sh` against new role tags |
 | `tests/run-tests.sh` | Modify | Include new test files |
 
 ## Requirements
@@ -128,29 +128,31 @@ cd tools/party-cli && go test ./...
 bash claude/hooks/tests/run-all.sh
 
 # Shell transport smoke tests
-bash tests/shell-transport-compat.sh
+bash tests/test-transport-role-routing.sh
 
 # Specific backward compat verification
 # (these are manual checks, not automated)
 # 1. Build party-cli
-cd tools/party-cli && go build -o /tmp/party-cli .
+cd tools/party-cli && go build -buildvcs=false -o /tmp/party-cli .
 
 # 2. Verify agent query defaults
 /tmp/party-cli agent query names      # should output "claude\ncodex"
 /tmp/party-cli agent query roles      # should output "primary\ncompanion"
 /tmp/party-cli agent query primary-name  # should output "claude"
 
-# 3. Verify old flags still work
-/tmp/party-cli start --help | grep resume  # should show --resume-agent AND hidden --resume-claude/--resume-codex
+# 3. Verify surfaced session flags
+/tmp/party-cli start --help | rg -- '--primary|--companion|--no-companion|--resume-agent'
+
+# Compatibility aliases remain hidden by design; `go test ./...` covers them.
 ```
 
 ## Acceptance Criteria
 
-- [ ] `go test ./...` passes with zero failures
-- [ ] All hook tests pass
-- [ ] Zero-config produces identical commands to pre-refactor code
-- [ ] Manifest migration tests cover all old→new scenarios
-- [ ] Multi-agent scenario tests cover Codex-as-primary, no-companion, missing-CLI cases
-- [ ] Unified tracker tests cover hierarchy display
-- [ ] Shell transport compatibility is covered for both new and legacy role tags
-- [ ] No regressions in existing functionality
+- [x] `go test ./...` passes with zero failures
+- [x] All hook tests pass
+- [x] Zero-config produces identical commands to pre-refactor code
+- [x] Manifest migration tests cover all old→new scenarios
+- [x] Multi-agent scenario tests cover Codex-as-primary, no-companion, missing-CLI cases
+- [x] Unified tracker tests cover hierarchy display
+- [x] Shell transport compatibility is covered for both new and legacy role tags
+- [x] No regressions in existing functionality

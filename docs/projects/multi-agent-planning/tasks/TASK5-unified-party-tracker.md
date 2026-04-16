@@ -228,12 +228,12 @@ The `TrackerModel` absorbs the companion status polling and evidence reading for
 
 ## Acceptance Criteria
 
-- [ ] `ViewWorker` and `ViewMaster` enums removed
-- [ ] Single tracker view renders for all sessions
-- [ ] Master→worker hierarchy displayed with `●`/`│` visual language
-- [ ] Current session detail section shows companion status and evidence
-- [ ] `RenderSidebar()` standalone rendering removed (absorbed into tracker)
-- [ ] `ReadCodexStatus()` → generic `ReadCompanionStatus()`
-- [ ] `LabelWizard` → `LabelCompanion` in style constants
-- [ ] Claude-specific style names updated
-- [ ] All TUI tests pass
+- [x] `ViewWorker` and `ViewMaster` enums removed
+- [x] Single tracker view renders for all sessions
+- [x] Master→worker hierarchy displayed with `●`/`│` visual language
+- [x] Current session detail section shows companion status and evidence
+- [x] `RenderSidebar()` standalone rendering removed (absorbed into tracker)
+- [x] `ReadCodexStatus()` → generic `ReadCompanionStatus()`
+- [x] `LabelWizard` → `LabelCompanion` in style constants
+- [x] Claude-specific style names updated
+- [x] All TUI tests pass

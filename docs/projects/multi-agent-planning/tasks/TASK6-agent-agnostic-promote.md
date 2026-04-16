@@ -93,8 +93,8 @@ for _, a := range removedAgents {
 
 ## Acceptance Criteria
 
-- [ ] `promoteClassic()` resolves `"companion"` role (not `"codex"`)
-- [ ] `promoteSidebar()` uses `WindowCompanion` (not `WindowCodex`)
-- [ ] Manifest cleanup removes companion from `Agents[]`
-- [ ] Old-format extras (`codex_thread_id`) also cleaned for backward compat
-- [ ] All existing promote tests pass
+- [x] `promoteClassic()` resolves `"companion"` role (not `"codex"`)
+- [x] `promoteSidebar()` uses `WindowCompanion` (not `WindowCodex`)
+- [x] Manifest cleanup removes companion from `Agents[]`
+- [x] Old-format extras (`codex_thread_id`) also cleaned for backward compat
+- [x] All existing promote tests pass

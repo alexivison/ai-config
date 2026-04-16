@@ -174,8 +174,8 @@ The install script currently has hardcoded Claude and Codex setup. Make it agent
 
 ## Acceptance Criteria
 
-- [ ] `--resume-agent` flag works on `start` and `spawn` commands
-- [ ] Old `--resume-claude`/`--resume-codex` flags still work (hidden)
-- [ ] `settings.json` points to new hook file names
-- [ ] `party.sh` forwards new flag format
-- [ ] `install.sh` handles agent-aware CLI detection
+- [x] `--resume-agent` flag works on `start` and `spawn` commands
+- [x] Old `--resume-claude`/`--resume-codex` flags still work (hidden)
+- [x] `settings.json` points to new hook file names
+- [x] `party.sh` forwards new flag format
+- [x] `install.sh` handles agent-aware CLI detection

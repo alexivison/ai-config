@@ -126,8 +126,8 @@ Optional cosmetic rename to `FilterAgentLines()`. The function at `tmux/query.go
 
 ## Acceptance Criteria
 
-- [ ] No `"claude"` string appears in `message/message.go` role resolution
-- [ ] `CodexTarget()` renamed to `CompanionTarget()`
-- [ ] All messaging functions resolve `"primary"` role
-- [ ] Shell transport helpers/scripts work with `@party_role="primary"` / `"companion"` and still tolerate legacy sessions
-- [ ] All existing message tests pass
+- [x] No `"claude"` string appears in `message/message.go` role resolution
+- [x] `CodexTarget()` renamed to `CompanionTarget()`
+- [x] All messaging functions resolve `"primary"` role
+- [x] Shell transport helpers/scripts work with `@party_role="primary"` / `"companion"` and still tolerate legacy sessions
+- [x] All existing message tests pass

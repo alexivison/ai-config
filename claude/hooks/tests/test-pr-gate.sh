@@ -28,6 +28,7 @@ assert() {
 
 setup_repo() {
   TMPDIR_BASE=$(mktemp -d)
+  export XDG_CONFIG_HOME="$TMPDIR_BASE/.config"
   cd "$TMPDIR_BASE"
   git init -q
   git checkout -q -b main
@@ -37,14 +38,20 @@ setup_repo() {
   git checkout -q -b feature
 }
 
+config_path() {
+  printf '%s\n' "$XDG_CONFIG_HOME/party-cli/config.toml"
+}
+
 clean_evidence() {
   rm -f "$(evidence_file "$SESSION_ID")"
   rm -f "/tmp/claude-evidence-${SESSION_ID}.lock"
   rmdir "/tmp/claude-evidence-${SESSION_ID}.lock.d" 2>/dev/null || true
+  rm -f "$(config_path)" 2>/dev/null || true
 }
 
 full_cleanup() {
   clean_evidence
+  unset XDG_CONFIG_HOME
   if [ -n "$TMPDIR_BASE" ] && [ -d "$TMPDIR_BASE" ]; then
     rm -rf "$TMPDIR_BASE"
   fi
@@ -62,6 +69,14 @@ add_all_evidence() {
   for type in pr-verified code-critic minimizer codex test-runner check-runner; do
     append_evidence "$SESSION_ID" "$type" "PASS" "$TMPDIR_BASE"
   done
+}
+
+write_custom_evidence_config() {
+  mkdir -p "$(dirname "$(config_path)")"
+  cat > "$(config_path)" <<'EOF'
+[evidence]
+required = ["pr-verified", "test-runner", "check-runner"]
+EOF
 }
 
 echo "--- test-pr-gate.sh ---"
@@ -192,6 +207,32 @@ append_evidence "$SESSION_ID" "test-runner" "PASS" "$TMPDIR_BASE"
 append_evidence "$SESSION_ID" "check-runner" "PASS" "$TMPDIR_BASE"
 OUTPUT=$(echo "$(gate_input)" | bash "$GATE")
 assert "Small diff with partial evidence blocked" \
+  'echo "$OUTPUT" | grep -q "deny"'
+
+echo "=== Full gate: custom evidence-required config drives requirements ==="
+setup_repo
+clean_evidence
+write_custom_evidence_config
+echo "configurable" >> file.sh
+git add file.sh && git commit -q -m "configurable gate"
+append_evidence "$SESSION_ID" "pr-verified" "PASS" "$TMPDIR_BASE"
+append_evidence "$SESSION_ID" "test-runner" "PASS" "$TMPDIR_BASE"
+append_evidence "$SESSION_ID" "check-runner" "PASS" "$TMPDIR_BASE"
+OUTPUT=$(echo "$(gate_input)" | bash "$GATE")
+assert "Custom evidence list allows without critic/minimizer/companion evidence" \
+  '! echo "$OUTPUT" | grep -q "deny"'
+
+echo "=== Full gate: missing party-cli falls back to default evidence list ==="
+setup_repo
+clean_evidence
+write_custom_evidence_config
+echo "fallback" >> file.sh
+git add file.sh && git commit -q -m "fallback gate"
+append_evidence "$SESSION_ID" "pr-verified" "PASS" "$TMPDIR_BASE"
+append_evidence "$SESSION_ID" "test-runner" "PASS" "$TMPDIR_BASE"
+append_evidence "$SESSION_ID" "check-runner" "PASS" "$TMPDIR_BASE"
+OUTPUT=$(echo "$(gate_input)" | PARTY_CLI_DISABLE_GO_FALLBACK=1 PATH="/usr/bin:/bin:/usr/sbin:/sbin" bash "$GATE")
+assert "Missing party-cli restores default full gate" \
   'echo "$OUTPUT" | grep -q "deny"'
 
 # ═══ Quick tier tests ════════════════════════════════════════════════════════

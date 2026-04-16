@@ -90,6 +90,55 @@ create_file_symlink() {
     return 0
 }
 
+append_configured_agent() {
+    local name="$1"
+    local existing
+
+    [[ -n "$name" ]] || return 0
+    for existing in "${CONFIGURED_AGENTS[@]:-}"; do
+        if [[ "$existing" == "$name" ]]; then
+            return 0
+        fi
+    done
+    CONFIGURED_AGENTS+=("$name")
+}
+
+run_agent_query() {
+    local mode="$1"
+
+    if command -v party-cli &> /dev/null; then
+        party-cli agent query "$mode" 2>/dev/null
+        return $?
+    fi
+
+    if command -v go &> /dev/null && [[ -f "$SCRIPT_DIR/tools/party-cli/main.go" ]]; then
+        go -C "$SCRIPT_DIR/tools/party-cli" run . agent query "$mode" 2>/dev/null
+        return $?
+    fi
+
+    return 1
+}
+
+query_configured_agents() {
+    local mode
+
+    for mode in primary-name companion-name; do
+        run_agent_query "$mode" || true
+    done
+}
+
+detect_configured_agents() {
+    CONFIGURED_AGENTS=()
+
+    while IFS= read -r name; do
+        append_configured_agent "$name"
+    done < <(query_configured_agents || true)
+
+    if [[ ${#CONFIGURED_AGENTS[@]} -eq 0 ]]; then
+        CONFIGURED_AGENTS=(claude codex)
+    fi
+}
+
 prompt_install() {
     local tool="$1"
     local install_cmd="$2"
@@ -193,6 +242,31 @@ setup_codex() {
     fi
 }
 
+setup_agent() {
+    case "$1" in
+        claude) setup_claude ;;
+        codex) setup_codex ;;
+        *)
+            echo ""
+            echo "━━━ $1 ━━━"
+
+            if [[ -d "$SCRIPT_DIR/$1" ]]; then
+                create_symlink "$1" || true
+            fi
+
+            if [[ "$SYMLINKS_ONLY" == true ]]; then
+                return
+            fi
+
+            if command -v "$1" &> /dev/null; then
+                echo "✓  $1 CLI already installed"
+            else
+                echo "⚠  No installer recipe for agent '$1'. Install its CLI manually."
+            fi
+            ;;
+    esac
+}
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # TMUX
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -230,6 +304,9 @@ setup_fzf() {
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # MAIN
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CONFIGURED_AGENTS=()
+detect_configured_agents
+
 if [[ "$SYMLINKS_ONLY" == true ]]; then
     echo "This installer will:"
     echo "  1. Create config symlinks"
@@ -241,6 +318,7 @@ else
     echo "  2. Install CLI tools (optional)"
     echo "  3. Set up authentication (optional)"
 fi
+echo "Agents to check: ${CONFIGURED_AGENTS[*]}"
 echo ""
 read -p "Continue? [Y/n] " -n 1 -r
 echo
@@ -249,8 +327,9 @@ if [[ $REPLY =~ ^[Nn]$ ]]; then
     exit 0
 fi
 
-setup_claude
-setup_codex
+for agent_name in "${CONFIGURED_AGENTS[@]}"; do
+    setup_agent "$agent_name"
+done
 setup_tmux
 setup_fzf
 
@@ -259,7 +338,7 @@ echo "━━━━━━━━━━━━━━━━━━━━"
 echo "Installation complete!"
 echo ""
 echo "Installed symlinks:"
-for tool in claude codex; do
+for tool in "${CONFIGURED_AGENTS[@]}"; do
     target="$HOME/.$tool"
     if [[ -L "$target" ]]; then
         echo "  ~/.$tool → $(readlink "$target")"

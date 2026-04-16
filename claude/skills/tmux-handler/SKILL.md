@@ -1,23 +1,31 @@
 ---
 name: tmux-handler
 description: >-
-  Handle incoming [CODEX] messages from The Wizard via tmux. Covers review completion,
-  questions, task results, and plan review findings in TOON format. Triggers whenever
-  a [CODEX] prefixed message appears — review complete notifications, questions from
-  The Wizard, task completion notices, or plan review results. Use this skill to correctly
-  parse, validate, triage, and respond to any Wizard communication.
+  Handle incoming companion messages via tmux. Covers review completion,
+  questions, task results, and plan review findings in TOON format. Triggers
+  whenever a [COMPANION] or legacy [CODEX] prefixed message appears — review
+  complete notifications, questions from the companion, task completion
+  notices, or plan review results. Use this skill to correctly parse,
+  validate, triage, and respond to companion communication.
 user-invocable: false
 ---
 
-# tmux-handler — Handle incoming messages from The Wizard via tmux
+# tmux-handler — Handle incoming messages from the Companion via tmux
 
 ## Trigger
 
-You see a message in your pane prefixed with `[CODEX]`. These are from Codex's tmux pane.
+You see a message in your pane prefixed with `[PRIMARY]`, `[COMPANION]`, `[CLAUDE]`, or `[CODEX]`. These are from the other agent's tmux pane.
+
+## Reply direction
+
+Choose the transport by your current role:
+
+- If you are **primary**: `~/.claude/skills/codex-transport/scripts/tmux-codex.sh --prompt "<message>" "$(pwd)"`
+- If you are **companion**: `~/.claude/skills/codex-transport/scripts/tmux-claude.sh "<message>"`
 
 ## TOON findings format
 
-Codex findings files use TOON format.
+Companion findings files use TOON format.
 
 ### Canonical schema
 
@@ -37,7 +45,7 @@ When reading a TOON findings file:
 1. Validate header line matches `findings[N]{id,file,line,severity,category,description,suggestion}:`
 2. Verify `[N]` equals the actual row count
 3. Read `summary` and `stats` sections
-4. If malformed: record validation issue, request re-emit from Codex via `--prompt`, OR triage manually as plain text if urgent
+4. If malformed: record validation issue, request re-emit from the companion via `--prompt`, OR triage manually as plain text if urgent
 
 ### Helper workflow
 
@@ -56,13 +64,13 @@ Use `~/.claude/skills/codex-transport/scripts/toon-transport.sh`:
 
 | Agent calling | Script to use | Direction |
 |---|---|---|
-| Claude | `tmux-codex.sh` | Claude → Codex |
-| Codex | `tmux-claude.sh` | Codex → Claude |
+| Primary agent (default: Claude) | `tmux-codex.sh` | primary → companion |
+| Companion agent (default: Codex) | `tmux-claude.sh` | companion → primary |
 
 ## Message types
 
 ### Review complete
-Message: `[CODEX] Review complete. Findings at: <path>`
+Message: `[COMPANION] Review complete. Findings at: <path>` (legacy: `[CODEX] ...`)
 
 1. Read the FULL findings file (TOON format) with your Read tool or decode it via the helper workflow above
 2. Validate per the triage checklist above (or via `validate-findings`)
@@ -70,29 +78,29 @@ Message: `[CODEX] Review complete. Findings at: <path>`
    `tmux-codex.sh --review-complete <path>`
 4. Triage each finding: blocking / non-blocking / out-of-scope
 5. Update your issue ledger (reject re-raised closed findings, detect oscillation)
-6. The verdict comes from the `VERDICT:` line Codex wrote in the findings file — `--review-complete` reads it automatically:
+6. The verdict comes from the `VERDICT:` line the companion wrote in the findings file — `--review-complete` reads it automatically:
    - `VERDICT: APPROVED` in findings → approval evidence created
    - `VERDICT: REQUEST_CHANGES` → no approval evidence; fix code, re-run critics, dispatch new `--review` → `--review-complete`
    - Unresolvable → `tmux-codex.sh --needs-discussion "reason"`
    - **Do NOT call `--approve` directly** — the gate blocks it.
 
-### Question from Codex
-Message: `[CODEX] Question: <question>. Write response to: <response_file>`
+### Question from the Companion
+Message: `[COMPANION] Question: <question>. Write response to: <response_file>` (legacy: `[CODEX] ...`)
 
 1. Read the question
 2. Investigate the codebase to answer the question
-3. **Structured findings response**: When Codex requests structured findings and provides a `.toon` response path, emit canonical TOON with the helper workflow above — not markdown tables. Codex (the requester) controls the extension; write to the exact path provided.
+3. **Structured findings response**: When the companion requests structured findings and provides a `.toon` response path, emit canonical TOON with the helper workflow above — not markdown tables. The requester controls the extension; write to the exact path provided.
 4. **Narrative Q&A**: When the request is conversational, write concise text to the provided path. A `.toon` extension alone does not force a structured TOON payload.
-5. Notify Codex: `tmux-codex.sh --prompt "Response ready at: <response_file>" "$(pwd)"`
+5. Notify the other agent using the reply direction above. For file-based replies, name the path explicitly, for example `Response ready at: <response_file>`.
 
 ### Task complete
-Message: `[CODEX] Task complete. Response at: <path>`
+Message: `[COMPANION] Task complete. Response at: <path>` (legacy: `[CODEX] ...`)
 
 1. Read the response file. If the original request asked for structured findings, expect TOON; otherwise treat it as plain text.
-2. Continue your workflow with the information Codex provided
+2. Continue your workflow with the information the companion provided
 
 ### Plan review complete
-Message: `[CODEX] Plan review complete. Findings at: <path>`
+Message: `[COMPANION] Plan review complete. Findings at: <path>` (legacy: `[CODEX] ...`)
 
 1. Read the findings file (TOON format), preferably via the helper workflow above
 2. Validate per the triage checklist above
@@ -101,4 +109,4 @@ Message: `[CODEX] Plan review complete. Findings at: <path>`
 
 ## Dispute Resolution
 
-Follow execution-core.md § Dispute Resolution. Use `--dispute <file>` with `--review` for Codex disputes, `--prompt` for NEEDS_DISCUSSION debates.
+Follow execution-core.md § Dispute Resolution. Use `--dispute <file>` with `--review` for companion disputes, `--prompt` for NEEDS_DISCUSSION debates.

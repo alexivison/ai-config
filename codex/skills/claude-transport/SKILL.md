@@ -12,14 +12,14 @@ description: Communicate with Claude via tmux for codebase investigation, review
   (e.g., "how does the auth middleware chain work?", "what calls this function?")
 - **During tasks**: When you need Claude to investigate something in parallel
 
-## How to contact Claude
+## How to contact the other agent
 
-Use the transport script:
-```bash
-~/.codex/skills/claude-transport/scripts/tmux-claude.sh "<message>"
-```
+Choose the transport by your current role:
 
-This sends a `[CODEX]` prefixed message to Claude's tmux pane. The script returns immediately — you are NOT blocked.
+- **Companion role**: `~/.codex/skills/claude-transport/scripts/tmux-claude.sh "<message>"`
+- **Primary role**: `~/.codex/skills/claude-transport/scripts/tmux-codex.sh --prompt "<task or question>" "$(pwd)"`
+
+Both paths are role-aware. New sessions use `[PRIMARY]` / `[COMPANION]`; legacy sessions still use `[CLAUDE]` / `[CODEX]`.
 
 ## Visibility rule (required)
 
@@ -45,11 +45,18 @@ After writing findings to the specified file:
 ```
 
 ### Ask a question
-When you need information from Claude:
+When you need information from the other agent:
 ```bash
 RESPONSE_FILE="$STATE_DIR/response-$(date +%s%N).toon"
 ~/.codex/skills/claude-transport/scripts/tmux-claude.sh "Question: <your question>. Write response to: $RESPONSE_FILE"
 ```
+
+If you are the primary agent, send the same request via:
+```bash
+~/.codex/skills/claude-transport/scripts/tmux-codex.sh --prompt "Question: <your question>. Write response to: $RESPONSE_FILE" "$(pwd)"
+```
+
+After sending a request with a response file, do not poll the file as though it were already the answer. Wait for the companion's return notice (`Response ready at:` or `Task complete. Response at:`), then read the file and relay the result.
 
 If you need structured findings rather than narrative prose, say so explicitly and have Claude emit canonical TOON via `~/.claude/skills/codex-transport/scripts/toon-transport.sh`. A `.toon` response path alone does not guarantee a structured payload.
 
@@ -63,6 +70,11 @@ After writing plan-review findings to the specified `.toon` file:
 After completing a delegated task:
 ```bash
 ~/.codex/skills/claude-transport/scripts/tmux-claude.sh "Task complete. Response at: <response_file>"
+```
+
+If you are the primary agent and need to notify the companion instead, use:
+```bash
+~/.codex/skills/claude-transport/scripts/tmux-codex.sh --prompt "Task complete. Response at: <response_file>" "$(pwd)"
 ```
 
 ## Handling Claude's responses

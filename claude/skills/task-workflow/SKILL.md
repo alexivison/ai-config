@@ -2,7 +2,7 @@
 name: task-workflow
 description: >-
   Execute planned work with full autonomous workflow including tests,
-  implementation, critic review, Codex review, and PR creation. Works with
+  implementation, critic review, companion review, and PR creation. Works with
   any planning source that provides scope, requirements, and a goal — TASK
   files, external planning tools, or direct user instructions. Covers the
   entire cycle from worktree creation to draft PR.
@@ -32,6 +32,6 @@ Task-workflow is a thin shim over execution-core. It triggers the full pipeline 
 
 ## Execution
 
-Follow [execution-core.md](~/.claude/rules/execution-core.md) end-to-end — pre-implementation gate, RED evidence, implementation, source-file updates, critics (with scribe), codex, sentinel, commit, pre-pr-verification, PR. No stopping until PR is created.
+Follow [execution-core.md](~/.claude/rules/execution-core.md) end-to-end — pre-implementation gate, RED evidence, implementation, source-file updates, critics (with scribe), companion review, sentinel, commit, pre-pr-verification, PR. No stopping until PR is created.
 
 See the [Core Sequence](~/.claude/rules/execution-core.md#core-sequence), [Decision Matrix](~/.claude/rules/execution-core.md#decision-matrix), and [Review Governance](~/.claude/rules/execution-core.md#review-governance) for the full rules.

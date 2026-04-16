@@ -78,16 +78,16 @@ tmux display-message -p '#{session_name}'
 Check if already a master by reading the manifest:
 
 ```bash
-cat ~/Code/ai-party/session/manifests/<session-name>.json | jq -r '.session_type'
+jq -r '.session_type' ~/.party-state/<session-name>.json
 ```
 
 If not already a master, promote:
 
 ```bash
-~/Code/ai-party/session/party.sh --promote <session-name>
+party-cli promote <session-name>
 ```
 
-This replaces the Codex pane with the tracker and sets `session_type=master`.
+This replaces the companion pane (Codex by default) with the tracker and sets `session_type=master`.
 If already a master, this is a no-op.
 
 ### Step 4 — Construct prompts and spawn workers
@@ -95,8 +95,7 @@ If already a master, this is a no-op.
 Spawn each item as a **detached worker session** registered with the master:
 
 ```bash
-~/Code/ai-party/session/party.sh --detached --master-id <session-name> \
-  --prompt "<prompt>" "<title>"
+party-cli spawn <session-name> "<title>" --prompt "<prompt>"
 ```
 
 The `<title>` becomes the worker session's window name.
@@ -106,7 +105,7 @@ Capture the output to extract the worker session ID.
 
 #### Prompt construction
 
-The prompt must be self-contained — the spawned Claude has zero prior context.
+The prompt must be self-contained — the spawned primary agent has zero prior context.
 
 **For skill-based items (Linear tickets):**
 
@@ -124,7 +123,7 @@ Run /<skill> on this issue.
 Work in the repo at <absolute-cwd>.
 
 When done, report completion to the master:
-~/Code/ai-party/session/party-relay.sh --report "done: <one-line summary> | PR: <url or 'none'>"
+party-cli report "done: <one-line summary> | PR: <url or 'none'>"
 ```
 
 **For file-based items:**
@@ -135,7 +134,7 @@ Run /task-workflow on the task file at: <absolute-path>
 Read the file first to understand the scope, then execute the workflow.
 
 When done, report completion to the master:
-~/Code/ai-party/session/party-relay.sh --report "done: <one-line summary> | PR: <url or 'none'>"
+party-cli report "done: <one-line summary> | PR: <url or 'none'>"
 ```
 
 **For freeform tasks:**
@@ -148,11 +147,15 @@ references files, use absolute paths.
 
 ```
 When done, report completion to the master:
-~/Code/ai-party/session/party-relay.sh --report "done: <one-line summary> | PR: <url or 'none'>"
+party-cli report "done: <one-line summary> | PR: <url or 'none'>"
 ```
 
 Workers that don't receive this instruction will silently finish without
 notifying the master.
+
+For small deliverables where the answer itself matters (a joke, title, short
+diagnosis, one-line recommendation), tell the worker to include the actual
+deliverable in the `party-cli report` message rather than a placeholder summary.
 
 **Short prompts** (under 400 characters total): pass inline via `--prompt`.
 
@@ -164,8 +167,7 @@ cat > /tmp/party-prompt-N.md <<'PROMPT_EOF'
 <full prompt text>
 PROMPT_EOF
 
-~/Code/ai-party/session/party.sh --detached --master-id <session-name> \
-  --prompt "$(cat /tmp/party-prompt-N.md)" "<title>"
+party-cli spawn <session-name> "<title>" --prompt "$(cat /tmp/party-prompt-N.md)"
 ```
 
 ### Step 5 — Create tracker and report
@@ -182,8 +184,8 @@ and current status:
 Then report to the user:
 
 - All dispatched workers (session names and items)
-- How to check on workers: `party-relay.sh --read <worker-id>`
-- How to switch between them: `party.sh --switch` or `prefix + s` (tmux session picker)
+- How to check on workers: `party-cli read <worker-id>`
+- How to switch between them: use the tracker or tmux session picker
 - Point to the task list for live tracking
 
 Do not wait for workers — proceed to orchestration immediately.
@@ -195,9 +197,9 @@ their entire lifecycle. The master is an orchestrator, never an implementor.
 
 ### Monitoring workers
 
-- **Check status**: `party-relay.sh --list` to see all workers and their state
-- **Read scrollback**: `party-relay.sh --read <worker-id>` (default 50 lines)
-  or `--read <worker-id> --lines 200` for deeper history
+- **Check status**: `party-cli workers` to see all workers and their state
+- **Read scrollback**: `party-cli read <worker-id>` (default 50 lines)
+  or `party-cli read <worker-id> --lines 200` for deeper history
 - **Watch tracker pane**: the left pane shows real-time worker status
 
 ### Handling worker reports
@@ -216,7 +218,7 @@ report arrives:
 When a worker needs guidance or additional work:
 
 ```bash
-~/Code/ai-party/session/party-relay.sh <worker-id> "instruction text"
+party-cli relay <worker-id> "instruction text"
 ```
 
 Always include investigation context (file paths, line numbers, root cause
@@ -225,7 +227,7 @@ analysis) so the worker can act immediately without re-investigating.
 For broadcasts to all workers:
 
 ```bash
-~/Code/ai-party/session/party-relay.sh --broadcast "message"
+party-cli broadcast "message"
 ```
 
 ### Reviewing worker PRs (MANDATORY)
@@ -239,7 +241,7 @@ When a worker completes and opens a PR:
 1. **Read the PR**: `gh pr view <number>` and `gh pr diff <number>`
 2. **Check CI status**: `gh pr checks <number>`
 3. **If CI fails**: read the failure logs, diagnose the issue, and relay fix
-   instructions to the worker via `party-relay.sh` with file paths, line
+   instructions to the worker via `party-cli relay` with file paths, line
    numbers, and root cause analysis
 4. **Run `/code-review`** on the PR diff for a structured quality review
 5. **If blocking issues found**: relay the findings to the worker with file
@@ -255,9 +257,9 @@ is unconditional.
 
 If a worker appears stuck or reports an error:
 
-1. Read scrollback: `party-relay.sh --read <worker-id> --lines 200`
+1. Read scrollback: `party-cli read <worker-id> --lines 200`
 2. Diagnose the issue from the output
-3. Relay fix instructions with context: `party-relay.sh <worker-id> "..."`
+3. Relay fix instructions with context: `party-cli relay <worker-id> "..."`
 4. If the worker is unrecoverable, note it in the task list and consider
    spawning a replacement worker
 
@@ -275,7 +277,7 @@ When all workers have reported back (all tasks completed):
   MCP queries are all fine. Gathering context to relay to workers is core
   orchestration work.
 - **Never edit production code** — Do not use Edit or Write on source files.
-  All code changes must be delegated to a worker via `party-relay.sh`.
+  All code changes must be delegated to a worker via `party-cli relay`.
   This applies in every scenario: new bugs found during testing, quick
   one-line fixes, "obvious" changes — no exceptions.
 - **Relay with context** — When relaying new work to a worker, include your
@@ -285,30 +287,31 @@ When all workers have reported back (all tasks completed):
 
 ## Master Session Mode
 
-Any party session can be promoted to master: `party.sh --promote [party-id]`. This replaces the Wizard pane with a tracker pane and sets `session_type` to `master`. Promotion is non-destructive and works mid-session.
+Any party session can be promoted to master: `party-cli promote [party-id]`. This replaces the companion pane with a tracker pane and sets `session_type` to `master`. Promotion is non-destructive and works mid-session.
 
 When running in a master session (`session_type == "master"` in manifest):
 - You are an **orchestrator**, not an implementor.
 - **HARD RULE:** Never use Edit or Write on production code. Investigation (Read, Grep, Glob, read-only Bash) is fine — all code changes go to a worker. No exceptions: not for "quick fixes", not for bugs found during testing, not for "obvious" one-liners.
-- There is **no Wizard pane** — `tmux-codex.sh` will return `CODEX_NOT_AVAILABLE`.
-- Skip codex review/plan-review/prompt steps entirely.
+- There is **no companion pane** — the default transport script `tmux-codex.sh` will return `CODEX_NOT_AVAILABLE`.
+- Skip companion review/plan-review/prompt steps entirely.
 - Use `/party-dispatch` to dispatch any number of tasks to workers (single freeform, batch tickets, or mixed).
 - Monitor workers via the tracker pane (left pane).
 
 **Communication with workers:**
-- `party-relay.sh <worker-id> "instruction"` — send a message to a worker's Claude pane
-- `party-relay.sh --broadcast "message"` — send to all workers
-- `party-relay.sh --read <worker-id>` — read the last 50 lines of a worker's Claude pane
-- `party-relay.sh --read <worker-id> --lines 200` — read more scrollback
-- `party-relay.sh --list` — show all workers and their status
+- `party-cli relay <worker-id> "instruction"` — send a message to a worker's primary pane
+- `party-cli broadcast "message"` — send to all workers
+- `party-cli read <worker-id>` — read the last 50 lines of a worker's primary pane
+- `party-cli read <worker-id> --lines 200` — read more scrollback
+- `party-cli workers` — show all workers and their status
 - Workers report back via `[WORKER:<session-id>]` prefixed messages to your pane
 
 **Worker report-back and PR review obligations** are defined in the "Ongoing Orchestration" section above — follow those rules for every dispatch.
 
 ## Important
 
-- The spawned workers run `claude --permission-mode bypassPermissions`, so they
-  execute autonomously. The prompt is all they get — make it complete.
+- The spawned workers run whatever CLI is configured for the primary role
+  (Claude Code by default), so they execute autonomously. The prompt is all
+  they get — make it complete.
 - Each worker creates its own worktree (per workflow conventions), so there
   are no git conflicts between sessions.
 - If a Linear fetch fails, warn the user and skip that item (don't block the rest).

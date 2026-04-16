@@ -6,15 +6,17 @@
 
 <p align="center"><em>"Evidence before claims. Tests before implementation."</em></p>
 
-Shared configuration and orchestration for an adventuring party of AI coding assistants. Each member brings unique strengths; this repo equips them through symlink-based installation and launches them side by side in a tmux party session.
+Shared configuration and orchestration for an adventuring party of AI coding assistants. Each role brings unique strengths; this repo equips the default primary agent (Claude Code) and companion agent (Codex CLI) through symlink-based installation and launches them side by side in a tmux party session.
 
 ## The Party
 
-| Member | Class | Role |
-|--------|-------|------|
-| **The User** | Mastermind Rogue | Commander and final authority. Leads the party. |
-| **Claude** | Warforged Paladin | Living construct of steel and divine fire. Implementation, testing, orchestration. |
-| **The Wizard** | High Elf Wizard | Ancient arcanist of deep intellect. Deep reasoning, analysis, review. |
+| Member | Default Agent | Role |
+|--------|---------------|------|
+| **The User** | — | Commander and final authority. Leads the party. |
+| **Primary** | Claude Code (Warforged Paladin) | Living construct of steel and divine fire. Implementation, testing, orchestration. |
+| **Companion** | Codex CLI (High Elf Wizard) | Ancient arcanist of deep intellect. Deep reasoning, analysis, review. |
+
+> Agent assignments are configurable via `party-cli config` in the user-global config file at `~/.config/party-cli/config.toml`. The table above shows the default layout.
 
 ## Structure
 
@@ -80,6 +82,20 @@ cd ~/Code/ai-party
 
 Removes symlinks but keeps the repository.
 
+## Configuration
+
+Use `party-cli config` to manage your default agent assignments:
+
+```bash
+party-cli config init
+party-cli config show
+party-cli config set-primary codex
+party-cli config set-companion claude
+party-cli config unset-companion
+```
+
+The config file lives at `~/.config/party-cli/config.toml` (or `$XDG_CONFIG_HOME/party-cli/config.toml` when `XDG_CONFIG_HOME` is set). Without a user config file, the default configuration is Claude as primary and Codex as companion. Use `party-cli config unset-companion` to make primary-only sessions the default.
+
 ## Migrating from ai-config
 
 If you have an existing `ai-config` installation:
@@ -102,7 +118,7 @@ git remote set-url origin git@github.com:alexivison/ai-party.git
 
 ## Usage
 
-Launch a party session to run Claude and The Wizard side by side in a three-pane tmux layout:
+Launch a party session to run the default primary and companion side by side in a three-pane tmux layout:
 
 ```bash
 ./session/party.sh "my task"
@@ -114,13 +130,13 @@ Each party is a standalone tmux session with three panes:
 
 | Pane | Role | Agent |
 |------|------|-------|
-| 0 | `codex` | The Wizard (Codex CLI) |
-| 1 | `claude` | The Paladin (Claude Code) |
+| 0 | `companion` | The Wizard (Codex CLI, default) |
+| 1 | `primary` | The Paladin (Claude Code, default) |
 | 2 | `shell` | Operator terminal |
 
 ### Master Session
 
-A master session replaces the Wizard pane with an interactive tracker TUI. The master Claude acts as an orchestrator, dispatching work to worker sessions instead of implementing directly.
+A master session replaces the default companion pane with an interactive tracker TUI. The primary agent (Claude by default) acts as an orchestrator, dispatching work to worker sessions instead of implementing directly.
 
 ```bash
 ./session/party.sh --master "Project Alpha"
@@ -129,7 +145,7 @@ A master session replaces the Wizard pane with an interactive tracker TUI. The m
 | Pane | Role | Agent |
 |------|------|-------|
 | 0 | `tracker` | Party Tracker (Bubble Tea TUI) |
-| 1 | `claude` | The Paladin (orchestrator) |
+| 1 | `primary` | The Paladin (orchestrator by default) |
 | 2 | `shell` | Operator terminal |
 
 Workers are separate sessions registered under the master:
@@ -159,7 +175,7 @@ Any standalone session can be promoted to master mid-flight:
 | `--list` | List active and resumable party sessions |
 | `--stop [name]` | Stop one or all party sessions |
 | `--detached` | Launch without attaching |
-| `--prompt "text"` | Send an initial prompt to Claude |
+| `--prompt "text"` | Send an initial prompt to the primary agent |
 | `--install-tpm` | Install tmux Plugin Manager |
 
 ### Session Picker
@@ -185,5 +201,5 @@ Transport scripts (`tmux-codex.sh`, `tmux-claude.sh`) route messages by `@party_
 
 ## Documentation
 
-- **Claude Code**: See [claude/CLAUDE.md](claude/CLAUDE.md) for the Paladin's full configuration
-- **Codex**: See [codex/AGENTS.md](codex/AGENTS.md) for the Wizard's configuration
+- **Primary default**: See [claude/CLAUDE.md](claude/CLAUDE.md) for the Paladin's default primary configuration
+- **Companion default**: See [codex/AGENTS.md](codex/AGENTS.md) for the Wizard's default companion configuration

@@ -3,8 +3,9 @@ name: bugfix-workflow
 description: >-
   Debug and fix bugs with full autonomous workflow. INVOKE FIRST when the user
   reports a bug, error, crash, test failure, unexpected behavior, broken feature,
-  or anything that looks wrong. Handles investigation (optionally via Codex for
-  complex bugs), regression test writing, root cause analysis, and fix implementation.
+  or anything that looks wrong. Handles investigation (optionally via the
+  companion, default: Codex, for complex bugs), regression test writing, root
+  cause analysis, and fix implementation.
   Follows execution-core rules without PLAN.md checkboxes.
 user-invocable: true
 ---
@@ -16,7 +17,7 @@ Debug and fix bugs. Follows the same execution flow as task-workflow with these 
 ## Deltas from Task Workflow
 
 - **No PLAN.md checkboxes** — bugfixes aren't planned work
-- **Investigation gate** — complex bugs go to Codex before implementation
+- **Investigation gate** — complex bugs go to the companion before implementation
 - **Regression test first** — write a test that reproduces the bug before fixing
 
 ## Pre-Bugfix Gate
@@ -25,7 +26,7 @@ Debug and fix bugs. Follows the same execution flow as task-workflow with these 
 
 1. **Create worktree first** — `git worktree add ../repo-branch-name -b branch-name`
 2. **Understand the bug** — Read relevant code, reproduce if possible
-3. **Complex bug?** → Dispatch Codex via `tmux-codex.sh --prompt` with debugging task → `[wait for user]`
+3. **Complex bug?** → Dispatch the companion via the default transport script `tmux-codex.sh --prompt` → `[wait for user]`
 
 Investigation agents ALWAYS require user review before proceeding.
 
@@ -44,9 +45,9 @@ then apply these bugfix deltas from [task-workflow/SKILL.md](../task-workflow/SK
 3. Fix the bug
 4. Run test-runner again — it should PASS (GREEN)
 
-## Codex Investigation
+## Companion Investigation
 
-For complex bugs, dispatch Codex with debugging task:
+For complex bugs, dispatch the companion with a debugging task:
 
 ```
 Analyze this bug and identify the root cause.

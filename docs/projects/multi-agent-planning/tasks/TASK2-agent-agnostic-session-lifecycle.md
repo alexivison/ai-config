@@ -199,12 +199,12 @@ if opts.CodexResumeID != ""  { resumeMap["codex"] = opts.CodexResumeID }
 
 ## Acceptance Criteria
 
-- [ ] `buildClaudeCmd()` and `buildCodexCmd()` deleted from `start.go`
-- [ ] `masterSystemPrompt` constant deleted (lives in Claude provider)
-- [ ] `clearClaudeCodeEnv()` deleted (lives in Claude `PreLaunchSetup()`)
-- [ ] `launchConfig` uses `agentCmds map[agent.Role]string`
-- [ ] `Start()` iterates registry bindings
-- [ ] `Continue()` reads `manifest.Agents[]` with old-format fallback
-- [ ] `Manifest.Agents` field exists with JSON serialization
-- [ ] Old manifests migrate to `Agents[]` on read
-- [ ] All existing session tests still pass
+- [x] `buildClaudeCmd()` and `buildCodexCmd()` deleted from `start.go`
+- [x] `masterSystemPrompt` constant deleted (lives in Claude provider)
+- [x] `clearClaudeCodeEnv()` deleted (lives in Claude `PreLaunchSetup()`)
+- [x] `launchConfig` uses `agentCmds map[agent.Role]string`
+- [x] `Start()` iterates registry bindings
+- [x] `Continue()` reads `manifest.Agents[]` with old-format fallback
+- [x] `Manifest.Agents` field exists with JSON serialization
+- [x] Old manifests migrate to `Agents[]` on read
+- [x] All existing session tests still pass

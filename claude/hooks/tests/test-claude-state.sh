@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Tests for claude-state.sh — event-to-state mapping and file output.
+# Tests for primary-state.sh — event-to-state mapping and file output.
+# Runtime artifact name remains claude-state.json in v1.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-HOOK="$SCRIPT_DIR/../claude-state.sh"
+HOOK="$SCRIPT_DIR/../primary-state.sh"
 
 PASS=0
 FAIL=0

@@ -1,16 +1,20 @@
 ---
 name: codex-transport
 description: >-
-  Transport layer for communicating with Codex CLI via tmux. Provides modes for
+  Transport layer for communicating with the companion agent via tmux. The
+  default companion is Codex CLI, so the legacy skill and script names remain
+  `codex-transport` and `tmux-codex.sh` for compatibility. Provides modes for
   code review (--review), plan review (--plan-review), ad-hoc tasks (--prompt),
   review evidence (--review-complete), and escalation (--needs-discussion).
-  Wizard approval flows through the findings file verdict — workers cannot
-  self-approve. Use whenever dispatching work to The Wizard, recording review
-  evidence, or signaling escalation.
+  Companion approval flows through the findings file verdict — workers cannot
+  self-approve. Use whenever dispatching work to the companion, recording
+  review evidence, or signaling escalation.
 user-invocable: false
 ---
 
-# codex-transport — Communicate with The Wizard via tmux
+# codex-transport — Communicate with the Companion via tmux
+
+This is the default companion transport layer. The companion role is configurable via `party-cli config`, but the skill name and script path stay `codex-transport` / `tmux-codex.sh` for backward compatibility.
 
 ## When to Dispatch (Autonomous)
 
@@ -24,18 +28,20 @@ user-invocable: false
 - Unfamiliar code area before major changes → `--prompt` to explain the area
 - Complex refactor spanning 3+ files → `--review` for early sanity check
 
-## When to contact The Wizard
+## When to contact the Companion
 
-- **For code review**: After implementing changes and passing sub-agent critics, request Wizard review
-- **For tasks**: When you need The Wizard to investigate or work on something in parallel
-- **For verdict**: After triaging The Wizard's findings, signal your decision
+- **For code review**: After implementing changes and passing sub-agent critics, request companion review
+- **For tasks**: When you need the companion to investigate or work on something in parallel
+- **For verdict**: After triaging the companion's findings, signal your decision
 
-## How to contact The Wizard
+## How to contact the other agent
 
-Use the transport script:
-```bash
-~/.claude/skills/codex-transport/scripts/tmux-codex.sh <mode> [args...]
-```
+Choose the transport by your current role:
+
+- **Primary role**: `~/.claude/skills/codex-transport/scripts/tmux-codex.sh <mode> [args...]`
+- **Companion role**: `~/.claude/skills/codex-transport/scripts/tmux-claude.sh "<message>"`
+
+Both paths are role-aware. New sessions use `[PRIMARY]` / `[COMPANION]`; legacy sessions still use `[CLAUDE]` / `[CODEX]`.
 
 ## Modes
 
@@ -47,49 +53,49 @@ After implementing changes and passing sub-agent critics:
 `work_dir` is **REQUIRED** — the absolute path to the worktree or repo where changes live. `base_branch` defaults to `main`, `PR title` defaults to `Code review`.
 
 **Optional flags** (can appear anywhere after `--review`):
-- `--scope "description"` — scope boundaries for the review. Codex omits out-of-scope findings.
+- `--scope "description"` — scope boundaries for the review. The companion omits out-of-scope findings.
 - `--dispute /path/to/context.md` — dismissed findings with rationales for re-reviews (see Dispute Resolution below).
-- `--prior-findings /path/to/prior.toon` — prior findings file for re-reviews. Codex focuses on whether blocking issues were addressed.
+- `--prior-findings /path/to/prior.toon` — prior findings file for re-reviews. The companion focuses on whether blocking issues were addressed.
 
 The review prompt is rendered from `templates/review.md`. Conditional sections activate only when the corresponding flag is passed.
 
-This sends a message to The Wizard's pane. You are NOT blocked — continue with non-edit work while The Wizard reviews. The Wizard will notify you via `[CODEX] Review complete. Findings at: <path>` when done. Findings are raw TOON (`.toon` file, no markdown fences). Handle that message per your `tmux-handler` skill.
+This sends a message to the companion pane. You are NOT blocked — continue with non-edit work while the companion reviews. New sessions notify via `[COMPANION] Review complete. Findings at: <path>`; legacy sessions still use `[CODEX]`. Findings are raw TOON (`.toon` file, no markdown fences). Handle either prefix per your `tmux-handler` skill.
 
 ### Request plan review (non-blocking)
 After creating a plan:
 ```bash
 ~/.claude/skills/codex-transport/scripts/tmux-codex.sh --plan-review "<plan_path>" <work_dir>
 ```
-`work_dir` is **REQUIRED**. Plan review is advisory — it is ungated and does not create any evidence. The Wizard will notify via `[CODEX] Plan review complete. Findings at: <path>` when done. Findings are raw TOON (`.toon` file, no markdown fences).
+`work_dir` is **REQUIRED**. Plan review is advisory — it is ungated and does not create any evidence. The companion notifies via `[COMPANION] Plan review complete. Findings at: <path>` in new sessions and `[CODEX] ...` in legacy sessions. Findings are raw TOON (`.toon` file, no markdown fences).
 
 ### Send a task (non-blocking)
 **IMPORTANT:** Prompts with quotes, backticks, or >500 characters risk `unmatched '` shell errors when passed inline. Write to a temp file first:
 ```bash
-cat > /tmp/codex-prompt.md << 'EOF'
+cat > /tmp/companion-prompt.md << 'EOF'
 Your long prompt here...
 EOF
-~/.claude/skills/codex-transport/scripts/tmux-codex.sh --prompt "$(cat /tmp/codex-prompt.md)" /path/to/repo
+~/.claude/skills/codex-transport/scripts/tmux-codex.sh --prompt "$(cat /tmp/companion-prompt.md)" /path/to/repo
 ```
 
 Short prompts can be passed directly:
 ```bash
 ~/.claude/skills/codex-transport/scripts/tmux-codex.sh --prompt "<task description>" <work_dir>
 ```
-`work_dir` is **REQUIRED**. Returns immediately. The Wizard will notify via `[CODEX] Task complete. Response at: <path>` when done. The response path uses `.toon` by convention. If you requested structured findings, expect canonical TOON; if you asked for narrative analysis, plain text is acceptable unless you explicitly required TOON.
+`work_dir` is **REQUIRED**. Returns immediately. The companion notifies via `[COMPANION] Task complete. Response at: <path>` in new sessions and `[CODEX] ...` in legacy sessions. The response path uses `.toon` by convention. If you requested structured findings, expect canonical TOON; if you asked for narrative analysis, plain text is acceptable unless you explicitly required TOON.
 
 ### Record review completion and verdict
-**CRITICAL:** The argument is the **full path to the `.toon` findings file** from the `[CODEX] Review complete. Findings at: <path>` notification — NOT a worktree path. Passing a worktree path will fail with "Findings file not found."
+**CRITICAL:** The argument is the **full path to the `.toon` findings file** from the `[COMPANION] Review complete. Findings at: <path>` notification (or legacy `[CODEX]`) — NOT a worktree path. Passing a worktree path will fail with "Findings file not found."
 
 ```bash
 ~/.claude/skills/codex-transport/scripts/tmux-codex.sh --review-complete "<findings_file>"
 ```
 
-This reads the findings file and extracts the verdict The Wizard wrote:
-- If findings contain `VERDICT: APPROVED` → creates `codex` APPROVED evidence directly
+This reads the findings file and extracts the verdict the companion wrote:
+- If findings contain `VERDICT: APPROVED` → creates the default companion APPROVED evidence (`codex`) directly
 - If findings contain `VERDICT: REQUEST_CHANGES` → no evidence created
 - If no verdict line found → no evidence created (warning emitted)
 
-**You CANNOT call `--approve` directly.** The gate hard-blocks it. Approval can only come from The Wizard via the verdict line in the findings file. This prevents workers from self-approving their own fixes.
+**You CANNOT call `--approve` directly.** The gate hard-blocks it. Approval can only come from the companion via the verdict line in the findings file. This prevents workers from self-approving their own fixes.
 
 ### Triage override (out-of-scope critic findings)
 When critics flag out-of-scope code (e.g., from rebase), you can override with a rationale:
@@ -115,7 +121,7 @@ See execution-core.md § Dispute Resolution. `--review` accepts `--dispute <file
 ## Important
 
 - `--review`, `--plan-review`, `--prompt` are NON-BLOCKING.
-- `--review-complete` emits `CODEX_REVIEW_RAN` after findings exist.
-- **Self-approval blocked.** Verdict comes from The Wizard's `VERDICT:` line in findings file.
+- `--review-complete` emits the default transport sentinel `CODEX_REVIEW_RAN` after findings exist.
+- **Self-approval blocked.** Verdict comes from the companion's `VERDICT:` line in the findings file.
 - Workflow skills enforce critics before `--review`. Hook only blocks `--approve`.
 - **Blocking findings:** fix → commit → critics → `--review` → `--review-complete`.

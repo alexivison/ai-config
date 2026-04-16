@@ -157,10 +157,10 @@ ln -sf primary-state.sh claude/hooks/claude-state.sh
 
 ## Acceptance Criteria
 
-- [ ] Four new hook files created with role-based logic
-- [ ] Old hook files replaced with symlinks
-- [ ] Hooks use `party-cli agent query` for dynamic resolution
-- [ ] `pr-gate.sh` reads evidence requirements from config
-- [ ] Runtime artifact names stay unchanged in v1 (`claude-state.json`, `claude-session-id`, `/tmp/claude-evidence-*`)
-- [ ] All hook tests updated and passing
-- [ ] Hooks fail open gracefully when `party-cli` is not available
+- [x] Four new hook files created with role-based logic
+- [x] Old hook files replaced with symlinks
+- [x] Hooks use `party-cli agent query` for dynamic resolution
+- [x] `pr-gate.sh` reads evidence requirements from config
+- [x] Runtime artifact names stay unchanged in v1 (`claude-state.json`, `claude-session-id`, `/tmp/claude-evidence-*`)
+- [x] All hook tests updated and passing
+- [x] Hooks fail open gracefully when `party-cli` is not available

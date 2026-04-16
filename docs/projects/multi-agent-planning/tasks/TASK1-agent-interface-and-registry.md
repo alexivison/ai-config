@@ -276,14 +276,14 @@ Register the subcommand in `cmd/root.go` via `root.AddCommand(newAgentCmd(repoRo
 
 ## Acceptance Criteria
 
-- [ ] `Agent` interface defined with all methods from DESIGN.md
-- [ ] `Role` type and `RoleBinding` struct defined
-- [ ] `Registry` loads from `.party.toml` or defaults
-- [ ] Claude provider produces identical commands to current `buildClaudeCmd()`
-- [ ] Codex provider produces identical commands to current `buildCodexCmd()`
-- [ ] Stub provider exists as documented example
-- [ ] Config parser handles missing file gracefully
-- [ ] TOML dependency added to `go.mod`
-- [ ] `party-cli agent query` subcommand works
-- [ ] All tests pass
-- [ ] No existing files modified except `go.mod`, `go.sum`, and adding `newAgentCmd()` to `cmd/root.go`
+- [x] `Agent` interface defined with all methods from DESIGN.md
+- [x] `Role` type and `RoleBinding` struct defined
+- [x] `Registry` loads from `.party.toml` or defaults
+- [x] Claude provider produces identical commands to current `buildClaudeCmd()`
+- [x] Codex provider produces identical commands to current `buildCodexCmd()`
+- [x] Stub provider exists as documented example
+- [x] Config parser handles missing file gracefully
+- [x] TOML dependency added to `go.mod`
+- [x] `party-cli agent query` subcommand works
+- [x] All tests pass
+- [x] No existing files modified except `go.mod`, `go.sum`, and adding `newAgentCmd()` to `cmd/root.go`

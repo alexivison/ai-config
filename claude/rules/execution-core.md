@@ -7,10 +7,10 @@ Shared rules for all workflow skills. Applies to all implementation regardless o
 This section is the single source of truth for execution order across workflow docs.
 
 ```
-/write-tests → implement → source-file updates → [code-critic + minimizer] → codex → /pre-pr-verification → commit → PR
+/write-tests → implement → source-file updates → [code-critic + minimizer] → companion review → /pre-pr-verification → commit → PR
 ```
 
-Workflow skills enforce the critic-before-Codex ordering. Hooks only record evidence and block self-approval — they do not gate sequencing.
+Workflow skills enforce the critic-before-companion-review ordering. Hooks only record evidence and block self-approval — they do not gate sequencing.
 
 ## Pre-Implementation Gate
 
@@ -74,13 +74,13 @@ If task execution reveals the need to reorder or add tasks, update the tracking 
 
 Create the commit before running `/pre-pr-verification`. The PR gate checks evidence against the committed diff_hash, so all evidence must be recorded after the commit exists.
 
-**Re-run rule:** If you edit ANY implementation file after `/pre-pr-verification` passes, re-run before PR. Even a comment fix invalidates prior evidence (different diff_hash). Critics and Codex evidence must also be fresh at the committed hash — if the commit changed the hash, re-run the cascade: critics → codex → `/pre-pr-verification`.
+**Re-run rule:** If you edit ANY implementation file after `/pre-pr-verification` passes, re-run before PR. Even a comment fix invalidates prior evidence (different diff_hash). Critics and companion-review evidence must also be fresh at the committed hash — if the commit changed the hash, re-run the cascade: critics → companion review → `/pre-pr-verification`.
 
 ## Evidence System
 
 Per-session JSONL log at `/tmp/claude-evidence-{session_id}.jsonl`. Each entry records a `diff_hash` (SHA-256 of branch diff from merge-base). Gates only accept evidence with matching hash — editing code auto-invalidates prior evidence.
 
-`codex-gate.sh` blocks only `--approve` (self-approval); all other Codex commands pass freely. Approval flows through `--review-complete`.
+`codex-gate.sh` blocks only `--approve` (self-approval); all other default companion transport commands pass freely. Approval flows through `--review-complete`.
 
 **Oscillation detection** (`agent-trace-stop.sh`): Same-hash alternation (3 alternating verdicts → auto-triage-override). Cross-hash repeated findings (minimizer only, 3+ hashes → override; code-critic exempt).
 
@@ -92,7 +92,7 @@ Metrics are tracked via hooks in `~/.claude/logs/review-metrics/`. See `~/.claud
 
 | Tier | Scope | Sequence | Gate Evidence | Limits |
 |------|-------|----------|--------------|--------|
-| **Full** (default) | All code changes | `/write-tests → implement → critics → codex → PR` | pr-verified, code-critic, minimizer, codex, test-runner, check-runner | — |
+| **Full** (default) | All code changes | `/write-tests → implement → critics → companion review → PR` | pr-verified, code-critic, minimizer, codex, test-runner, check-runner | — |
 | **CI-gate** | Repos with CI review bots | `/write-tests → implement → test-runner → check-runner → PR` | pr-verified, test-runner, check-runner | Hook-assigned via `skill-marker.sh` |
 | **Quick** | Changes explicitly routed through `quick-fix-workflow` | `implement → code-critic → test-runner → check-runner → PR` | quick-tier, code-critic, test-runner, check-runner | Explicit `quick-tier` evidence |
 | **Spec** | Spec/design docs only (no production code) | `draft → spec-review → plan-review → iterate → PR` | spec-tier, spec-review, plan-review | No src/ or test files |
@@ -115,9 +115,9 @@ Classify every finding before acting:
 
 **Issue ledger:** Track findings across iterations. Closed findings cannot be re-raised without new evidence. Critic reversing own feedback = oscillation — use own judgment, proceed.
 
-**Lean loop:** Critics: two-pass mode (initial + one re-review). Codex happy-path: two passes, but continue until `VERDICT: APPROVED` regardless. `[q]`/`[nit]` are opt-in. Critics APPROVE when only non-blocking remain.
+**Lean loop:** Critics: two-pass mode (initial + one re-review). Companion happy-path: two passes, but continue until `VERDICT: APPROVED` regardless. `[q]`/`[nit]` are opt-in. Critics APPROVE when only non-blocking remain.
 
-**Caps:** Critics: hard cap of 2 passes (initial + one re-review) → Paladin uses own judgment on any remaining blocking findings. **Codex: NO cap** — continue until APPROVED. Dispute with evidence if you disagree; never bypass. Non-blocking: 1 round → accept or drop.
+**Caps:** Critics: hard cap of 2 passes (initial + one re-review) → Paladin uses own judgment on any remaining blocking findings. **Companion: NO cap** — continue until APPROVED. Dispute with evidence if you disagree; never bypass. Non-blocking: 1 round → accept or drop.
 
 **Tiered re-review:** One-symbol swap → test-runner only. Logic change → test-runner + critics. New export/signature/security path → full cascade.
 
@@ -130,33 +130,33 @@ Classify every finding before acting:
 | /write-tests | Written (RED) | Implement |
 | Implement | Done | Source-file updates |
 | Minimality + Scope Gate | PASS / Scope violation | Critics / **PAUSE** (NEEDS_DISCUSSION) |
-| Critics (code-critic, minimizer) | APPROVE or non-blocking only | Wait for others → codex |
+| Critics (code-critic, minimizer) | APPROVE or non-blocking only | Wait for others → companion review |
 | Critics | REQUEST_CHANGES (blocking) | Fix batch + one re-run |
-| Critics | Cap reached (2 passes) | Paladin uses own judgment, proceed to codex |
-| All critics pass | — | Run codex |
-| Codex | APPROVE | /pre-pr-verification |
-| Codex | REQUEST_CHANGES (blocking) | Fix + commit + re-run critics + `--review` → `--review-complete`. **Repeat until APPROVED.** |
-| Codex | REQUEST_CHANGES (non-blocking) | Record, proceed to /pre-pr-verification |
-| Codex | Out-of-scope or NEEDS_DISCUSSION | Dispute per § Dispute Resolution. **No cap — continue until resolved.** |
+| Critics | Cap reached (2 passes) | Paladin uses own judgment, proceed to companion review |
+| All critics pass | — | Run companion review |
+| Companion | APPROVE | /pre-pr-verification |
+| Companion | REQUEST_CHANGES (blocking) | Fix + commit + re-run critics + `--review` → `--review-complete`. **Repeat until APPROVED.** |
+| Companion | REQUEST_CHANGES (non-blocking) | Record, proceed to /pre-pr-verification |
+| Companion | Out-of-scope or NEEDS_DISCUSSION | Dispute per § Dispute Resolution. **No cap — continue until resolved.** |
 | Spec-review / Plan-review | Same pattern as critics | See § Tiered Execution |
 | /pre-pr-verification | Pass/Fail | PR / fix |
 | Edit/Write after approval | Evidence stale | Re-run cascade |
 
-**Codex review is never a pause condition.** See § Pause Conditions for the full list of valid pause triggers.
+**Companion review is never a pause condition.** See § Pause Conditions for the full list of valid pause triggers.
 
 ## Dispute Resolution
 
 **Critics:** No dispute rounds — after 2 passes, Paladin uses own judgment and proceeds.
 
-**Codex disputes:** Write dispute context file (finding IDs + rationales), pass via `--dispute <file>`. No round cap — continue until Codex accepts or you concede. For NEEDS_DISCUSSION: debate via `--prompt` with evidence-based reasoning until genuine agreement. After resolution, dispatch fresh `--review` → `--review-complete` for gate evidence.
+**Companion disputes:** Write dispute context file (finding IDs + rationales), pass via `--dispute <file>`. No round cap — continue until the companion accepts or you concede. For NEEDS_DISCUSSION: debate via `--prompt` with evidence-based reasoning until genuine agreement. After resolution, dispatch fresh `--review` → `--review-complete` for gate evidence.
 
 **Escalation to user:** Security-critical dispute, both agents agree human input needed, or genuinely circular (same arguments 3+ times, no new evidence).
 
 ## Pause Conditions & Sub-Agent Behavior
 
-**Valid pause conditions:** Investigation findings, security-critical disagreement, oscillation, explicit blockers. Codex review is NEVER a pause condition.
+**Valid pause conditions:** Investigation findings, security-critical disagreement, oscillation, explicit blockers. Companion review is NEVER a pause condition.
 
-**Sub-agent modes:** Investigation → always pause with findings. Verification (test/check) → never pause, summary only. Critics → 2 passes max, then Paladin decides. Codex → no cap, continue until APPROVED.
+**Sub-agent modes:** Investigation → always pause with findings. Verification (test/check) → never pause, summary only. Critics → 2 passes max, then Paladin decides. Companion → no cap, continue until APPROVED.
 
 ## Verification Principle
 
@@ -184,7 +184,7 @@ Evidence before claims. No assertions without proof (test output, file:line, gre
 | Edit after approval, then PR | Evidence stale — re-run cascade |
 | Approve without `--review-complete` | Gate blocks — run review first |
 | Evidence created outside authorized paths | Forbidden — only hooks/workflow skills write evidence |
-| Codex review bypassed or declared "done" without APPROVED | FORBIDDEN — no iteration cap |
+| Companion review bypassed or declared "done" without APPROVED | FORBIDDEN — no iteration cap |
 | Lint/typecheck via Bash instead of check-runner | Always delegate to sub-agents |
 | Push without check-runner | Run check-runner before every push |
 | Dependency added without lockfile | Stage lockfile in same commit |

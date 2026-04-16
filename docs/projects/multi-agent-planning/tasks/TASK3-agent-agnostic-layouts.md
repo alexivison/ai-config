@@ -135,9 +135,9 @@ Update all references throughout the codebase (grep for `tmux.WindowCodex`).
 
 ## Acceptance Criteria
 
-- [ ] All three layout functions accept role→command maps
-- [ ] `@party_role` values are `"primary"`, `"companion"`, `"tracker"`, `"shell"`
-- [ ] `ResolveRole()` has backward-compat fallback for old role names
-- [ ] `WindowCodex` renamed to `WindowCompanion`
-- [ ] No-companion layout works (2-pane or single-window)
-- [ ] All existing session and layout tests pass
+- [x] All three layout functions accept role→command maps
+- [x] `@party_role` values are `"primary"`, `"companion"`, `"tracker"`, `"shell"`
+- [x] `ResolveRole()` has backward-compat fallback for old role names
+- [x] `WindowCodex` renamed to `WindowCompanion`
+- [x] No-companion layout works (2-pane or single-window)
+- [x] All existing session and layout tests pass

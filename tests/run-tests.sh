@@ -27,6 +27,7 @@ echo ""
 
 run_suite "test-hooks.sh"
 run_suite "test-party-routing.sh"
+run_suite "test-transport-role-routing.sh"
 run_suite "test-party-multilaunch.sh"
 run_suite "test-wrapper-delegation.sh"
 

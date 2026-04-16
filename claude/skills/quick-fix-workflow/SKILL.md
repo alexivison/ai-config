@@ -56,6 +56,7 @@ After passing the gate, execute continuously — **no stopping until PR is creat
 ## What This Workflow Optimizes
 
 - **Direct quick tier routing** — `quick-tier + code-critic + test-runner + check-runner` is sufficient for the PR gate
+- **No companion review in quick tier** — the quick-tier evidence chain replaces the default companion review requirement for this path
 - **No category guardrails** — Runtime logic, API edits, and larger diffs are no longer auto-rejected here
 - **Manual workflow choice** — Use `task-workflow` or `bugfix-workflow` when you want the fuller pipeline, not because the gate requires it
 

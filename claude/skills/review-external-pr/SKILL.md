@@ -1,13 +1,15 @@
 ---
 name: review-external-pr
 description: >-
-  Review someone else's PR by dispatching four independent reviewers (Wizard, code-critic,
-  minimizer, sentinel) in parallel, then combining and deduplicating their findings into
-  a single PENDING GitHub review with inline comments. Use when the user shares a PR URL
-  or number and asks to review it, says "review this PR", "check this PR", "look at PR #123",
-  or wants a multi-perspective code review of an external pull request. Also use when the
-  user asks to run critics/sentinel/wizard on a PR. This skill orchestrates the full
-  pipeline — do not review the PR yourself; dispatch the reviewers.
+  Review someone else's PR by dispatching four independent reviewers
+  (companion, code-critic, minimizer, sentinel) in parallel, then combining and
+  deduplicating their findings into a single PENDING GitHub review with inline
+  comments. Use when the user shares a PR URL or number and asks to review it,
+  says "review this PR", "check this PR", "look at PR #123", or wants a
+  multi-perspective code review of an external pull request. Also use when the
+  user asks to run critics/sentinel/the companion on a PR. This skill
+  orchestrates the full pipeline — do not review the PR yourself; dispatch the
+  reviewers.
 user-invocable: true
 ---
 
@@ -50,14 +52,14 @@ Parse the owner, repo, and number from the input. For bare numbers, detect the c
 
 Launch all four reviewers in the **same message** so they run concurrently:
 
-### The Wizard
+### The Companion
 
 Dispatch via tmux-codex.sh:
 ```bash
 ~/.claude/skills/codex-transport/scripts/tmux-codex.sh --prompt "<prompt>" <work_dir>
 ```
 
-The Wizard prompt should include the diff path, PR title, summary of changes, and ask for severity-labeled findings (`[must]`, `[q]`, `[nit]`) with file:line references. The Wizard excels at deep reasoning — ask it to focus on correctness bugs, architectural concerns, subtle edge cases, and design-doc compliance.
+The companion prompt should include the diff path, PR title, summary of changes, and ask for severity-labeled findings (`[must]`, `[q]`, `[nit]`) with file:line references. The default companion (the Wizard / Codex) excels at deep reasoning — ask it to focus on correctness bugs, architectural concerns, subtle edge cases, and design-doc compliance.
 
 ### Code Critic (background Agent, subagent_type: code-critic)
 
@@ -76,9 +78,9 @@ See `references/reviewer-prompts.md` for prompt templates. Adapt them to the spe
 ## Phase 3: Collect and Wait
 
 - The three sub-agents complete via background task notifications.
-- The Wizard notifies via a `[CODEX]` message with a response file path.
+- The companion notifies via a `[COMPANION]` message in new sessions and `[CODEX]` in legacy sessions, with a response file path.
 - **Do not proceed until all four have reported.** As each completes, note its findings. Continue waiting for the remainder.
-- If the Wizard takes significantly longer, start preparing the triage from the three critics and fold in the Wizard's findings when they arrive.
+- If the companion takes significantly longer, start preparing the triage from the three critics and fold in the companion's findings when they arrive.
 
 ## Phase 4: Triage
 
@@ -129,7 +131,7 @@ Create a PENDING review via the GitHub API. Omit the `event` field entirely — 
 ### Summary body format
 
 ```markdown
-## Combined Review (code-critic + minimizer + sentinel + Wizard)
+## Combined Review (code-critic + minimizer + sentinel + companion)
 
 <verdict summary — how many reviewers said what>
 
@@ -163,7 +165,7 @@ Tell the user:
 
 ## Error Handling
 
-- **Wizard unavailable** (no tmux pane): Proceed with the three critics only. Note in the review body that the Wizard was not available.
+- **Companion unavailable** (no tmux pane): Proceed with the three critics only. Note in the review body that the companion was not available.
 - **gh auth failure**: Ask the user to authenticate.
 - **Empty diff**: Warn the user and abort.
 - **API errors on posting**: Show the error. Common issue: commenting on lines not in the diff — move those findings to the body instead and retry.

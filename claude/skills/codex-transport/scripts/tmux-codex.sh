@@ -8,6 +8,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_DIR="$SCRIPT_DIR/../templates"
 source "$SCRIPT_DIR/../../../../session/party-lib.sh"
 
+current_role() {
+  if [[ -n "${TMUX_PANE:-}" ]]; then
+    tmux display-message -t "$TMUX_PANE" -p '#{@party_role}' 2>/dev/null || true
+  fi
+}
+
 # Render a template file by replacing {{VAR}} placeholders.
 # Args: template_file [VAR=value ...]
 _render_template() {
@@ -29,15 +35,25 @@ _render_template() {
 # only emit sentinel strings and work without a party session.
 _require_session() {
   discover_session
+  CURRENT_ROLE="$(current_role)"
   # Master sessions have no Codex pane — guard early
   if party_is_master "$SESSION_NAME" 2>/dev/null; then
     echo "CODEX_NOT_AVAILABLE: Master sessions have no Wizard pane. Route review work through a worker session." >&2
     exit 1
   fi
-  CODEX_PANE=$(party_codex_pane_target "$SESSION_NAME") || {
-    echo "Error: Cannot resolve Codex pane in session '$SESSION_NAME'" >&2
+  TARGET_ROLE="companion"
+  SENDER_ROLE="primary"
+  case "$CURRENT_ROLE" in
+    companion|codex)
+      TARGET_ROLE="primary"
+      SENDER_ROLE="companion"
+      ;;
+  esac
+  PEER_PANE=$(party_role_pane_target "$SESSION_NAME" "$TARGET_ROLE") || {
+    echo "Error: Cannot resolve $TARGET_ROLE pane in session '$SESSION_NAME'" >&2
     exit 1
   }
+  SENDER_PREFIX=$(party_role_message_prefix "$SESSION_NAME" "$SENDER_ROLE")
 }
 
 # Delivery-confirmed send. Exit 76 (keys sent but buffer check failed)
@@ -60,6 +76,10 @@ case "$MODE" in
 
   --review)
     _require_session
+    if [[ "$SENDER_ROLE" != "primary" ]]; then
+      echo "Error: --review requires the primary role" >&2
+      exit 1
+    fi
     shift # consume --review
     # Parse flags and positional args
     _review_scope=""
@@ -105,9 +125,12 @@ case "$MODE" in
       "SCOPE_SECTION=$SCOPE_SECTION" \
       "DISPUTE_SECTION=$DISPUTE_SECTION" \
       "REREVEW_SECTION=$REREVEW_SECTION")
+    if [[ "$MSG" == "[CLAUDE] "* ]]; then
+      MSG="$SENDER_PREFIX ${MSG#"[CLAUDE] "}"
+    fi
 
     RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
-    if _send_with_retry "$CODEX_PANE" "$MSG" "tmux-codex.sh:review"; then
+    if _send_with_retry "$PEER_PANE" "$MSG" "tmux-codex.sh:review"; then
       write_codex_status "$RUNTIME_DIR" "working" "$BASE" "review"
       echo "CODEX_REVIEW_REQUESTED"
       echo "Claude is NOT blocked. Codex will notify via tmux when complete."
@@ -122,6 +145,10 @@ case "$MODE" in
 
   --plan-review)
     _require_session
+    if [[ "$SENDER_ROLE" != "primary" ]]; then
+      echo "Error: --plan-review requires the primary role" >&2
+      exit 1
+    fi
     PLAN_PATH="${2:?Missing plan path}"
     WORK_DIR="${3:?Missing work_dir — pass the worktree/repo path as 3rd argument}"
     FINDINGS_FILE="$STATE_DIR/codex-plan-findings-$(date +%s%N).toon"
@@ -134,9 +161,12 @@ case "$MODE" in
       "PLAN_PATH=$PLAN_PATH" \
       "FINDINGS_FILE=$FINDINGS_FILE" \
       "NOTIFY_CMD=$NOTIFY_CMD")
+    if [[ "$MSG" == "[CLAUDE] "* ]]; then
+      MSG="$SENDER_PREFIX ${MSG#"[CLAUDE] "}"
+    fi
 
     RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
-    if _send_with_retry "$CODEX_PANE" "$MSG" "tmux-codex.sh:plan-review"; then
+    if _send_with_retry "$PEER_PANE" "$MSG" "tmux-codex.sh:plan-review"; then
       write_codex_status "$RUNTIME_DIR" "working" "$PLAN_PATH" "plan-review"
       echo "CODEX_PLAN_REVIEW_REQUESTED"
       echo "Claude is NOT blocked. Codex will notify via tmux when complete."
@@ -153,13 +183,24 @@ case "$MODE" in
     _require_session
     PROMPT_TEXT="${2:?Missing prompt text}"
     WORK_DIR="${3:?Missing work_dir — pass the worktree/repo path as 3rd argument}"
+    if [[ "$SENDER_ROLE" == "companion" ]]; then
+      MSG="$SENDER_PREFIX $PROMPT_TEXT"
+      if _send_with_retry "$PEER_PANE" "$MSG" "tmux-codex.sh:prompt-notify"; then
+        echo "CODEX_MESSAGE_SENT"
+      else
+        echo "CODEX_MESSAGE_DROPPED"
+      fi
+      echo "Working directory: $WORK_DIR"
+      exit 0
+    fi
+
     RESPONSE_FILE="$STATE_DIR/codex-response-$(date +%s%N).toon"
 
     NOTIFY_SCRIPT="$(cd "$SCRIPT_DIR/../../../../codex/skills/claude-transport/scripts" && pwd)/tmux-claude.sh"
 
-    MSG="[CLAUDE] cd '$WORK_DIR' && $PROMPT_TEXT — Write response to: $RESPONSE_FILE — When done, run: $NOTIFY_SCRIPT \"Task complete. Response at: $RESPONSE_FILE\""
+    MSG="$SENDER_PREFIX cd '$WORK_DIR' && $PROMPT_TEXT — Write response to: $RESPONSE_FILE — When done, run: $NOTIFY_SCRIPT \"Task complete. Response at: $RESPONSE_FILE\""
     RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
-    if _send_with_retry "$CODEX_PANE" "$MSG" "tmux-codex.sh:prompt"; then
+    if _send_with_retry "$PEER_PANE" "$MSG" "tmux-codex.sh:prompt"; then
       write_codex_status "$RUNTIME_DIR" "working" "$PROMPT_TEXT" "prompt"
       echo "CODEX_TASK_REQUESTED"
       echo "Codex will notify via tmux when complete."
