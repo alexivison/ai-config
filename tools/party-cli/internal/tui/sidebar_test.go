@@ -161,11 +161,16 @@ func TestDeriveWorkflowStage(t *testing.T) {
 	}
 }
 
-func TestSessionRowActivityLabelFallsBackToCompanionState(t *testing.T) {
+func TestSessionRowCompanionDotRendersForCompanionSessions(t *testing.T) {
 	t.Parallel()
 
 	row := SessionRow{Status: "active", HasCompanion: true, CompanionState: string(CompanionIdle)}
-	if got := row.activityLabel(); got != "○ idle" {
-		t.Fatalf("expected idle fallback, got %q", got)
+	if got := row.companionDot(); got == "" {
+		t.Fatal("expected companion dot for session with companion")
+	}
+
+	noCompanion := SessionRow{Status: "active", HasCompanion: false}
+	if got := noCompanion.companionDot(); got != "" {
+		t.Fatalf("expected no companion dot, got %q", got)
 	}
 }

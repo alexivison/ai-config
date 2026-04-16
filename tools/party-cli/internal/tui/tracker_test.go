@@ -118,7 +118,7 @@ func TestTrackerViewShowsHierarchy(t *testing.T) {
 
 	snapshot := TrackerSnapshot{
 		Sessions: []SessionRow{
-			{ID: "party-1230", Title: "Project Alpha", Cwd: "/tmp/project-alpha", Status: "active", SessionType: "master", WorkerCount: 2, IsCurrent: true},
+			{ID: "party-1230", Title: "Project Alpha", Cwd: "/tmp/project-alpha", Status: "active", SessionType: "master", WorkerCount: 2, PrimaryState: "waiting", IsCurrent: true},
 			{ID: "party-1231", Title: "fix-auth", Cwd: "/tmp/fix-auth", Status: "active", SessionType: "worker", ParentID: "party-1230", PrimaryState: "active", Stage: StageCriticsOK},
 			{ID: "party-1232", Title: "dark-mode", Cwd: "/tmp/dark-mode", Status: "active", SessionType: "worker", ParentID: "party-1230", PrimaryState: "active", HasCompanion: true, CompanionState: string(CompanionIdle)},
 			{ID: "party-1236", Title: "solo task", Cwd: "/tmp/solo", Status: "active", SessionType: "standalone", PrimaryState: "active"},
@@ -153,7 +153,7 @@ func TestTrackerViewShowsHierarchy(t *testing.T) {
 		t.Fatalf("expected worker connector on metadata row, got:\n%s", view)
 	}
 	if !strings.Contains(view, "●") {
-		t.Fatalf("expected master/standalone glyph in view, got:\n%s", view)
+		t.Fatalf("expected status dot in view, got:\n%s", view)
 	}
 	if !strings.Contains(view, "│") {
 		t.Fatalf("expected worker glyph in view, got:\n%s", view)
@@ -184,10 +184,13 @@ func TestTrackerViewShowsCurrentSessionDetail(t *testing.T) {
 	tm := newTestTracker(SessionInfo{ID: "party-2001", SessionType: "worker"}, snapshot, &fakeActions{})
 	view := tm.View()
 
-	for _, needle := range []string{"companion: codex (idle, APPROVED)", "review complete", "evidence:", "code-critic", "─"} {
+	for _, needle := range []string{"companion: codex (idle, APPROVED)", "evidence:", "code-critic", "─"} {
 		if !strings.Contains(view, needle) {
 			t.Fatalf("expected %q in detail view, got:\n%s", needle, view)
 		}
+	}
+	if strings.Contains(view, "review complete") {
+		t.Fatalf("did not expect snippet in detail view, got:\n%s", view)
 	}
 	if strings.Contains(view, "workers:") {
 		t.Fatalf("did not expect worker count in current-session detail, got:\n%s", view)
