@@ -3,6 +3,9 @@ package agent
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/anthropics/ai-party/tools/party-cli/internal/config"
 	"github.com/anthropics/ai-party/tools/party-cli/internal/tmux"
@@ -63,6 +66,22 @@ func (c *Claude) MasterPrompt() string   { return claudeMasterPrompt }
 
 func (c *Claude) FilterPaneLines(raw string, max int) []string {
 	return tmux.FilterAgentLines(raw, max)
+}
+
+// TranscriptPath returns the live session JSONL Claude Code appends to at
+// ~/.claude/projects/<cwd-slug>/<session-uuid>.jsonl. The slug replaces every
+// "/" in the absolute cwd with "-", producing a leading dash (e.g.
+// /home/user/ai-party → -home-user-ai-party).
+func (c *Claude) TranscriptPath(cwd, resumeID string) (string, error) {
+	if resumeID == "" || cwd == "" {
+		return "", nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("user home: %w", err)
+	}
+	slug := strings.ReplaceAll(cwd, "/", "-")
+	return filepath.Join(home, ".claude", "projects", slug, resumeID+".jsonl"), nil
 }
 
 func (c *Claude) PreLaunchSetup(ctx context.Context, client TmuxClient, session string) error {

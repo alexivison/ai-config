@@ -419,3 +419,68 @@ func (c *recordingTmuxClient) UnsetEnvironment(_ context.Context, session, key s
 	c.unsetCalls = append(c.unsetCalls, unsetCall{session: session, key: key})
 	return nil
 }
+
+func TestClaudeTranscriptPath_SlugifiesCwd(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	got, err := NewClaude(AgentConfig{}).TranscriptPath("/home/user/ai-party", "abc-123")
+	if err != nil {
+		t.Fatalf("TranscriptPath: %v", err)
+	}
+	want := filepath.Join(home, ".claude", "projects", "-home-user-ai-party", "abc-123.jsonl")
+	if got != want {
+		t.Fatalf("TranscriptPath = %q, want %q", got, want)
+	}
+}
+
+func TestClaudeTranscriptPath_EmptyInputs(t *testing.T) {
+	t.Parallel()
+
+	c := NewClaude(AgentConfig{})
+	if got, _ := c.TranscriptPath("", "abc"); got != "" {
+		t.Errorf("empty cwd: got %q, want empty", got)
+	}
+	if got, _ := c.TranscriptPath("/cwd", ""); got != "" {
+		t.Errorf("empty resumeID: got %q, want empty", got)
+	}
+}
+
+func TestCodexTranscriptPath_GlobsByThreadID(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	dayDir := filepath.Join(home, ".codex", "sessions", "2026", "04", "17")
+	if err := os.MkdirAll(dayDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	match := filepath.Join(dayDir, "rollout-2026-04-17T14-00-00-thr-xyz.jsonl")
+	if err := os.WriteFile(match, []byte("{}\n"), 0o644); err != nil {
+		t.Fatalf("write rollout: %v", err)
+	}
+	unrelated := filepath.Join(dayDir, "rollout-2026-04-17T14-00-00-thr-other.jsonl")
+	if err := os.WriteFile(unrelated, []byte("{}\n"), 0o644); err != nil {
+		t.Fatalf("write unrelated: %v", err)
+	}
+
+	got, err := NewCodex(AgentConfig{}).TranscriptPath("/any", "thr-xyz")
+	if err != nil {
+		t.Fatalf("TranscriptPath: %v", err)
+	}
+	if got != match {
+		t.Fatalf("TranscriptPath = %q, want %q", got, match)
+	}
+}
+
+func TestCodexTranscriptPath_NoMatch(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	got, err := NewCodex(AgentConfig{}).TranscriptPath("", "thr-missing")
+	if err != nil {
+		t.Fatalf("TranscriptPath: %v", err)
+	}
+	if got != "" {
+		t.Fatalf("expected empty path when no rollout matches, got %q", got)
+	}
+}

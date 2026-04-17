@@ -3,7 +3,10 @@ package agent
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/anthropics/ai-party/tools/party-cli/internal/config"
 	"github.com/anthropics/ai-party/tools/party-cli/internal/tmux"
@@ -61,6 +64,43 @@ func (c *Codex) MasterPrompt() string   { return codexMasterPrompt }
 
 func (c *Codex) FilterPaneLines(raw string, max int) []string {
 	return tmux.FilterWizardLines(raw, max)
+}
+
+// TranscriptPath returns the live session JSONL rollout Codex appends to at
+// ~/.codex/sessions/YYYY/MM/DD/rollout-*<thread-id>*.jsonl. The cwd is
+// unused — Codex's rollouts are indexed by date + thread ID, not by working
+// directory. When multiple rollouts match (e.g. resumed threads), the
+// freshest by mtime wins.
+func (c *Codex) TranscriptPath(_, resumeID string) (string, error) {
+	if resumeID == "" {
+		return "", nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("user home: %w", err)
+	}
+	pattern := filepath.Join(home, ".codex", "sessions", "*", "*", "*", "rollout-*"+resumeID+"*.jsonl")
+	matches, _ := filepath.Glob(pattern)
+	if len(matches) == 0 {
+		return "", nil
+	}
+	freshest := matches[0]
+	freshestMod := mtime(freshest)
+	for _, m := range matches[1:] {
+		if mt := mtime(m); mt.After(freshestMod) {
+			freshest = m
+			freshestMod = mt
+		}
+	}
+	return freshest, nil
+}
+
+func mtime(path string) (t time.Time) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return t
+	}
+	return info.ModTime()
 }
 
 func (c *Codex) PreLaunchSetup(_ context.Context, _ TmuxClient, _ string) error {

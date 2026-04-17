@@ -21,6 +21,12 @@ type Agent interface {
 
 	FilterPaneLines(raw string, max int) []string
 
+	// TranscriptPath returns the absolute path to the agent's live session
+	// JSONL file for the given working directory and resume ID, or "" if
+	// the agent does not persist a transcript we can observe. The tracker
+	// stats this file to infer agent activity (recent mtime = busy).
+	TranscriptPath(cwd, resumeID string) (string, error)
+
 	PreLaunchSetup(ctx context.Context, client TmuxClient, session string) error
 	BinaryEnvVar() string
 	FallbackPath() string

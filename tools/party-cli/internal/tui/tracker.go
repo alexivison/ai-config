@@ -28,27 +28,24 @@ const (
 
 // SessionRow is the display-ready session data for the tracker.
 //
-// PrimaryTitle / CompanionTitle hold the latest tmux pane titles for the
-// two agent panes; the tracker diffs them across polls to flag sessions
-// whose agents are actively generating (both Claude and Codex rewrite
-// their title every ~80ms while mid-turn, so any change between 3s-apart
-// polls is a reliable signal).
+// PrimaryActive / CompanionActive are derived from the mtime of each
+// agent's live session transcript (see agent.Agent.TranscriptPath). A
+// transcript modified within transcriptActivityWindow counts as "agent
+// currently generating" and drives the blinking activity dot.
 type SessionRow struct {
-	ID                    string
-	Title                 string
-	Cwd                   string
-	PrimaryAgent          string
-	Status                string // "active" or "stopped"
-	SessionType           string // "master", "worker", or "standalone"
-	ParentID              string
-	WorkerCount           int
-	HasCompanion          bool
-	Snippet               string
-	PrimaryTitle          string
-	CompanionTitle        string
-	PrimaryTitleChanged   bool
-	CompanionTitleChanged bool
-	IsCurrent             bool
+	ID              string
+	Title           string
+	Cwd             string
+	PrimaryAgent    string
+	Status          string // "active" or "stopped"
+	SessionType     string // "master", "worker", or "standalone"
+	ParentID        string
+	WorkerCount     int
+	HasCompanion    bool
+	Snippet         string
+	PrimaryActive   bool
+	CompanionActive bool
+	IsCurrent       bool
 }
 
 // TrackerSnapshot is the full rendered data set for one refresh tick.
@@ -84,17 +81,6 @@ type TrackerModel struct {
 	height   int
 	lastErr  error
 	blinkOn  bool
-
-	// prevPrimaryTitles / prevCompanionTitles record the last-observed
-	// tmux pane titles per session. Cross-poll diffs flag "actively
-	// generating" — both agents rewrite their title every ~80ms during a
-	// turn, so any change between 3s-apart polls is a reliable signal.
-	//
-	// TODO(status): replace with a single-poll check once we have
-	// captured real title samples and know which spinner glyphs each
-	// agent uses (see Tier 3 in the refactor plan).
-	prevPrimaryTitles   map[string]string
-	prevCompanionTitles map[string]string
 
 	manifestJSON string
 	manifestID   string
@@ -143,26 +129,6 @@ func (tm *TrackerModel) refreshSessions() {
 	tm.sessions = snapshot.Sessions
 	tm.detail = snapshot.Current
 	tm.lastErr = nil
-
-	// Mark sessions whose primary or companion pane title changed since
-	// the previous poll as actively generating, then snapshot the current
-	// titles for next time. The first refresh has no previous titles, so
-	// nothing is flagged — detection starts on the second poll.
-	nextPrimary := make(map[string]string, len(tm.sessions))
-	nextCompanion := make(map[string]string, len(tm.sessions))
-	for i := range tm.sessions {
-		row := &tm.sessions[i]
-		if prev, seen := tm.prevPrimaryTitles[row.ID]; seen && prev != row.PrimaryTitle {
-			row.PrimaryTitleChanged = true
-		}
-		if prev, seen := tm.prevCompanionTitles[row.ID]; seen && prev != row.CompanionTitle {
-			row.CompanionTitleChanged = true
-		}
-		nextPrimary[row.ID] = row.PrimaryTitle
-		nextCompanion[row.ID] = row.CompanionTitle
-	}
-	tm.prevPrimaryTitles = nextPrimary
-	tm.prevCompanionTitles = nextCompanion
 
 	tm.cursor = 0
 	if idx := tm.indexOfSession(selectedID); selectedID != "" && idx >= 0 {
@@ -502,10 +468,11 @@ func identityStyle(sessionType string) lipgloss.Style {
 }
 
 // isGenerating reports whether either the primary or companion agent is
-// currently producing output. Detection is pane-title churn across polls
-// — see TrackerModel.prevPrimaryTitles / prevCompanionTitles.
+// currently producing output. Detection is based on recent mtime of each
+// agent's session transcript JSONL — see agent.Agent.TranscriptPath and
+// the fetcher's transcriptActive().
 func (s SessionRow) isGenerating() bool {
-	return s.Status == "active" && (s.PrimaryTitleChanged || s.CompanionTitleChanged)
+	return s.Status == "active" && (s.PrimaryActive || s.CompanionActive)
 }
 
 // workerIndent is the horizontal offset applied to worker session boxes so

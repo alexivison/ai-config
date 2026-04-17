@@ -35,3 +35,5 @@ func (s *Stub) PreLaunchSetup(context.Context, TmuxClient, string) error { retur
 func (s *Stub) FilterPaneLines(raw string, max int) []string {
 	return tmux.FilterAgentLines(raw, max)
 }
+
+func (s *Stub) TranscriptPath(string, string) (string, error) { return "", nil }

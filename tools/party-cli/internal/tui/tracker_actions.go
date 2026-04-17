@@ -8,6 +8,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/anthropics/ai-party/tools/party-cli/internal/agent"
 	"github.com/anthropics/ai-party/tools/party-cli/internal/message"
@@ -156,9 +157,9 @@ func NewLiveSessionFetcher(tmuxClient *tmux.Client, store *state.Store) SessionF
 			row.HasCompanion = companionAgent != nil
 			if row.Status == "active" {
 				row.Snippet = captureRoleSnippet(ctx, tmuxClient, manifest.PartyID, "primary", tmux.WindowWorkspace, primaryAgent, 4)
-				row.PrimaryTitle = captureRoleTitle(ctx, tmuxClient, manifest.PartyID, "primary", tmux.WindowWorkspace)
+				row.PrimaryActive = transcriptActive(primaryAgent, manifest)
 				if companionAgent != nil {
-					row.CompanionTitle = captureRoleTitle(ctx, tmuxClient, manifest.PartyID, "companion", tmux.WindowCompanion)
+					row.CompanionActive = transcriptActive(companionAgent, manifest)
 				}
 			}
 
@@ -337,23 +338,44 @@ func evidenceLookupID(sessionID string, manifest state.Manifest, primaryAgent ag
 	return sessionID
 }
 
-// captureRoleTitle returns the tmux pane title for the role target, or "" on
-// any failure. Used to detect "generating" state — both Claude and Codex
-// prefix their pane title with a rotating Braille spinner glyph while a turn
-// is in flight, so the title alone is a reliable signal.
-func captureRoleTitle(ctx context.Context, tc *tmux.Client, sessionID, role string, preferredWindow int) string {
-	if tc == nil || sessionID == "" {
-		return ""
+// transcriptActivityWindow is how recently an agent's session transcript
+// must have been written for us to flag the agent as "currently generating".
+// Each JSON event (message delta, tool call, tool result) bumps the file's
+// mtime, so the check fires as often as the agent produces output.
+const transcriptActivityWindow = 5 * time.Second
+
+// transcriptActive reports whether the agent's live session transcript was
+// modified within transcriptActivityWindow. Returns false when the agent
+// does not expose a transcript path or when the file cannot be stat'd.
+func transcriptActive(a agent.Agent, manifest state.Manifest) bool {
+	if a == nil {
+		return false
 	}
-	target, err := tc.ResolveRole(ctx, sessionID, role, preferredWindow)
+	resumeID := resumeIDFor(a, manifest)
+	if resumeID == "" {
+		return false
+	}
+	path, err := a.TranscriptPath(manifest.Cwd, resumeID)
+	if err != nil || path == "" {
+		return false
+	}
+	info, err := os.Stat(path)
 	if err != nil {
-		return ""
+		return false
 	}
-	title, err := tc.PaneTitle(ctx, target)
-	if err != nil {
-		return ""
+	return time.Since(info.ModTime()) < transcriptActivityWindow
+}
+
+// resumeIDFor pulls the agent's resume ID from the manifest — first from
+// the per-agent spec, then falling back to the legacy Extra key.
+func resumeIDFor(a agent.Agent, m state.Manifest) string {
+	name := a.Name()
+	for _, spec := range m.Agents {
+		if spec.Name == name && spec.ResumeID != "" {
+			return spec.ResumeID
+		}
 	}
-	return title
+	return m.ExtraString(a.ResumeKey())
 }
 
 func captureRoleSnippet(
