@@ -2,18 +2,12 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strconv"
-	"time"
 
 	"github.com/anthropics/ai-party/tools/party-cli/internal/config"
 	"github.com/anthropics/ai-party/tools/party-cli/internal/tmux"
 )
-
-const codexStaleThreshold = 30 * time.Minute
 
 const codexMasterPrompt = "This is a master session. You are an orchestrator, not an implementor. " +
 	"HARD RULES: (1) Never edit or write production code yourself — delegate all code changes to workers. " +
@@ -64,52 +58,6 @@ func (c *Codex) ResumeKey() string      { return "codex_thread_id" }
 func (c *Codex) ResumeFileName() string { return "codex-thread-id" }
 func (c *Codex) EnvVar() string         { return "CODEX_THREAD_ID" }
 func (c *Codex) MasterPrompt() string   { return codexMasterPrompt }
-func (c *Codex) StateFileName() string  { return "codex-status.json" }
-
-func (c *Codex) ReadState(runtimeDir string) (AgentState, error) {
-	path := filepath.Join(runtimeDir, c.StateFileName())
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return AgentState{State: "offline"}, nil
-		}
-		return AgentState{}, fmt.Errorf("read codex status: %w", err)
-	}
-	if len(data) == 0 {
-		return AgentState{State: "offline"}, nil
-	}
-
-	var payload struct {
-		State      string `json:"state"`
-		Target     string `json:"target,omitempty"`
-		Mode       string `json:"mode,omitempty"`
-		Verdict    string `json:"verdict,omitempty"`
-		StartedAt  string `json:"started_at,omitempty"`
-		FinishedAt string `json:"finished_at,omitempty"`
-		Error      string `json:"error,omitempty"`
-	}
-	if err := json.Unmarshal(data, &payload); err != nil || payload.State == "" {
-		return AgentState{State: "offline"}, nil
-	}
-
-	state := AgentState{
-		State:   payload.State,
-		Mode:    payload.Mode,
-		Target:  payload.Target,
-		Verdict: payload.Verdict,
-		Error:   payload.Error,
-	}
-
-	if payload.State == "working" && payload.StartedAt != "" {
-		started, parseErr := time.Parse(time.RFC3339, payload.StartedAt)
-		if parseErr == nil && time.Since(started) > codexStaleThreshold {
-			state.State = "error"
-			state.Error = "stale: started " + payload.StartedAt
-		}
-	}
-
-	return state, nil
-}
 
 func (c *Codex) FilterPaneLines(raw string, max int) []string {
 	return tmux.FilterWizardLines(raw, max)

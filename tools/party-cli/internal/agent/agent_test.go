@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestNewRegistry_DefaultConfig(t *testing.T) {
@@ -388,28 +387,6 @@ func TestClaudePreLaunchSetup_UnsetsClaudeCode(t *testing.T) {
 	}
 	if client.unsetCalls[1] != (unsetCall{session: "party-test", key: "CLAUDECODE"}) {
 		t.Fatalf("session unset: got %+v", client.unsetCalls[1])
-	}
-}
-
-func TestCodexReadState_StaleWorking(t *testing.T) {
-	t.Parallel()
-
-	dir := t.TempDir()
-	startedAt := time.Now().Add(-31 * time.Minute).UTC().Format(time.RFC3339)
-	payload := `{"state":"working","started_at":"` + startedAt + `"}`
-	if err := os.WriteFile(filepath.Join(dir, "codex-status.json"), []byte(payload), 0o644); err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
-
-	state, err := NewCodex(AgentConfig{}).ReadState(dir)
-	if err != nil {
-		t.Fatalf("ReadState: %v", err)
-	}
-	if state.State != "error" {
-		t.Fatalf("state.State = %q, want error", state.State)
-	}
-	if !strings.Contains(state.Error, "stale: started ") {
-		t.Fatalf("state.Error = %q, want stale marker", state.Error)
 	}
 }
 

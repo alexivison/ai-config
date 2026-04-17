@@ -149,24 +149,17 @@ func NewLiveSessionFetcher(tmuxClient *tmux.Client, store *state.Store) SessionF
 			row := manifestToSessionRow(manifest.PartyID, manifest, alive)
 			row.IsCurrent = manifest.PartyID == current.ID
 
-			runtimeDir := fmt.Sprintf("/tmp/%s", manifest.PartyID)
 			primaryAgent, companionAgent := resolveSessionAgents(manifest, nil)
 			if primaryAgent != nil {
 				row.PrimaryAgent = primaryAgent.Name()
 			}
 			row.HasCompanion = companionAgent != nil
-			if primaryAgent != nil && primaryAgent.Name() == "claude" {
-				row.PrimaryState = ReadPrimaryState(runtimeDir)
-			}
-			if companionAgent != nil {
-				status := readCompanionAgentStatus(runtimeDir, companionAgent)
-				row.CompanionState = string(status.State)
-				row.CompanionVerdict = status.Verdict
-			}
 			if row.Status == "active" {
-				row.Stage = DeriveWorkflowStage(evidenceLookupID(manifest.PartyID, manifest, primaryAgent))
 				row.Snippet = captureRoleSnippet(ctx, tmuxClient, manifest.PartyID, "primary", tmux.WindowWorkspace, primaryAgent, 4)
-				row.PaneTitle = captureRoleTitle(ctx, tmuxClient, manifest.PartyID, "primary", tmux.WindowWorkspace)
+				row.PrimaryTitle = captureRoleTitle(ctx, tmuxClient, manifest.PartyID, "primary", tmux.WindowWorkspace)
+				if companionAgent != nil {
+					row.CompanionTitle = captureRoleTitle(ctx, tmuxClient, manifest.PartyID, "companion", tmux.WindowCompanion)
+				}
 			}
 
 			rows = append(rows, row)
@@ -225,20 +218,11 @@ func buildCurrentSessionDetail(
 	primaryAgent, companionAgent := resolveSessionAgents(manifest, current.Registry)
 	if primaryAgent != nil {
 		detail.PrimaryAgent = primaryAgent.Name()
-		if primaryAgent.Name() == "claude" {
-			detail.PrimaryState = ReadPrimaryState(fmt.Sprintf("/tmp/%s", current.ID))
-		}
 	}
 	detail.Evidence = ReadEvidenceSummary(evidenceLookupID(current.ID, manifest, primaryAgent), 6)
-	if companionAgent == nil {
-		detail.CompanionStatus = CompanionStatus{State: CompanionOffline}
-		return detail
+	if companionAgent != nil {
+		detail.CompanionName = companionAgent.Name()
 	}
-
-	runtimeDir := fmt.Sprintf("/tmp/%s", current.ID)
-	status := readCompanionAgentStatus(runtimeDir, companionAgent)
-	detail.CompanionName = companionAgent.Name()
-	detail.CompanionStatus = status
 	return detail
 }
 
@@ -318,31 +302,6 @@ func resolveManifestAgent(manifest state.Manifest, role agent.Role, registry *ag
 	}
 
 	return nil
-}
-
-func readCompanionAgentStatus(runtimeDir string, companion agent.Agent) CompanionStatus {
-	if companion == nil {
-		return CompanionStatus{State: CompanionOffline}
-	}
-
-	state, err := companion.ReadState(runtimeDir)
-	if err != nil {
-		return CompanionStatus{
-			State: CompanionError,
-			Error: err.Error(),
-		}
-	}
-	if state.State == "" {
-		state.State = string(CompanionOffline)
-	}
-
-	return CompanionStatus{
-		State:   CompanionState(state.State),
-		Target:  state.Target,
-		Mode:    state.Mode,
-		Verdict: state.Verdict,
-		Error:   state.Error,
-	}
 }
 
 func lookupAgent(name string, registry *agent.Registry) agent.Agent {

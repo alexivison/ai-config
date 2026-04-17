@@ -19,8 +19,6 @@ type Agent interface {
 	EnvVar() string
 	MasterPrompt() string
 
-	StateFileName() string
-	ReadState(runtimeDir string) (AgentState, error)
 	FilterPaneLines(raw string, max int) []string
 
 	PreLaunchSetup(ctx context.Context, client TmuxClient, session string) error
@@ -36,13 +34,4 @@ type CmdOpts struct {
 	Prompt    string
 	Title     string
 	Master    bool
-}
-
-// AgentState is a normalized state read from an agent status file.
-type AgentState struct {
-	State   string
-	Mode    string
-	Target  string
-	Verdict string
-	Error   string
 }

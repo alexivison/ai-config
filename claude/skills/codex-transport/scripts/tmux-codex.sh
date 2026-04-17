@@ -129,13 +129,10 @@ case "$MODE" in
       MSG="$SENDER_PREFIX ${MSG#"[CLAUDE] "}"
     fi
 
-    RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
     if _send_with_retry "$PEER_PANE" "$MSG" "tmux-codex.sh:review"; then
-      write_codex_status "$RUNTIME_DIR" "working" "$BASE" "review"
       echo "CODEX_REVIEW_REQUESTED"
       echo "Claude is NOT blocked. Codex will notify via tmux when complete."
     else
-      write_codex_status "$RUNTIME_DIR" "error" "" "" "" "review dispatch failed: pane busy"
       echo "CODEX_REVIEW_DROPPED"
       echo "Codex pane is busy. Message dropped (best-effort delivery)."
     fi
@@ -165,13 +162,10 @@ case "$MODE" in
       MSG="$SENDER_PREFIX ${MSG#"[CLAUDE] "}"
     fi
 
-    RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
     if _send_with_retry "$PEER_PANE" "$MSG" "tmux-codex.sh:plan-review"; then
-      write_codex_status "$RUNTIME_DIR" "working" "$PLAN_PATH" "plan-review"
       echo "CODEX_PLAN_REVIEW_REQUESTED"
       echo "Claude is NOT blocked. Codex will notify via tmux when complete."
     else
-      write_codex_status "$RUNTIME_DIR" "error" "" "" "" "plan-review dispatch failed: pane busy"
       echo "CODEX_PLAN_REVIEW_DROPPED"
       echo "Codex pane is busy. Message dropped (best-effort delivery)."
     fi
@@ -199,13 +193,10 @@ case "$MODE" in
     NOTIFY_SCRIPT="$(cd "$SCRIPT_DIR/../../../../codex/skills/claude-transport/scripts" && pwd)/tmux-claude.sh"
     HANDOFF_INSTRUCTION="$(party_transport_response_handoff_instruction "$NOTIFY_SCRIPT" "$RESPONSE_FILE")"
     MSG="$SENDER_PREFIX cd '$WORK_DIR' && $PROMPT_TEXT — Write response to: $RESPONSE_FILE — $HANDOFF_INSTRUCTION"
-    RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
     if _send_with_retry "$PEER_PANE" "$MSG" "tmux-codex.sh:prompt"; then
-      write_codex_status "$RUNTIME_DIR" "working" "$PROMPT_TEXT" "prompt"
       echo "CODEX_TASK_REQUESTED"
       echo "Do not poll the response file. Wait for '[COMPANION] $(party_transport_response_completion_message "$RESPONSE_FILE")' (legacy '[CODEX] Response ready at: $RESPONSE_FILE' is still accepted)."
     else
-      write_codex_status "$RUNTIME_DIR" "error" "" "" "" "prompt dispatch failed: pane busy"
       echo "CODEX_TASK_DROPPED"
       echo "Codex pane is busy. Message dropped (best-effort delivery)."
     fi

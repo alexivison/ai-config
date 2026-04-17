@@ -19,45 +19,6 @@ party_runtime_dir() {
   printf '/tmp/%s\n' "$session"
 }
 
-# Write codex-status.json atomically via .tmp + mv.
-# Usage: write_codex_status RUNTIME_DIR STATE [TARGET] [MODE] [VERDICT] [ERROR]
-write_codex_status() {
-  local runtime_dir="${1:?Usage: write_codex_status RUNTIME_DIR STATE [TARGET] [MODE] [VERDICT] [ERROR]}"
-  local state="${2:?Usage: write_codex_status RUNTIME_DIR STATE}"
-  local target="${3:-}"
-  local mode="${4:-}"
-  local verdict="${5:-}"
-  local error_msg="${6:-}"
-
-  local now
-  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-
-  local tmp_file="$runtime_dir/codex-status.json.tmp"
-  local final_file="$runtime_dir/codex-status.json"
-
-  mkdir -p "$runtime_dir"
-
-  # Build JSON with jq for safety (no injection from shell vars)
-  jq -n \
-    --arg state "$state" \
-    --arg target "$target" \
-    --arg mode "$mode" \
-    --arg verdict "$verdict" \
-    --arg error "$error_msg" \
-    --arg started_at "$([ "$state" = "working" ] && echo "$now" || echo "")" \
-    --arg finished_at "$([ "$state" != "working" ] && echo "$now" || echo "")" \
-    '{state: $state} +
-     (if $target != "" then {target: $target} else {} end) +
-     (if $mode != "" then {mode: $mode} else {} end) +
-     (if $verdict != "" then {verdict: $verdict} else {} end) +
-     (if $started_at != "" then {started_at: $started_at} else {} end) +
-     (if $finished_at != "" then {finished_at: $finished_at} else {} end) +
-     (if $error != "" then {error: $error} else {} end)' \
-    > "$tmp_file"
-
-  mv "$tmp_file" "$final_file"
-}
-
 # ---------------------------------------------------------------------------
 # File handoff contract helpers
 # ---------------------------------------------------------------------------

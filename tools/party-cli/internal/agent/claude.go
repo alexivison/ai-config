@@ -2,10 +2,7 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/anthropics/ai-party/tools/party-cli/internal/config"
 	"github.com/anthropics/ai-party/tools/party-cli/internal/tmux"
@@ -63,29 +60,6 @@ func (c *Claude) ResumeKey() string      { return "claude_session_id" }
 func (c *Claude) ResumeFileName() string { return "claude-session-id" }
 func (c *Claude) EnvVar() string         { return "CLAUDE_SESSION_ID" }
 func (c *Claude) MasterPrompt() string   { return claudeMasterPrompt }
-func (c *Claude) StateFileName() string  { return "claude-state.json" }
-
-func (c *Claude) ReadState(runtimeDir string) (AgentState, error) {
-	path := filepath.Join(runtimeDir, c.StateFileName())
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return AgentState{State: "offline"}, nil
-		}
-		return AgentState{}, fmt.Errorf("read claude state: %w", err)
-	}
-	if len(data) == 0 {
-		return AgentState{State: "offline"}, nil
-	}
-
-	var payload struct {
-		State string `json:"state"`
-	}
-	if err := json.Unmarshal(data, &payload); err != nil || payload.State == "" {
-		return AgentState{State: "offline"}, nil
-	}
-	return AgentState{State: payload.State}, nil
-}
 
 func (c *Claude) FilterPaneLines(raw string, max int) []string {
 	return tmux.FilterAgentLines(raw, max)

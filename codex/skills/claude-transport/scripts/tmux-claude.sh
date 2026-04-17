@@ -87,26 +87,7 @@ if [[ $_send_rc -eq 0 || $_send_rc -eq 76 ]]; then
   if [[ $_send_rc -eq 76 ]]; then
     echo "tmux_send: delivery unconfirmed (capture-pane miss)" >&2
   fi
-  if $_is_completion && [[ "$sender_role" == "companion" ]]; then
-    RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
-    _verdict=""
-    _findings_file="$(party_transport_completion_path "$MESSAGE" 2>/dev/null || true)"
-    if [[ -n "$_findings_file" && -f "$_findings_file" ]]; then
-      if grep -q '^VERDICT: APPROVED' "$_findings_file" 2>/dev/null; then
-        _verdict="APPROVE"
-      elif grep -q '^VERDICT: REQUEST_CHANGES' "$_findings_file" 2>/dev/null; then
-        _verdict="REQUEST_CHANGES"
-      elif grep -q '^VERDICT: NEEDS_DISCUSSION' "$_findings_file" 2>/dev/null; then
-        _verdict="NEEDS_DISCUSSION"
-      fi
-    fi
-    write_codex_status "$RUNTIME_DIR" "idle" "" "" "$_verdict"
-  fi
   echo "CLAUDE_MESSAGE_SENT"
 else
-  if $_is_completion && [[ "$sender_role" == "companion" ]]; then
-    RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
-    write_codex_status "$RUNTIME_DIR" "error" "" "" "" "completion delivery failed: Claude pane busy"
-  fi
   echo "CLAUDE_MESSAGE_DROPPED"
 fi
