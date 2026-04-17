@@ -85,21 +85,18 @@ func companionEnvVars(m state.Manifest, registry *agent.Registry) []string {
 		if spec.Role != string(agent.RoleCompanion) {
 			continue
 		}
-		if registry != nil {
-			if provider, err := registry.Get(spec.Name); err == nil && provider.EnvVar() != "" {
-				envVars[provider.EnvVar()] = struct{}{}
-				continue
-			}
+		provider, err := agent.Resolve(spec.Name, registry)
+		if err != nil || provider.EnvVar() == "" {
+			continue
 		}
-		switch spec.Name {
-		case "claude":
-			envVars["CLAUDE_SESSION_ID"] = struct{}{}
-		case "codex":
-			envVars["CODEX_THREAD_ID"] = struct{}{}
-		}
+		envVars[provider.EnvVar()] = struct{}{}
 	}
+	// Legacy manifests may store a stale codex thread ID without a
+	// companion agent entry; clear its env var unconditionally.
 	if m.ExtraString("codex_thread_id") != "" {
-		envVars["CODEX_THREAD_ID"] = struct{}{}
+		if provider, err := agent.Resolve("codex", registry); err == nil && provider.EnvVar() != "" {
+			envVars[provider.EnvVar()] = struct{}{}
+		}
 	}
 	out := make([]string, 0, len(envVars))
 	for envVar := range envVars {

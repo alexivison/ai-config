@@ -68,7 +68,10 @@ func (s *Service) Continue(ctx context.Context, sessionID string) (ContinueResul
 		return ContinueResult{}, err
 	}
 
-	agentPath := fallback(m.AgentPath, defaultAgentPath())
+	agentPath := m.AgentPath
+	if agentPath == "" {
+		agentPath = defaultAgentPath()
+	}
 	agentCmds := make(map[agent.Role]string, len(manifestSpecs))
 	launchAgents := make(map[agent.Role]agent.Agent, len(manifestSpecs))
 	agentResume := make(map[agent.Role]resumeInfo, len(manifestSpecs))
@@ -213,13 +216,6 @@ func (s *Service) cascadeWorkers(ctx context.Context, masterID string) (revived,
 		}
 	}
 	return revived, failed
-}
-
-func fallback(v, def string) string {
-	if v != "" {
-		return v
-	}
-	return def
 }
 
 func orderedManifestAgents(m state.Manifest) ([]state.AgentManifest, error) {

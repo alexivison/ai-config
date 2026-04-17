@@ -1342,20 +1342,6 @@ func TestStart_SidebarLayout(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Fallback helper
-// ---------------------------------------------------------------------------
-
-func TestFallback(t *testing.T) {
-	t.Parallel()
-
-	if got := fallback("first", "second"); got != "first" {
-		t.Errorf("expected 'first', got %q", got)
-	}
-	if got := fallback("", "second"); got != "second" {
-		t.Errorf("expected 'second', got %q", got)
-	}
-}
-
 // ---------------------------------------------------------------------------
 // Continue with parent re-registration
 // ---------------------------------------------------------------------------
