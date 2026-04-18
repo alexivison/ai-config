@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Companion Trace Hook
-# 1. Creates companion APPROVED evidence directly when --review-complete emits CODEX APPROVED
-#    (happens when findings file contains VERDICT: APPROVED from The Wizard).
-#    Requires CODEX_REVIEW_RAN sentinel in the same response as proof of review completion.
+# 1. Creates companion APPROVED evidence directly when --review-complete emits
+#    COMPANION APPROVED (happens when findings file contains VERDICT: APPROVED
+#    from the companion).
+#    Requires COMPANION_REVIEW_RAN in the same response as proof of review completion.
 # 2. Creates triage override evidence when --triage-override emits TRIAGE_OVERRIDE
 #
 # Triggered: PostToolUse on Bash tool
@@ -14,18 +15,8 @@ source "$(dirname "$0")/lib/evidence.sh"
 source "$(dirname "$0")/lib/party-cli.sh"
 source "$(dirname "$0")/lib/review-metrics.sh"
 
-escape_regex() {
-  printf '%s' "$1" | sed 's/[][(){}.^$+*?|\\/]/\\&/g'
-}
-
 transport_pattern() {
-  local companion_name="${1:-}"
-  local script_pattern='([^ ]*/)?tmux-codex\.sh'
-  if [ -n "$companion_name" ]; then
-    local escaped_name
-    escaped_name=$(escape_regex "$companion_name")
-    script_pattern="${script_pattern}|([^ ]*/)?tmux-${escaped_name}\\.sh"
-  fi
+  local script_pattern='([^ ]*/)?tmux-companion\.sh'
   printf '(^|[;&|] *)(%s|party-cli([[:space:]]+[^;&|]+)*[[:space:]]+transport([[:space:]]|$))' "$script_pattern"
 }
 
@@ -58,7 +49,7 @@ COMPANION_NAME=$(party_cli_query "$cwd" "companion-name" 2>/dev/null || true)
 if [ -z "$COMPANION_NAME" ]; then
   COMPANION_NAME="codex"
 fi
-TRANSPORT_PATTERN=$(transport_pattern "$COMPANION_NAME")
+TRANSPORT_PATTERN=$(transport_pattern)
 REVIEW_SOURCE="$COMPANION_NAME"
 
 # Only trace companion transport invocations
@@ -81,16 +72,16 @@ fi
 ts=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 log_evidence() { echo "$ts | companion-trace | $1 | $session_id" >> "$HOME/.claude/logs/evidence-trace.log"; }
 
-# --- Evidence: Wizard approval (via verdict in findings file) ---
-# --review-complete emits both CODEX_REVIEW_RAN and CODEX APPROVED when findings
-# contain VERDICT: APPROVED. The CODEX_REVIEW_RAN sentinel proves the review
+# --- Evidence: companion approval (via verdict in findings file) ---
+# --review-complete emits both COMPANION_REVIEW_RAN and COMPANION APPROVED when
+# findings contain VERDICT: APPROVED. COMPANION_REVIEW_RAN proves the review
 # actually completed (findings file exists). We require it before writing approval.
 review_verdict=""
-if echo "$response" | grep -qx "CODEX APPROVED"; then
+if echo "$response" | grep -qx "COMPANION APPROVED"; then
   review_verdict="APPROVED"
-  if echo "$response" | grep -qx "CODEX_REVIEW_RAN"; then
+  if echo "$response" | grep -qx "COMPANION_REVIEW_RAN"; then
     append_evidence "$session_id" "$REVIEW_SOURCE" "APPROVED" "$cwd"
-    log_evidence "CODEX_APPROVED"
+    log_evidence "COMPANION_APPROVED"
     # Resolve all prior unresolved companion findings as "fixed"
     metrics_f=$(metrics_file "$session_id")
     if [ -f "$metrics_f" ]; then
@@ -104,17 +95,17 @@ if echo "$response" | grep -qx "CODEX APPROVED"; then
       done
     fi
   else
-    echo "BLOCKED: CODEX APPROVED without CODEX_REVIEW_RAN sentinel — review may not have completed" >&2
-    log_evidence "CODEX_APPROVE_BLOCKED:no_review_ran"
+    echo "BLOCKED: COMPANION APPROVED without COMPANION_REVIEW_RAN — review may not have completed" >&2
+    log_evidence "COMPANION_APPROVE_BLOCKED:no_review_ran"
   fi
-elif echo "$response" | grep -qx "CODEX REQUEST_CHANGES"; then
+elif echo "$response" | grep -qx "COMPANION REQUEST_CHANGES"; then
   review_verdict="REQUEST_CHANGES"
-elif echo "$response" | grep -qx "CODEX VERDICT_MISSING"; then
+elif echo "$response" | grep -qx "COMPANION VERDICT_MISSING"; then
   review_verdict="VERDICT_MISSING"
 fi
 
 # --- Review metrics: extract finding details from companion findings file ---
-if echo "$response" | grep -qx "CODEX_REVIEW_RAN" && [ -n "$review_verdict" ]; then
+if echo "$response" | grep -qx "COMPANION_REVIEW_RAN" && [ -n "$review_verdict" ]; then
   # Extract findings file path from the --review-complete command
   findings_file=$(echo "$command" | grep -oE '[^ ]+\.(toon|findings)[^ ]*' | head -1)
   diff_hash=$(compute_diff_hash "$cwd")

@@ -26,10 +26,10 @@ ai-party/
 ├── claude/          # Claude Code configuration (hooks, skills, agents, rules)
 ├── codex/           # OpenAI Codex CLI configuration
 ├── docs/            # Project documentation
-├── shared/          # Skills shared by both platforms
+├── shared/          # Shared skill implementations and references
 ├── session/         # Shell wrappers and retained routing library
 │   ├── party.sh              # Thin wrapper — delegates to party-cli
-│   ├── party-lib.sh          # State helpers, locking, routing (retained for tmux-codex.sh)
+│   ├── party-lib.sh          # State helpers, locking, routing (retained for tmux-companion.sh / tmux-primary.sh)
 │   ├── party-relay.sh        # Thin wrapper — delegates to party-cli
 │   └── party-master.sh       # tmux keybinding: jump from worker to master
 ├── tools/
@@ -197,7 +197,7 @@ Supports **Enter** to switch/resume, **Ctrl-D** to delete, and **Esc** to cancel
 
 Party metadata is persisted under `~/.party-state/<party-id>.json`. Runtime handoff files in `/tmp/<party-id>/` are rebuilt on demand. Manifests older than 7 days are auto-pruned on start (configurable via `PARTY_PRUNE_DAYS`).
 
-Transport scripts (`tmux-codex.sh`, `tmux-claude.sh`) route messages by `@party_role` metadata and scan all windows in a session, so routing works regardless of pane layout.
+Transport scripts (`tmux-companion.sh`, `tmux-primary.sh`) route messages by `@party_role` metadata and scan all windows in a session, so routing works regardless of pane layout. Older sessions that still emit `[CLAUDE]` / `[CODEX]` prefixes continue to route correctly.
 
 ## Documentation
 

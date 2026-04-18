@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Tests for codex-status.json write side (tmux-codex.sh + tmux-claude.sh).
-# Verifies the status file contract defined in TASK12.
+# Tests for the companion status write side (`tmux-companion.sh` + `tmux-primary.sh`).
+# The Codex runtime still owns codex-status.json.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

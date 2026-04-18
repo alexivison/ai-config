@@ -10,18 +10,8 @@
 source "$(dirname "$0")/lib/evidence.sh"
 source "$(dirname "$0")/lib/party-cli.sh"
 
-escape_regex() {
-  printf '%s' "$1" | sed 's/[][(){}.^$+*?|\\/]/\\&/g'
-}
-
 transport_pattern() {
-  local companion_name="${1:-}"
-  local script_pattern='([^ ]*/)?tmux-codex\.sh'
-  if [ -n "$companion_name" ]; then
-    local escaped_name
-    escaped_name=$(escape_regex "$companion_name")
-    script_pattern="${script_pattern}|([^ ]*/)?tmux-${escaped_name}\\.sh"
-  fi
+  local script_pattern='([^ ]*/)?tmux-companion\.sh'
   printf '(^|[;&|] *)(%s|party-cli([[:space:]]+[^;&|]+)*[[:space:]]+transport([[:space:]]|$))' "$script_pattern"
 }
 
@@ -44,7 +34,7 @@ if [ -z "$COMPANION_NAME" ]; then
   exit 0
 fi
 
-TRANSPORT_PATTERN=$(transport_pattern "$COMPANION_NAME")
+TRANSPORT_PATTERN=$(transport_pattern)
 
 # Only gate companion transport invocations
 if ! echo "$COMMAND" | grep -qE "$TRANSPORT_PATTERN"; then

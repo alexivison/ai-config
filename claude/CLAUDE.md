@@ -62,18 +62,18 @@ Save investigation findings to `~/.claude/investigations/<issue-slug>.md`.
 
 ## Inter-Agent Transport
 
-Use the role-aware transport scripts only; never raw tmux commands. If you are the primary agent, dispatch the companion via `codex-transport` / `tmux-codex.sh` and keep working in parallel. If you are the companion agent, notify the primary via `tmux-claude.sh`. `[PRIMARY]` / `[COMPANION]` are the canonical prefixes for new sessions; `[CLAUDE]` / `[CODEX]` remain legacy fallbacks. Handle inbound transport via `tmux-handler`.
+Use the role-aware transport scripts only; never raw tmux commands. If you are the primary agent, dispatch the companion via `agent-transport` / `tmux-companion.sh` and keep working in parallel. If you are the companion agent, notify the primary via `tmux-primary.sh`. `[PRIMARY]` / `[COMPANION]` are the canonical prefixes for new sessions; `[CLAUDE]` / `[CODEX]` remain legacy fallbacks. Handle inbound transport via `tmux-handler`.
 
 ### When to Dispatch
 
-When acting as primary, see `codex-transport` for dispatch guidelines (mandatory and proactive triggers). It remains the default companion transport skill for backward compatibility.
+When acting as primary, see `agent-transport` for dispatch guidelines (mandatory and proactive triggers).
 
 ### Transport
 
-- Primary → companion: `~/.claude/skills/codex-transport/scripts/tmux-codex.sh`
-- Companion → primary: `~/.codex/skills/claude-transport/scripts/tmux-claude.sh`
+- Primary → companion: `~/.claude/skills/agent-transport/scripts/tmux-companion.sh`
+- Companion → primary: `~/.codex/skills/agent-transport/scripts/tmux-primary.sh`
 - Dispatch modes (`--review`, `--plan-review`, `--prompt`) are non-blocking and require `work_dir` as the last arg
-- See `codex-transport` and `claude-transport` for the full mode references
+- See `agent-transport` for the full mode references
 
 ## Master Session Mode
 

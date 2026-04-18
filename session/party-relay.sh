@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # party-relay.sh — Thin wrapper for master/worker communication via party-cli.
-# The --wizard transport path sources party-lib.sh for pane routing helpers.
+# The --companion transport path sources party-lib.sh for pane routing helpers.
 #
 # Usage:
 #   party-relay.sh <worker-id> "message"          # relay to one worker
 #   party-relay.sh --broadcast "message"           # broadcast to all workers
-#   party-relay.sh --read <worker-id> [--lines N]  # read worker's Claude pane
+#   party-relay.sh --read <worker-id> [--lines N]  # read worker's primary pane
 #   party-relay.sh --report "message"              # worker reports back to master
 #   party-relay.sh --list                          # list workers + status
 #   party-relay.sh --stop <worker-id>              # stop a worker
 #   party-relay.sh --spawn [--prompt "..."] "title" # spawn a new worker
-#   party-relay.sh --file <path> <worker-id>        # send file pointer to worker
-#   party-relay.sh --wizard <worker-id> "message"    # send raw text to worker's Wizard pane
+#   party-relay.sh --file <path> <worker-id>         # send file pointer to worker
+#   party-relay.sh --companion <worker-id> "message" # send raw text to worker's companion pane
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
@@ -53,8 +53,8 @@ Usage:
   party-relay.sh --list
   party-relay.sh --stop <worker-id>
   party-relay.sh --spawn [--prompt "text"] "title"
-  party-relay.sh --file <path> <worker-id>    # send file pointer to worker
-  party-relay.sh --wizard <worker-id> "msg"   # send raw text to worker's Wizard pane
+  party-relay.sh --file <path> <worker-id>         # send file pointer to worker
+  party-relay.sh --companion <worker-id> "msg"     # send raw text to worker's companion pane
 EOF
 }
 
@@ -116,25 +116,26 @@ case "$1" in
     fi
     exec "${PARTY_CLI_CMD[@]}" relay "$_file_worker" "Read and follow the instructions in $_file_path. Act on them now, then report back with results."
     ;;
-  --wizard)
+  --companion)
     _load_transport_helpers
+    _relay_mode="$1"
     shift
-    _wiz_worker="${1:?--wizard requires a worker ID}"
-    _wiz_msg="${2:?--wizard requires a message}"
-    _wiz_pane=$(party_companion_pane_target "$_wiz_worker") || {
-      echo "Error: Cannot resolve companion pane in worker '$_wiz_worker'" >&2
+    _companion_worker="${1:?$_relay_mode requires a worker ID}"
+    _companion_msg="${2:?$_relay_mode requires a message}"
+    _companion_pane=$(party_companion_pane_target "$_companion_worker") || {
+      echo "Error: Cannot resolve companion pane in worker '$_companion_worker'" >&2
       exit 1
     }
-    _wiz_rc=0
-    tmux_send "$_wiz_pane" "$_wiz_msg" "party-relay.sh:wizard" || _wiz_rc=$?
-    if [[ $_wiz_rc -eq 75 ]]; then
-      echo "Error: Wizard pane busy in worker '$_wiz_worker'. Message dropped." >&2
+    _companion_rc=0
+    tmux_send "$_companion_pane" "$_companion_msg" "party-relay.sh:companion" || _companion_rc=$?
+    if [[ $_companion_rc -eq 75 ]]; then
+      echo "Error: Companion pane busy in worker '$_companion_worker'. Message dropped." >&2
       exit 1
-    elif [[ $_wiz_rc -ne 0 && $_wiz_rc -ne 76 ]]; then
-      echo "Error: Failed to send to Wizard in worker '$_wiz_worker' (rc=$_wiz_rc)." >&2
+    elif [[ $_companion_rc -ne 0 && $_companion_rc -ne 76 ]]; then
+      echo "Error: Failed to send to companion in worker '$_companion_worker' (rc=$_companion_rc)." >&2
       exit 1
     fi
-    echo "Sent to Wizard in '$_wiz_worker'."
+    echo "Sent to companion in '$_companion_worker'."
     ;;
   --help|-h)
     relay_usage

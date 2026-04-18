@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# tmux-codex.sh — Claude's direct interface to The Wizard via tmux
+# tmux-companion.sh — Shared transport for sending work to the companion via tmux
 set -euo pipefail
 
-MODE="${1:?Usage: tmux-codex.sh --review|--plan-review|--prompt|--review-complete|--needs-discussion}"
+MODE="${1:?Usage: tmux-companion.sh --review|--plan-review|--prompt|--review-complete|--needs-discussion}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_DIR="$SCRIPT_DIR/../templates"
 source "$SCRIPT_DIR/../../../../session/party-lib.sh"
 
@@ -30,15 +30,27 @@ _render_template() {
   echo "$content" | grep -v '^{{.*}}$'
 }
 
+_apply_sender_prefix() {
+  local message="$1"
+  case "$message" in
+    "[PRIMARY] "*|"[COMPANION] "*|"[CLAUDE] "*|"[CODEX] "*)
+      printf '%s %s\n' "$SENDER_PREFIX" "${message#*] }"
+      ;;
+    *)
+      printf '%s\n' "$message"
+      ;;
+  esac
+}
+
 # Session discovery only for modes that need tmux (--review, --prompt).
 # Evidence/escalation modes (--review-complete, --needs-discussion)
 # only emit sentinel strings and work without a party session.
 _require_session() {
   discover_session
   CURRENT_ROLE="$(current_role)"
-  # Master sessions have no Codex pane — guard early
+  # Master sessions have no companion pane — guard early.
   if party_is_master "$SESSION_NAME" 2>/dev/null; then
-    echo "CODEX_NOT_AVAILABLE: Master sessions have no Wizard pane. Route review work through a worker session." >&2
+    echo "COMPANION_NOT_AVAILABLE: Master sessions have no companion pane. Route review work through a worker session." >&2
     exit 1
   fi
   TARGET_ROLE="companion"
@@ -97,9 +109,9 @@ case "$MODE" in
     WORK_DIR="${_review_positional[0]:?Missing work_dir — pass the worktree/repo path}"
     BASE="${_review_positional[1]:-main}"
     TITLE="${_review_positional[2]:-Code review}"
-    FINDINGS_FILE="$STATE_DIR/codex-findings-$(date +%s%N).toon"
+    FINDINGS_FILE="$STATE_DIR/companion-findings-$(date +%s%N).toon"
 
-    NOTIFY_SCRIPT="$(cd "$SCRIPT_DIR/../../../../codex/skills/claude-transport/scripts" && pwd)/tmux-claude.sh"
+    NOTIFY_SCRIPT="$HOME/.codex/skills/agent-transport/scripts/tmux-primary.sh"
     NOTIFY_CMD="$NOTIFY_SCRIPT \"Review complete. Findings at: $FINDINGS_FILE\""
 
     # Build conditional sections (printf for real newlines)
@@ -125,19 +137,17 @@ case "$MODE" in
       "SCOPE_SECTION=$SCOPE_SECTION" \
       "DISPUTE_SECTION=$DISPUTE_SECTION" \
       "REREVEW_SECTION=$REREVEW_SECTION")
-    if [[ "$MSG" == "[CLAUDE] "* ]]; then
-      MSG="$SENDER_PREFIX ${MSG#"[CLAUDE] "}"
-    fi
+    MSG="$(_apply_sender_prefix "$MSG")"
 
     RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
-    if _send_with_retry "$PEER_PANE" "$MSG" "tmux-codex.sh:review"; then
-      write_codex_status "$RUNTIME_DIR" "working" "$BASE" "review"
-      echo "CODEX_REVIEW_REQUESTED"
-      echo "Claude is NOT blocked. Codex will notify via tmux when complete."
+    if _send_with_retry "$PEER_PANE" "$MSG" "tmux-companion.sh:review"; then
+      write_companion_status "$RUNTIME_DIR" "working" "$BASE" "review"
+      echo "COMPANION_REVIEW_REQUESTED"
+      echo "The primary agent is NOT blocked. The companion will notify via tmux when complete."
     else
-      write_codex_status "$RUNTIME_DIR" "error" "" "" "" "review dispatch failed: pane busy"
-      echo "CODEX_REVIEW_DROPPED"
-      echo "Codex pane is busy. Message dropped (best-effort delivery)."
+      write_companion_status "$RUNTIME_DIR" "error" "" "" "" "review dispatch failed: pane busy"
+      echo "COMPANION_REVIEW_DROPPED"
+      echo "The companion pane is busy. Message dropped (best-effort delivery)."
     fi
     echo "Findings will be written to: $FINDINGS_FILE"
     echo "Working directory: $WORK_DIR"
@@ -151,9 +161,9 @@ case "$MODE" in
     fi
     PLAN_PATH="${2:?Missing plan path}"
     WORK_DIR="${3:?Missing work_dir — pass the worktree/repo path as 3rd argument}"
-    FINDINGS_FILE="$STATE_DIR/codex-plan-findings-$(date +%s%N).toon"
+    FINDINGS_FILE="$STATE_DIR/companion-plan-findings-$(date +%s%N).toon"
 
-    NOTIFY_SCRIPT="$(cd "$SCRIPT_DIR/../../../../codex/skills/claude-transport/scripts" && pwd)/tmux-claude.sh"
+    NOTIFY_SCRIPT="$HOME/.codex/skills/agent-transport/scripts/tmux-primary.sh"
     NOTIFY_CMD="$NOTIFY_SCRIPT \"Plan review complete. Findings at: $FINDINGS_FILE\""
 
     MSG=$(_render_template "$TEMPLATE_DIR/plan-review.md" \
@@ -161,19 +171,17 @@ case "$MODE" in
       "PLAN_PATH=$PLAN_PATH" \
       "FINDINGS_FILE=$FINDINGS_FILE" \
       "NOTIFY_CMD=$NOTIFY_CMD")
-    if [[ "$MSG" == "[CLAUDE] "* ]]; then
-      MSG="$SENDER_PREFIX ${MSG#"[CLAUDE] "}"
-    fi
+    MSG="$(_apply_sender_prefix "$MSG")"
 
     RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
-    if _send_with_retry "$PEER_PANE" "$MSG" "tmux-codex.sh:plan-review"; then
-      write_codex_status "$RUNTIME_DIR" "working" "$PLAN_PATH" "plan-review"
-      echo "CODEX_PLAN_REVIEW_REQUESTED"
-      echo "Claude is NOT blocked. Codex will notify via tmux when complete."
+    if _send_with_retry "$PEER_PANE" "$MSG" "tmux-companion.sh:plan-review"; then
+      write_companion_status "$RUNTIME_DIR" "working" "$PLAN_PATH" "plan-review"
+      echo "COMPANION_PLAN_REVIEW_REQUESTED"
+      echo "The primary agent is NOT blocked. The companion will notify via tmux when complete."
     else
-      write_codex_status "$RUNTIME_DIR" "error" "" "" "" "plan-review dispatch failed: pane busy"
-      echo "CODEX_PLAN_REVIEW_DROPPED"
-      echo "Codex pane is busy. Message dropped (best-effort delivery)."
+      write_companion_status "$RUNTIME_DIR" "error" "" "" "" "plan-review dispatch failed: pane busy"
+      echo "COMPANION_PLAN_REVIEW_DROPPED"
+      echo "The companion pane is busy. Message dropped (best-effort delivery)."
     fi
     echo "Findings will be written to: $FINDINGS_FILE"
     echo "Working directory: $WORK_DIR"
@@ -185,29 +193,29 @@ case "$MODE" in
     WORK_DIR="${3:?Missing work_dir — pass the worktree/repo path as 3rd argument}"
     if [[ "$SENDER_ROLE" == "companion" ]]; then
       MSG="$SENDER_PREFIX $PROMPT_TEXT"
-      if _send_with_retry "$PEER_PANE" "$MSG" "tmux-codex.sh:prompt-notify"; then
-        echo "CODEX_MESSAGE_SENT"
+      if _send_with_retry "$PEER_PANE" "$MSG" "tmux-companion.sh:prompt-notify"; then
+        echo "COMPANION_MESSAGE_SENT"
       else
-        echo "CODEX_MESSAGE_DROPPED"
+        echo "COMPANION_MESSAGE_DROPPED"
       fi
       echo "Working directory: $WORK_DIR"
       exit 0
     fi
 
-    RESPONSE_FILE="$STATE_DIR/codex-response-$(date +%s%N).toon"
+    RESPONSE_FILE="$STATE_DIR/companion-response-$(date +%s%N).toon"
 
-    NOTIFY_SCRIPT="$(cd "$SCRIPT_DIR/../../../../codex/skills/claude-transport/scripts" && pwd)/tmux-claude.sh"
+    NOTIFY_SCRIPT="$HOME/.codex/skills/agent-transport/scripts/tmux-primary.sh"
     HANDOFF_INSTRUCTION="$(party_transport_response_handoff_instruction "$NOTIFY_SCRIPT" "$RESPONSE_FILE")"
     MSG="$SENDER_PREFIX cd '$WORK_DIR' && $PROMPT_TEXT — Write response to: $RESPONSE_FILE — $HANDOFF_INSTRUCTION"
     RUNTIME_DIR="$(party_runtime_dir "$SESSION_NAME")"
-    if _send_with_retry "$PEER_PANE" "$MSG" "tmux-codex.sh:prompt"; then
-      write_codex_status "$RUNTIME_DIR" "working" "$PROMPT_TEXT" "prompt"
-      echo "CODEX_TASK_REQUESTED"
+    if _send_with_retry "$PEER_PANE" "$MSG" "tmux-companion.sh:prompt"; then
+      write_companion_status "$RUNTIME_DIR" "working" "$PROMPT_TEXT" "prompt"
+      echo "COMPANION_TASK_REQUESTED"
       echo "Do not poll the response file. Wait for '[COMPANION] $(party_transport_response_completion_message "$RESPONSE_FILE")' (legacy '[CODEX] Response ready at: $RESPONSE_FILE' is still accepted)."
     else
-      write_codex_status "$RUNTIME_DIR" "error" "" "" "" "prompt dispatch failed: pane busy"
-      echo "CODEX_TASK_DROPPED"
-      echo "Codex pane is busy. Message dropped (best-effort delivery)."
+      write_companion_status "$RUNTIME_DIR" "error" "" "" "" "prompt dispatch failed: pane busy"
+      echo "COMPANION_TASK_DROPPED"
+      echo "The companion pane is busy. Message dropped (best-effort delivery)."
     fi
     echo "Response will be written to: $RESPONSE_FILE"
     echo "Working directory: $WORK_DIR"
@@ -219,40 +227,39 @@ case "$MODE" in
       echo "Error: Findings file not found: $FINDINGS_FILE" >&2
       exit 1
     fi
-    echo "CODEX_REVIEW_RAN"
-    # Parse verdict from findings file (written by Codex, not the worker).
-    # Only Codex writes the findings file, so this verdict is trustworthy.
+    echo "COMPANION_REVIEW_RAN"
+    # Parse the verdict from the findings file written by the companion.
     if grep -qx 'VERDICT: APPROVED' "$FINDINGS_FILE"; then
-      echo "CODEX APPROVED"
+      echo "COMPANION APPROVED"
     elif grep -qx 'VERDICT: REQUEST_CHANGES' "$FINDINGS_FILE"; then
-      echo "CODEX REQUEST_CHANGES"
+      echo "COMPANION REQUEST_CHANGES"
     else
       echo "WARNING: No verdict line found in findings file. Review ran but no approval granted." >&2
-      echo "CODEX VERDICT_MISSING"
+      echo "COMPANION VERDICT_MISSING"
     fi
     ;;
 
   --approve)
-    echo "Error: --approve is deprecated. Codex approval flows through --review-complete," >&2
-    echo "which reads the VERDICT line from the findings file Codex wrote." >&2
-    echo "Do not self-approve. Use: tmux-codex.sh --review-complete <findings_file>" >&2
+    echo "Error: --approve is deprecated. Companion approval flows through --review-complete," >&2
+    echo "which reads the VERDICT line from the findings file the companion wrote." >&2
+    echo "Do not self-approve. Use: tmux-companion.sh --review-complete <findings_file>" >&2
     exit 1
     ;;
 
   --needs-discussion)
     REASON="${2:-Multiple valid approaches or unresolvable findings}"
-    echo "CODEX NEEDS_DISCUSSION — $REASON"
+    echo "COMPANION NEEDS_DISCUSSION — $REASON"
     ;;
 
   --triage-override)
-    TYPE="${2:?Usage: tmux-codex.sh --triage-override <type> <rationale>}"
-    RATIONALE="${3:?Usage: tmux-codex.sh --triage-override <type> <rationale>}"
+    TYPE="${2:?Usage: tmux-companion.sh --triage-override <type> <rationale>}"
+    RATIONALE="${3:?Usage: tmux-companion.sh --triage-override <type> <rationale>}"
     echo "TRIAGE_OVERRIDE $TYPE | $RATIONALE"
     ;;
 
   *)
     echo "Error: Unknown mode '$MODE'" >&2
-    echo "Usage: tmux-codex.sh --review|--plan-review|--prompt|--review-complete|--needs-discussion|--triage-override" >&2
+    echo "Usage: tmux-companion.sh --review|--plan-review|--prompt|--review-complete|--needs-discussion|--triage-override" >&2
     exit 1
     ;;
 esac

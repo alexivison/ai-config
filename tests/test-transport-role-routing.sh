@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests for role-aware transport scripts and the party-relay --wizard helper.
+# Tests for role-aware transport scripts and the party-relay --companion helper.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -150,23 +150,33 @@ echo "--- test-transport-role-routing.sh ---"
 SESSION_NEW="party-transport-new-$$"
 SESSION_OLD="party-transport-old-$$"
 
+assert "claude agent-transport companion script is a symlink" \
+  '[ -L "$REPO_ROOT/claude/skills/agent-transport/scripts/tmux-companion.sh" ]'
+assert "claude agent-transport primary script is a symlink" \
+  '[ -L "$REPO_ROOT/claude/skills/agent-transport/scripts/tmux-primary.sh" ]'
+assert "codex agent-transport companion script is a symlink" \
+  '[ -L "$REPO_ROOT/codex/skills/agent-transport/scripts/tmux-companion.sh" ]'
+assert "codex agent-transport primary script is a symlink" \
+  '[ -L "$REPO_ROOT/codex/skills/agent-transport/scripts/tmux-primary.sh" ]'
+
 echo ""
-echo "  === tmux-claude.sh ==="
+echo "  === tmux-primary.sh ==="
 
 export MOCK_WINDOW_LIST=$'0\n1'
 export MOCK_PANES_0=$'0 companion'
 export MOCK_PANES_1=$'0 tracker\n1 primary\n2 shell'
 > "$MOCK_LOG"
-run_and_capture "$SESSION_NEW" bash "$REPO_ROOT/codex/skills/claude-transport/scripts/tmux-claude.sh" "Task complete. Response at: /tmp/resp.toon"
+run_and_capture "$SESSION_NEW" bash "$REPO_ROOT/codex/skills/agent-transport/scripts/tmux-primary.sh" "Task complete. Response at: /tmp/resp.toon"
 assert_log "${SESSION_NEW}:1.1" "[COMPANION] Task complete. Response at: /tmp/resp.toon"
 
 export TMUX_PANE="%99"
 export MOCK_CURRENT_ROLE="primary"
 > "$MOCK_LOG"
-run_and_capture "$SESSION_NEW" bash "$REPO_ROOT/codex/skills/claude-transport/scripts/tmux-claude.sh" "Question: tell me a joke. Write response to: /tmp/resp.toon"
+run_and_capture "$SESSION_NEW" bash "$REPO_ROOT/codex/skills/agent-transport/scripts/tmux-primary.sh" "Question: tell me a joke. Write response to: /tmp/resp.toon"
 assert_log "${SESSION_NEW}:0.0" "[PRIMARY] Question: tell me a joke. Write response to: /tmp/resp.toon"
 assert_log_contains 'Do not poll the response file. Wait for the tmux completion notice, then read it.'
 assert_log_contains 'When done, run:'
+assert_log_contains '/.codex/skills/agent-transport/scripts/tmux-primary.sh'
 assert_log_contains 'Task complete. Response at: /tmp/resp.toon'
 unset TMUX_PANE
 unset MOCK_CURRENT_ROLE
@@ -175,17 +185,17 @@ export MOCK_WINDOW_LIST="0"
 export MOCK_PANES_0=$'0 codex\n1 claude\n2 shell'
 unset MOCK_PANES_1
 > "$MOCK_LOG"
-run_and_capture "$SESSION_OLD" bash "$REPO_ROOT/codex/skills/claude-transport/scripts/tmux-claude.sh" "Task complete. Response at: /tmp/resp.toon"
+run_and_capture "$SESSION_OLD" bash "$REPO_ROOT/codex/skills/agent-transport/scripts/tmux-primary.sh" "Task complete. Response at: /tmp/resp.toon"
 assert_log "${SESSION_OLD}:0.1" "[CODEX] Task complete. Response at: /tmp/resp.toon"
 
 echo ""
-echo "  === tmux-codex.sh ==="
+echo "  === tmux-companion.sh ==="
 
 export MOCK_WINDOW_LIST=$'0\n1'
 export MOCK_PANES_0=$'0 companion'
 export MOCK_PANES_1=$'0 tracker\n1 primary\n2 shell'
 > "$MOCK_LOG"
-prompt_output="$(PARTY_SESSION="$SESSION_NEW" bash "$REPO_ROOT/claude/skills/codex-transport/scripts/tmux-codex.sh" --prompt "inspect this" /tmp/work)"
+prompt_output="$(PARTY_SESSION="$SESSION_NEW" bash "$REPO_ROOT/claude/skills/agent-transport/scripts/tmux-companion.sh" --prompt "inspect this" /tmp/work)"
 assert_log "${SESSION_NEW}:0.0" "[PRIMARY] cd '/tmp/work' && inspect this"
 assert "primary prompt output tells requester not to poll" \
   'printf "%s" "$prompt_output" | grep -Fq "Do not poll the response file. Wait for '\''[COMPANION] Task complete. Response at:"'
@@ -194,7 +204,7 @@ export TMUX_PANE="%41"
 export MOCK_CURRENT_ROLE="companion"
 export CURRENT_ROLE="primary"
 > "$MOCK_LOG"
-run_and_capture "$SESSION_NEW" bash "$REPO_ROOT/claude/skills/codex-transport/scripts/tmux-codex.sh" --prompt "Task complete. Response at: /tmp/resp.toon" /tmp/work
+run_and_capture "$SESSION_NEW" bash "$REPO_ROOT/claude/skills/agent-transport/scripts/tmux-companion.sh" --prompt "Task complete. Response at: /tmp/resp.toon" /tmp/work
 assert_log "${SESSION_NEW}:1.1" "[COMPANION] Task complete. Response at: /tmp/resp.toon"
 unset TMUX_PANE
 unset MOCK_CURRENT_ROLE
@@ -202,7 +212,7 @@ unset CURRENT_ROLE
 
 export MOCK_CURRENT_ROLE="companion"
 > "$MOCK_LOG"
-run_and_capture "$SESSION_NEW" bash "$REPO_ROOT/codex/skills/claude-transport/scripts/tmux-claude.sh" "Response ready at: /tmp/legacy-resp.toon"
+run_and_capture "$SESSION_NEW" bash "$REPO_ROOT/codex/skills/agent-transport/scripts/tmux-primary.sh" "Response ready at: /tmp/legacy-resp.toon"
 assert_log "${SESSION_NEW}:1.1" "[COMPANION] Response ready at: /tmp/legacy-resp.toon"
 assert "legacy response-ready alias still marks status idle" \
   '[[ "$(jq -r ".state" "/tmp/'"$SESSION_NEW"'/codex-status.json")" == "idle" ]]'
@@ -212,20 +222,20 @@ export MOCK_WINDOW_LIST="0"
 export MOCK_PANES_0=$'0 codex\n1 claude\n2 shell'
 unset MOCK_PANES_1
 > "$MOCK_LOG"
-run_and_capture "$SESSION_OLD" bash "$REPO_ROOT/claude/skills/codex-transport/scripts/tmux-codex.sh" --prompt "inspect this" /tmp/work
+run_and_capture "$SESSION_OLD" bash "$REPO_ROOT/claude/skills/agent-transport/scripts/tmux-companion.sh" --prompt "inspect this" /tmp/work
 assert_log "${SESSION_OLD}:0.0" "[CLAUDE] cd '/tmp/work' && inspect this"
 
 echo ""
-echo "  === party-relay.sh --wizard ==="
+echo "  === party-relay.sh --companion ==="
 
 export MOCK_PANES_0=$'0 companion\n1 primary\n2 shell'
 > "$MOCK_LOG"
-bash "$REPO_ROOT/session/party-relay.sh" --wizard "$SESSION_NEW" "raw ping" >/dev/null
+bash "$REPO_ROOT/session/party-relay.sh" --companion "$SESSION_NEW" "raw ping" >/dev/null
 assert_log "${SESSION_NEW}:0.0" "raw ping"
 
 export MOCK_PANES_0=$'0 codex\n1 claude\n2 shell'
 > "$MOCK_LOG"
-bash "$REPO_ROOT/session/party-relay.sh" --wizard "$SESSION_OLD" "legacy ping" >/dev/null
+bash "$REPO_ROOT/session/party-relay.sh" --companion "$SESSION_OLD" "legacy ping" >/dev/null
 assert_log "${SESSION_OLD}:0.0" "legacy ping"
 
 echo ""

@@ -71,14 +71,14 @@ setup_repo
 
 echo "--- test-codex-gate.sh ---"
 
-# Test: gate allows non-tmux-codex commands
+# Test: gate allows non-transport commands
 OUTPUT=$(echo "$(gate_input 'ls -la')" | bash "$GATE")
-assert "gate allows non-tmux-codex commands" \
+assert "gate allows non-transport commands" \
   '! echo "$OUTPUT" | grep -q "deny"'
 
 # Test: --review without any evidence is allowed (no phase gate)
 clean_evidence
-OUTPUT=$(echo "$(gate_input 'tmux-codex.sh --review main "test"')" | bash "$GATE")
+OUTPUT=$(echo "$(gate_input 'tmux-companion.sh --review main "test"')" | bash "$GATE")
 assert "--review without evidence is allowed" \
   '! echo "$OUTPUT" | grep -q "deny"'
 
@@ -86,13 +86,13 @@ assert "--review without evidence is allowed" \
 clean_evidence
 append_evidence "$SESSION_ID" "code-critic" "APPROVED" "$TMPDIR_BASE"
 append_evidence "$SESSION_ID" "minimizer" "APPROVED" "$TMPDIR_BASE"
-OUTPUT=$(echo "$(gate_input '~/.claude/skills/codex-transport/scripts/tmux-codex.sh --review main "test"')" | bash "$GATE")
+OUTPUT=$(echo "$(gate_input '~/.claude/skills/agent-transport/scripts/tmux-companion.sh --review main "test"')" | bash "$GATE")
 assert "--review with critic evidence is allowed" \
   '! echo "$OUTPUT" | grep -q "deny"'
 
 # Test: gate always blocks --approve (workers cannot self-approve)
 clean_evidence
-OUTPUT=$(echo "$(gate_input 'tmux-codex.sh --approve')" | bash "$GATE")
+OUTPUT=$(echo "$(gate_input 'tmux-companion.sh --approve')" | bash "$GATE")
 assert "--approve blocked without evidence" \
   'echo "$OUTPUT" | grep -q "deny"'
 
@@ -107,25 +107,25 @@ clean_evidence
 append_evidence "$SESSION_ID" "code-critic" "APPROVED" "$TMPDIR_BASE"
 append_evidence "$SESSION_ID" "minimizer" "APPROVED" "$TMPDIR_BASE"
 append_evidence "$SESSION_ID" "codex" "APPROVED" "$TMPDIR_BASE"
-OUTPUT=$(echo "$(gate_input 'tmux-codex.sh --approve')" | bash "$GATE")
+OUTPUT=$(echo "$(gate_input 'tmux-companion.sh --approve')" | bash "$GATE")
 assert "--approve blocked even with full evidence" \
   'echo "$OUTPUT" | grep -q "deny"'
 
 # Test: --prompt passes through without evidence
 clean_evidence
-OUTPUT=$(echo "$(gate_input 'tmux-codex.sh --prompt "debug this"')" | bash "$GATE")
+OUTPUT=$(echo "$(gate_input 'tmux-companion.sh --prompt "debug this"')" | bash "$GATE")
 assert "--prompt allowed without evidence" \
   '! echo "$OUTPUT" | grep -q "deny"'
 
 # Test: --plan-review passes through without evidence
 clean_evidence
-OUTPUT=$(echo "$(gate_input 'tmux-codex.sh --plan-review PLAN.md /tmp/work')" | bash "$GATE")
+OUTPUT=$(echo "$(gate_input 'tmux-companion.sh --plan-review PLAN.md /tmp/work')" | bash "$GATE")
 assert "--plan-review allowed without evidence" \
   '! echo "$OUTPUT" | grep -q "deny"'
 
 # Test: --review-complete passes through
 clean_evidence
-OUTPUT=$(echo "$(gate_input 'tmux-codex.sh --review-complete /tmp/findings.toon')" | bash "$GATE")
+OUTPUT=$(echo "$(gate_input 'tmux-companion.sh --review-complete /tmp/findings.toon')" | bash "$GATE")
 assert "--review-complete allowed" \
   '! echo "$OUTPUT" | grep -q "deny"'
 
@@ -136,13 +136,13 @@ cat > "$(config_path)" <<'EOF'
 [roles.primary]
 agent = "claude"
 EOF
-OUTPUT=$(echo "$(gate_input 'tmux-codex.sh --approve')" | bash "$GATE")
+OUTPUT=$(echo "$(gate_input 'tmux-companion.sh --approve')" | bash "$GATE")
 assert "no companion configured allows commands" \
   '! echo "$OUTPUT" | grep -q "deny"'
 
 # Test: no party-cli in PATH -> fail open
 clean_evidence
-OUTPUT=$(echo "$(gate_input 'tmux-codex.sh --approve')" | PARTY_CLI_DISABLE_GO_FALLBACK=1 PATH="/usr/bin:/bin:/usr/sbin:/sbin" bash "$GATE")
+OUTPUT=$(echo "$(gate_input 'tmux-companion.sh --approve')" | PARTY_CLI_DISABLE_GO_FALLBACK=1 PATH="/usr/bin:/bin:/usr/sbin:/sbin" bash "$GATE")
 assert "missing party-cli allows commands" \
   '! echo "$OUTPUT" | grep -q "deny"'
 

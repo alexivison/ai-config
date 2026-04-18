@@ -1,4 +1,4 @@
-[CLAUDE] cd '{{WORK_DIR}}' && Review the plan at '{{PLAN_PATH}}' for architecture soundness and execution feasibility.
+[PRIMARY] cd '{{WORK_DIR}}' && Review the plan at '{{PLAN_PATH}}' for architecture soundness and execution feasibility.
 
 ## Evaluate
 

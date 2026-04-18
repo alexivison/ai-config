@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Tests for codex-transport, the default companion transport, template rendering and --review flag parsing
+# Tests for agent-transport, the shared role-based transport skill.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TRANSPORT_SCRIPT="$SCRIPT_DIR/../scripts/tmux-codex.sh"
+TRANSPORT_SCRIPT="$SCRIPT_DIR/../scripts/tmux-companion.sh"
 TEMPLATE_DIR="$SCRIPT_DIR/../templates"
 TMPDIR_TEST=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_TEST"' EXIT
@@ -176,7 +176,7 @@ assert_grep "plan-review: no unreplaced placeholders" "$TMPDIR_TEST/plan-review.
 
 echo "=== Multiline conditional sections ==="
 
-# Build a scope section using printf (same as the default companion transport script does)
+# Build a scope section using printf (same as tmux-companion.sh does).
 MULTILINE_SCOPE=$(printf '## Scope\n\nOnly review auth module changes.\nFindings outside this scope should be omitted.')
 _render_template "$TEMPLATE_DIR/review.md" \
   "WORK_DIR=/tmp/test-repo" \

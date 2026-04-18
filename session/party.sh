@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # party.sh — Thin wrapper that delegates to party-cli for all operations.
-# party-lib.sh is retained only for transport layer (tmux-codex.sh, tmux-claude.sh).
+# party-lib.sh is retained only for the role-based transport layer
+# (tmux-companion.sh, tmux-primary.sh).
 #
 # Usage: party.sh [--detached] [--prompt "text"] [--primary AGENT] [--companion AGENT] [--no-companion] [--resume-agent ROLE=ID] [--resume-claude ID] [--resume-codex ID] [TITLE]
 #        party.sh --switch | --continue <party-id> | --stop [name] | --list | --install-tpm
@@ -187,6 +188,11 @@ done
 # Remaining positional args after -- (e.g., title from tracker spawn)
 [[ $# -gt 0 && -z "$_party_title" ]] && _party_title="$1"
 
+# Master sessions replace the companion pane with the tracker.
+if [[ "$_party_master" -eq 1 ]]; then
+  _party_no_companion=1
+fi
+
 # --- Start a new session via party-cli ---
 _resolve_party_cli || exit 1
 
@@ -195,7 +201,7 @@ start_args=(start --cwd "$PWD")
 [[ "$_party_master" -eq 1 ]]    && start_args+=(--master)
 [[ -n "$_party_master_id" ]]    && start_args+=(--master-id "$_party_master_id")
 [[ -n "$_party_primary" ]]      && start_args+=(--primary "$_party_primary")
-[[ -n "$_party_companion" ]]    && start_args+=(--companion "$_party_companion")
+[[ "$_party_no_companion" -eq 0 && -n "$_party_companion" ]] && start_args+=(--companion "$_party_companion")
 [[ "$_party_no_companion" -eq 1 ]] && start_args+=(--no-companion)
 [[ -n "$_party_prompt" ]]       && start_args+=(--prompt "$_party_prompt")
 for ra in "${_party_resume_agents[@]}"; do

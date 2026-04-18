@@ -20,8 +20,8 @@ You see a message in your pane prefixed with `[PRIMARY]`, `[COMPANION]`, `[CLAUD
 
 Choose the transport by your current role:
 
-- If you are **primary**: `~/.claude/skills/codex-transport/scripts/tmux-codex.sh --prompt "<message>" "$(pwd)"`
-- If you are **companion**: `~/.claude/skills/codex-transport/scripts/tmux-claude.sh "<message>"`
+- If you are **primary**: `~/.claude/skills/agent-transport/scripts/tmux-companion.sh --prompt "<message>" "$(pwd)"`
+- If you are **companion**: `~/.claude/skills/agent-transport/scripts/tmux-primary.sh "<message>"`
 
 ## TOON findings format
 
@@ -51,21 +51,21 @@ When reading a TOON findings file:
 
 When Bash is available, prefer the shared transport helper over manual TOON parsing or emission.
 
-Use `~/.claude/skills/codex-transport/scripts/toon-transport.sh`:
+Use `~/.claude/skills/agent-transport/scripts/toon-transport.sh`:
 
 - Decode a TOON findings file to JSON:
-  `~/.claude/skills/codex-transport/scripts/toon-transport.sh decode <findings_file>`
+  `~/.claude/skills/agent-transport/scripts/toon-transport.sh decode <findings_file>`
 - Validate a TOON findings file:
-  `~/.claude/skills/codex-transport/scripts/toon-transport.sh validate-findings <findings_file>`
+  `~/.claude/skills/agent-transport/scripts/toon-transport.sh validate-findings <findings_file>`
 - Encode canonical findings JSON to raw TOON:
-  `~/.claude/skills/codex-transport/scripts/toon-transport.sh encode-findings /tmp/findings.json <findings_file>`
+  `~/.claude/skills/agent-transport/scripts/toon-transport.sh encode-findings /tmp/findings.json <findings_file>`
 
 ## Transport direction
 
 | Agent calling | Script to use | Direction |
 |---|---|---|
-| Primary agent (default: Claude) | `tmux-codex.sh` | primary → companion |
-| Companion agent (default: Codex) | `tmux-claude.sh` | companion → primary |
+| Primary agent (default: Claude) | `tmux-companion.sh` | primary → companion |
+| Companion agent (default: Codex) | `tmux-primary.sh` | companion → primary |
 
 ## Message types
 
@@ -75,13 +75,13 @@ Message: `[COMPANION] Review complete. Findings at: <path>` (legacy: `[CODEX] ..
 1. Read the FULL findings file (TOON format) with your Read tool or decode it via the helper workflow above
 2. Validate per the triage checklist above (or via `validate-findings`)
 3. Mark review evidence as complete:
-   `tmux-codex.sh --review-complete <path>`
+   `tmux-companion.sh --review-complete <path>`
 4. Triage each finding: blocking / non-blocking / out-of-scope
 5. Update your issue ledger (reject re-raised closed findings, detect oscillation)
 6. The verdict comes from the `VERDICT:` line the companion wrote in the findings file — `--review-complete` reads it automatically:
    - `VERDICT: APPROVED` in findings → approval evidence created
    - `VERDICT: REQUEST_CHANGES` → no approval evidence; fix code, re-run critics, dispatch new `--review` → `--review-complete`
-   - Unresolvable → `tmux-codex.sh --needs-discussion "reason"`
+   - Unresolvable → `tmux-companion.sh --needs-discussion "reason"`
    - **Do NOT call `--approve` directly** — the gate blocks it.
 
 ### Question from the Companion

@@ -1,1 +1,0 @@
-../../../../shared/references/agent-transport/prompt-templates.md

@@ -104,6 +104,12 @@ bash "$REPO_ROOT/session/party.sh" --detached test-title 2>/dev/null || true
 assert "party.sh --detached omits --attach" \
   '! grep -q "\-\-attach" "$MOCK_LOG"'
 
+# ---- party.sh --master forces --no-companion ----
+> "$MOCK_LOG"
+bash "$REPO_ROOT/session/party.sh" --master --primary codex test-title 2>/dev/null || true
+assert "party.sh --master forwards --no-companion" \
+  'grep -q "start.*--master.*--primary codex.*--no-companion" "$MOCK_LOG"'
+
 # ---- party-relay.sh --broadcast delegates to party-cli broadcast ----
 > "$MOCK_LOG"
 bash "$REPO_ROOT/session/party-relay.sh" --broadcast "hello workers" 2>/dev/null || true
@@ -163,8 +169,14 @@ assert "party-master.sh is retired (not sourced by party.sh)" \
 assert "party.sh does not source party-lib.sh" \
   '! grep -q "source.*party-lib.sh" "$REPO_ROOT/session/party.sh"'
 
-assert "party-relay.sh --wizard routes through companion helper" \
+assert "party-relay.sh --companion routes through companion helper" \
   'grep -q "party_companion_pane_target" "$REPO_ROOT/session/party-relay.sh"'
+
+assert "party-relay.sh legacy --wizard alias removed" \
+  '! grep -q -- "--wizard" "$REPO_ROOT/session/party-relay.sh"'
+
+assert "legacy provider transport skills are removed" \
+  '[ ! -e "$REPO_ROOT/claude/skills/codex-transport" ] && [ ! -e "$REPO_ROOT/codex/skills/claude-transport" ]'
 
 # ---- Verify vestigial scripts are deleted ----
 assert "party-picker.sh is deleted" \

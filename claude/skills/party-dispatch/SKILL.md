@@ -292,7 +292,7 @@ Any party session can be promoted to master: `party-cli promote [party-id]`. Thi
 When running in a master session (`session_type == "master"` in manifest):
 - You are an **orchestrator**, not an implementor.
 - **HARD RULE:** Never use Edit or Write on production code. Investigation (Read, Grep, Glob, read-only Bash) is fine — all code changes go to a worker. No exceptions: not for "quick fixes", not for bugs found during testing, not for "obvious" one-liners.
-- There is **no companion pane** — the default transport script `tmux-codex.sh` will return `CODEX_NOT_AVAILABLE`.
+- There is **no companion pane** — the default transport script `tmux-companion.sh` will return `COMPANION_NOT_AVAILABLE`.
 - Skip companion review/plan-review/prompt steps entirely.
 - Use `/party-dispatch` to dispatch any number of tasks to workers (single freeform, batch tickets, or mixed).
 - Monitor workers via the tracker pane (left pane).
