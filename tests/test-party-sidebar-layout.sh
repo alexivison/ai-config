@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests for sidebar layout helpers: layout mode detection, Codex routing, CLI resolution.
+# Tests for session-discovery and companion pane routing helpers.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -85,39 +85,6 @@ tmux() {
 echo "--- test-party-sidebar-layout.sh ---"
 
 # ===========================================================================
-# party_layout_mode
-# ===========================================================================
-
-echo ""
-echo "  === party_layout_mode ==="
-
-# Default (no env var) → sidebar
-unset PARTY_LAYOUT
-result=$(party_layout_mode)
-assert "layout_mode: default is sidebar" \
-  '[ "$result" = "sidebar" ]'
-
-# Explicit classic
-PARTY_LAYOUT=classic
-result=$(party_layout_mode)
-assert "layout_mode: PARTY_LAYOUT=classic returns classic" \
-  '[ "$result" = "classic" ]'
-
-# Sidebar opt-in
-PARTY_LAYOUT=sidebar
-result=$(party_layout_mode)
-assert "layout_mode: PARTY_LAYOUT=sidebar returns sidebar" \
-  '[ "$result" = "sidebar" ]'
-
-# Unknown value → classic (safe default)
-PARTY_LAYOUT=unknown
-result=$(party_layout_mode)
-assert "layout_mode: unknown value falls back to classic" \
-  '[ "$result" = "classic" ]'
-
-unset PARTY_LAYOUT
-
-# ===========================================================================
 # discover_session
 # ===========================================================================
 
@@ -142,63 +109,31 @@ unset STATE_DIR
 unset MOCK_SESSION_NAME MOCK_SESSION_TARGET MOCK_TARGET_SESSION_NAME
 
 # ===========================================================================
-# party_companion_pane_target — resolves by role across layouts
+# party_companion_pane_target — resolves the hidden companion pane by role
 # ===========================================================================
 
 echo ""
 echo "  === party_companion_pane_target ==="
 
-# Sidebar mode with a companion: resolves the hidden companion pane
-PARTY_LAYOUT=sidebar
+# Sidebar layout with a companion: resolves the hidden companion pane
 MOCK_WINDOW_LIST=$'0\n1'
 MOCK_PANE_DATA_WIN0=$'0 companion'
 MOCK_PANE_DATA_WIN1=$'0 tracker\n1 primary\n2 shell'
 result=$(party_companion_pane_target "party-test")
-assert "companion_target: sidebar mode resolves to session:0.0" \
+assert "companion_target: resolves to session:0.0" \
   '[ "$result" = "party-test:0.0" ]'
 
-# Classic mode: uses role-based resolution on canonical tags.
-PARTY_LAYOUT=classic
-unset MOCK_PANE_DATA_WIN0 MOCK_PANE_DATA_WIN1 MOCK_WINDOW_LIST
-MOCK_PANE_DATA=$'0 companion\n1 primary\n2 shell'
-result=$(party_companion_pane_target "party-test")
-assert "companion_target: classic mode uses canonical role resolution" \
-  '[ "$result" = "party-test:0.0" ]'
-
-# Classic mode with companion in different pane position → resolves correctly
-MOCK_PANE_DATA=$'0 primary\n1 companion\n2 shell'
-result=$(party_companion_pane_target "party-test")
-assert "companion_target: classic mode resolves companion at pane 1" \
-  '[ "$result" = "party-test:0.1" ]'
-
-# Classic mode falls back to legacy codex tag.
-MOCK_PANE_DATA=$'0 codex\n1 claude\n2 shell'
-result=$(party_companion_pane_target "party-test")
-assert "companion_target: classic mode falls back to legacy codex" \
-  '[ "$result" = "party-test:0.0" ]'
-
-# Sidebar mode with no companion now rejects the lookup instead of hitting the tracker.
-PARTY_LAYOUT=sidebar
+# No-companion sessions reject the lookup instead of hitting the tracker.
 MOCK_PANE_DATA=""
 MOCK_PANE_DATA_WIN0=""
 MOCK_PANE_DATA_WIN1=$'0 tracker\n1 primary\n2 shell'
 if party_companion_pane_target "party-test" 2>/dev/null; then
   FAIL=$((FAIL + 1))
-  echo "  [FAIL] companion_target: sidebar no-companion sessions reject lookup"
+  echo "  [FAIL] companion_target: no-companion sessions reject lookup"
 else
   PASS=$((PASS + 1))
-  echo "  [PASS] companion_target: sidebar no-companion sessions reject lookup"
+  echo "  [PASS] companion_target: no-companion sessions reject lookup"
 fi
-
-# Backward-compatible wrapper delegates to companion helper.
-PARTY_LAYOUT=classic
-MOCK_PANE_DATA=$'0 companion\n1 primary\n2 shell'
-unset MOCK_PANE_DATA_WIN0 MOCK_PANE_DATA_WIN1 MOCK_WINDOW_LIST
-result=$(party_codex_pane_target "party-test")
-assert "codex_target: wrapper delegates to companion helper" \
-  '[ "$result" = "party-test:0.0" ]'
-
-unset PARTY_LAYOUT
 
 # NOTE: party_resolve_cli_cmd and party_promote tests removed —
 # both now live in party-cli (Go). See tools/party-cli/ for tests.
