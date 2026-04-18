@@ -211,7 +211,7 @@ case "$MODE" in
     if _send_with_retry "$PEER_PANE" "$MSG" "tmux-companion.sh:prompt"; then
       write_companion_status "$RUNTIME_DIR" "working" "$PROMPT_TEXT" "prompt"
       echo "COMPANION_TASK_REQUESTED"
-      echo "Do not poll the response file. Wait for '[COMPANION] $(party_transport_response_completion_message "$RESPONSE_FILE")' (legacy '[CODEX] Response ready at: $RESPONSE_FILE' is still accepted)."
+      echo "Do not poll the response file. Wait for '[COMPANION] $(party_transport_response_completion_message "$RESPONSE_FILE")'."
     else
       write_companion_status "$RUNTIME_DIR" "error" "" "" "" "prompt dispatch failed: pane busy"
       echo "COMPANION_TASK_DROPPED"
@@ -237,13 +237,6 @@ case "$MODE" in
       echo "WARNING: No verdict line found in findings file. Review ran but no approval granted." >&2
       echo "COMPANION VERDICT_MISSING"
     fi
-    ;;
-
-  --approve)
-    echo "Error: --approve is deprecated. Companion approval flows through --review-complete," >&2
-    echo "which reads the VERDICT line from the findings file the companion wrote." >&2
-    echo "Do not self-approve. Use: tmux-companion.sh --review-complete <findings_file>" >&2
-    exit 1
     ;;
 
   --needs-discussion)

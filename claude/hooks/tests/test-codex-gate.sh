@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Tests for companion-gate.sh.
-# Legacy codex-gate.sh remains a symlink for transition compatibility.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

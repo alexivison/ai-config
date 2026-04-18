@@ -30,8 +30,7 @@ ai-party/
 ├── session/         # Shell wrappers and retained routing library
 │   ├── party.sh              # Thin wrapper — delegates to party-cli
 │   ├── party-lib.sh          # State helpers, locking, routing (retained for tmux-companion.sh / tmux-primary.sh)
-│   ├── party-relay.sh        # Thin wrapper — delegates to party-cli
-│   └── party-master.sh       # tmux keybinding: jump from worker to master
+│   └── party-relay.sh        # Thin wrapper — delegates to party-cli
 ├── tools/
 │   ├── party-cli/         # Unified Go binary: TUI + CLI (primary implementation)
 │   └── (party-tracker removed — functionality absorbed into party-cli)

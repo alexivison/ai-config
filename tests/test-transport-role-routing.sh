@@ -210,14 +210,6 @@ unset TMUX_PANE
 unset MOCK_CURRENT_ROLE
 unset CURRENT_ROLE
 
-export MOCK_CURRENT_ROLE="companion"
-> "$MOCK_LOG"
-run_and_capture "$SESSION_NEW" bash "$REPO_ROOT/codex/skills/agent-transport/scripts/tmux-primary.sh" "Response ready at: /tmp/legacy-resp.toon"
-assert_log "${SESSION_NEW}:1.1" "[COMPANION] Response ready at: /tmp/legacy-resp.toon"
-assert "legacy response-ready alias still marks status idle" \
-  '[[ "$(jq -r ".state" "/tmp/'"$SESSION_NEW"'/codex-status.json")" == "idle" ]]'
-unset MOCK_CURRENT_ROLE
-
 export MOCK_WINDOW_LIST="0"
 export MOCK_PANES_0=$'0 codex\n1 claude\n2 shell'
 unset MOCK_PANES_1

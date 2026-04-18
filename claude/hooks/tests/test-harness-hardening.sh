@@ -82,9 +82,9 @@ echo "=== Fix 1: pr-gate.sh calls hook_log ==="
 GATE="$SCRIPT_DIR/../pr-gate.sh"
 assert "pr-gate.sh contains hook_log call" 'grep -q "hook_log" "$GATE"'
 
-echo "=== Fix 1: codex-gate.sh calls hook_log ==="
-CODEX_GATE="$SCRIPT_DIR/../codex-gate.sh"
-assert "codex-gate.sh contains hook_log call" 'grep -q "hook_log" "$CODEX_GATE"'
+echo "=== Fix 1: companion-gate.sh calls hook_log ==="
+COMPANION_GATE="$SCRIPT_DIR/../companion-gate.sh"
+assert "companion-gate.sh contains hook_log call" 'grep -q "hook_log" "$COMPANION_GATE"'
 
 echo "=== Fix 1: agent-trace-stop.sh calls hook_log ==="
 AGENT_TRACE="$SCRIPT_DIR/../agent-trace-stop.sh"

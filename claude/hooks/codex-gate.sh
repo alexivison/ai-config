@@ -1,1 +1,0 @@
-companion-gate.sh

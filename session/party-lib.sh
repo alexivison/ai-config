@@ -75,14 +75,12 @@ party_transport_response_completion_message() {
 }
 
 # Return 0 when the message is a recognized transport completion notice.
-# Legacy "Response ready at:" remains accepted for compatibility.
 party_transport_is_completion_message() {
   local message="${1:?Usage: party_transport_is_completion_message MESSAGE}"
   case "$message" in
     "Review complete. Findings at: "*|\
     "Plan review complete. Findings at: "*|\
-    "Task complete. Response at: "*|\
-    "Response ready at: "*)
+    "Task complete. Response at: "*)
       return 0
       ;;
   esac
@@ -101,9 +99,6 @@ party_transport_completion_path() {
       ;;
     "Task complete. Response at: "*)
       printf '%s\n' "${message#Task complete. Response at: }"
-      ;;
-    "Response ready at: "*)
-      printf '%s\n' "${message#Response ready at: }"
       ;;
     *)
       return 1

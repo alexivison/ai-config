@@ -161,9 +161,9 @@ bash "$REPO_ROOT/session/party.sh" --pick-entries 2>/dev/null || true
 assert "party.sh --pick-entries delegates to party-cli" \
   'grep -q "^picker entries" "$MOCK_LOG"'
 
-# ---- Verify party-master.sh is no longer sourced (no duplicate functions) ----
-assert "party-master.sh is retired (not sourced by party.sh)" \
-  '! grep -q "source.*party-master.sh" "$REPO_ROOT/session/party.sh"'
+# ---- Verify party-master.sh is fully deleted ----
+assert "party-master.sh is deleted" \
+  '[ ! -e "$REPO_ROOT/session/party-master.sh" ]'
 
 # ---- Verify party-lib.sh is no longer sourced by wrappers ----
 assert "party.sh does not source party-lib.sh" \
