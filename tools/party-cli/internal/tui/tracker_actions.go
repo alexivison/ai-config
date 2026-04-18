@@ -337,8 +337,7 @@ func agentActive(a agent.Agent, manifest state.Manifest) bool {
 	return active
 }
 
-// resumeIDFor pulls the agent's resume ID from the manifest — first from
-// the per-agent spec, then falling back to the legacy Extra key.
+// resumeIDFor pulls the agent's resume ID from the Agents array.
 func resumeIDFor(a agent.Agent, m state.Manifest) string {
 	name := a.Name()
 	for _, spec := range m.Agents {
@@ -346,7 +345,7 @@ func resumeIDFor(a agent.Agent, m state.Manifest) string {
 			return spec.ResumeID
 		}
 	}
-	return m.ExtraString(a.ResumeKey())
+	return ""
 }
 
 func captureRoleSnippet(

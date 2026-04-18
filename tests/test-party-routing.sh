@@ -56,6 +56,24 @@ result=$(party_role_pane_target "party-test" "shell")
 assert "role resolver: shell resolves to pane 2" \
   '[ "$result" = "party-test:0.2" ]'
 
+# Legacy claude/codex role tags MUST NOT resolve as primary/companion.
+# Sessions pre-dating the agent-agnostic rename must be killed and restarted.
+if party_role_pane_target "party-test" "primary" 2>/dev/null; then
+  FAIL=$((FAIL + 1))
+  echo "  [FAIL] role resolver: legacy codex/claude tags reject primary lookup"
+else
+  PASS=$((PASS + 1))
+  echo "  [PASS] role resolver: legacy codex/claude tags reject primary lookup"
+fi
+
+if party_role_pane_target "party-test" "companion" 2>/dev/null; then
+  FAIL=$((FAIL + 1))
+  echo "  [FAIL] role resolver: legacy codex/claude tags reject companion lookup"
+else
+  PASS=$((PASS + 1))
+  echo "  [PASS] role resolver: legacy codex/claude tags reject companion lookup"
+fi
+
 MOCK_PANE_DATA=$'0 companion\n1 primary\n2 shell'
 
 result=$(party_role_pane_target "party-test" "primary")

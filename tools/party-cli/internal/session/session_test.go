@@ -2662,3 +2662,34 @@ func TestPromoteSidebar_Success(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// orderedManifestAgents
+// ---------------------------------------------------------------------------
+
+func TestOrderedManifestAgents_RejectsLegacyOnlyManifest(t *testing.T) {
+	t.Parallel()
+
+	// A pre-agent-agnostic-rename manifest: bash wrote only the per-provider
+	// keys into Extra, never populated the canonical Agents array. Pass 2
+	// removed the UnmarshalJSON migration that used to synthesize Agents
+	// entries from these fields, so continuing such a session must fail
+	// loudly rather than silently launching with no primary.
+	raw := `{"party_id":"party-legacy","claude_bin":"/usr/bin/claude","codex_bin":"/usr/bin/codex","claude_session_id":"abc","codex_thread_id":"xyz"}`
+
+	var m state.Manifest
+	if err := json.Unmarshal([]byte(raw), &m); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(m.Agents) != 0 {
+		t.Fatalf("expected empty Agents after Pass 2 migration removal, got %+v", m.Agents)
+	}
+
+	_, err := orderedManifestAgents(m)
+	if err == nil {
+		t.Fatal("expected error for manifest missing a primary agent, got nil")
+	}
+	if !strings.Contains(err.Error(), "missing a primary agent") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
