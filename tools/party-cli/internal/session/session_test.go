@@ -322,9 +322,11 @@ func createTestManifest(t *testing.T, store *state.Store, id, title, cwd, sessio
 		Title:       title,
 		Cwd:         cwd,
 		SessionType: sessionType,
-		ClaudeBin:   "/usr/bin/claude",
-		CodexBin:    "/usr/bin/codex",
 		AgentPath:   "/usr/bin",
+		Agents: []state.AgentManifest{
+			{Name: "claude", Role: "primary", CLI: "/usr/bin/claude", Window: 1},
+			{Name: "codex", Role: "companion", CLI: "/usr/bin/codex", Window: 0},
+		},
 	}
 	if err := store.Create(m); err != nil {
 		t.Fatalf("create manifest %s: %v", id, err)
@@ -886,9 +888,8 @@ func TestPromote_Classic(t *testing.T) {
 	runner.sessions["party-worker"] = true
 	createTestManifest(t, svc.Store, "party-worker", "worker", t.TempDir(), "")
 
-	// Set up a legacy classic layout to prove companion->codex fallback still works.
-	runner.paneRoles["party-worker:0.0"] = "codex"
-	runner.paneRoles["party-worker:0.1"] = "claude"
+	runner.paneRoles["party-worker:0.0"] = "companion"
+	runner.paneRoles["party-worker:0.1"] = "primary"
 	runner.paneRoles["party-worker:0.2"] = "shell"
 
 	if err := svc.Promote(t.Context(), "party-worker"); err != nil {
@@ -1130,8 +1131,6 @@ func TestSpawn_FromMasterInheritsPrimaryAgentWithoutCompanion(t *testing.T) {
 			CLI:    "/bin/sh",
 			Window: 0,
 		}}
-		m.ClaudeBin = ""
-		m.CodexBin = "/bin/sh"
 		m.Extra = nil
 	}); err != nil {
 		t.Fatalf("update master manifest: %v", err)
@@ -2752,22 +2751,6 @@ func TestPromoteClassic_Success(t *testing.T) {
 	}
 	if runner.paneRoles["party-pc:0.0"] != "tracker" {
 		t.Errorf("expected tracker in 0.0, got %q", runner.paneRoles["party-pc:0.0"])
-	}
-}
-
-func TestPromoteClassic_LegacyCodexFallback(t *testing.T) {
-	t.Parallel()
-	svc, runner := setupService(t)
-
-	runner.sessions["party-pc-old"] = true
-	runner.paneRoles["party-pc-old:0.0"] = "codex"
-	runner.paneRoles["party-pc-old:0.1"] = "claude"
-
-	if err := svc.promoteClassic(t.Context(), "party-pc-old", "/tmp", "echo tracker"); err != nil {
-		t.Fatalf("promoteClassic legacy: %v", err)
-	}
-	if runner.paneRoles["party-pc-old:0.0"] != "tracker" {
-		t.Errorf("expected tracker in 0.0, got %q", runner.paneRoles["party-pc-old:0.0"])
 	}
 }
 

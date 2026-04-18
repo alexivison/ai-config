@@ -3,10 +3,10 @@ name: tmux-handler
 description: >-
   Handle incoming companion messages via tmux. Covers review completion,
   questions, task results, and plan review findings in TOON format. Triggers
-  whenever a [COMPANION] or legacy [CODEX] prefixed message appears — review
-  complete notifications, questions from the companion, task completion
-  notices, or plan review results. Use this skill to correctly parse,
-  validate, triage, and respond to companion communication.
+  whenever a [COMPANION] prefixed message appears — review complete
+  notifications, questions from the companion, task completion notices, or
+  plan review results. Use this skill to correctly parse, validate, triage,
+  and respond to companion communication.
 user-invocable: false
 ---
 
@@ -14,7 +14,7 @@ user-invocable: false
 
 ## Trigger
 
-You see a message in your pane prefixed with `[PRIMARY]`, `[COMPANION]`, `[CLAUDE]`, or `[CODEX]`. These are from the other agent's tmux pane.
+You see a message in your pane prefixed with `[PRIMARY]` or `[COMPANION]`. These are from the other agent's tmux pane.
 
 ## Reply direction
 
@@ -70,8 +70,7 @@ Use `~/.claude/skills/agent-transport/scripts/toon-transport.sh`:
 ## Message types
 
 ### Review complete
-Message: `[COMPANION] Review complete. Findings at: <path>` (legacy: `[CODEX] ...`)
-
+Message: `[COMPANION] Review complete. Findings at: <path>`
 1. Read the FULL findings file (TOON format) with your Read tool or decode it via the helper workflow above
 2. Validate per the triage checklist above (or via `validate-findings`)
 3. Mark review evidence as complete:
@@ -85,8 +84,7 @@ Message: `[COMPANION] Review complete. Findings at: <path>` (legacy: `[CODEX] ..
    - **Do NOT call `--approve` directly** — the gate blocks it.
 
 ### Question from the Companion
-Message: `[COMPANION] Question: <question>. Write response to: <response_file>` (legacy: `[CODEX] ...`)
-
+Message: `[COMPANION] Question: <question>. Write response to: <response_file>`
 1. Read the question
 2. Investigate the codebase to answer the question
 3. **Structured findings response**: When the companion requests structured findings and provides a `.toon` response path, emit canonical TOON with the helper workflow above — not markdown tables. The requester controls the extension; write to the exact path provided.
@@ -94,14 +92,12 @@ Message: `[COMPANION] Question: <question>. Write response to: <response_file>` 
 5. Notify the other agent using the reply direction above. For file-based replies, use the canonical completion notice `Task complete. Response at: <response_file>`.
 
 ### Task complete
-Message: `[COMPANION] Task complete. Response at: <path>` (legacy: `[CODEX] ...`)
-
+Message: `[COMPANION] Task complete. Response at: <path>`
 1. Read the response file. If the original request asked for structured findings, expect TOON; otherwise treat it as plain text.
 2. Stop polling once that notice arrives, then continue your workflow with the information the companion provided
 
 ### Plan review complete
-Message: `[COMPANION] Plan review complete. Findings at: <path>` (legacy: `[CODEX] ...`)
-
+Message: `[COMPANION] Plan review complete. Findings at: <path>`
 1. Read the findings file (TOON format), preferably via the helper workflow above
 2. Validate per the triage checklist above
 3. Triage findings same as code review (blocking / non-blocking / out-of-scope)

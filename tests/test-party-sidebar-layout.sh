@@ -171,12 +171,6 @@ result=$(party_companion_pane_target "party-test")
 assert "companion_target: classic mode resolves companion at pane 1" \
   '[ "$result" = "party-test:0.1" ]'
 
-# Classic mode falls back to legacy codex tag.
-MOCK_PANE_DATA=$'0 codex\n1 claude\n2 shell'
-result=$(party_companion_pane_target "party-test")
-assert "companion_target: classic mode falls back to legacy codex" \
-  '[ "$result" = "party-test:0.0" ]'
-
 # Sidebar mode with no companion now rejects the lookup instead of hitting the tracker.
 PARTY_LAYOUT=sidebar
 MOCK_PANE_DATA=""
@@ -189,14 +183,6 @@ else
   PASS=$((PASS + 1))
   echo "  [PASS] companion_target: sidebar no-companion sessions reject lookup"
 fi
-
-# Backward-compatible wrapper delegates to companion helper.
-PARTY_LAYOUT=classic
-MOCK_PANE_DATA=$'0 companion\n1 primary\n2 shell'
-unset MOCK_PANE_DATA_WIN0 MOCK_PANE_DATA_WIN1 MOCK_WINDOW_LIST
-result=$(party_codex_pane_target "party-test")
-assert "codex_target: wrapper delegates to companion helper" \
-  '[ "$result" = "party-test:0.0" ]'
 
 unset PARTY_LAYOUT
 

@@ -14,7 +14,7 @@ Use the shared role-based transport scripts:
 - `tmux-companion.sh` when sending work to the companion
 - `tmux-primary.sh` when sending a reply or completion notice to the primary
 
-Older sessions may still emit `[CLAUDE]` / `[CODEX]` prefixes; the transport continues to recognize those prefixes alongside `[PRIMARY]` / `[COMPANION]`.
+The transport uses `[PRIMARY]` / `[COMPANION]` message prefixes.
 
 ## Primary Role
 
@@ -56,14 +56,14 @@ After implementing changes and passing sub-agent critics:
 
 The review prompt is rendered from `templates/review.md`. Conditional sections activate only when the corresponding flag is passed.
 
-This sends a message to the companion pane. You are NOT blocked — continue with non-edit work while the companion reviews. New sessions notify via `[COMPANION] Review complete. Findings at: <path>`; legacy sessions still use `[CODEX]`. Findings are raw TOON (`.toon` file, no markdown fences). Handle either prefix per your `tmux-handler` skill.
+This sends a message to the companion pane. You are NOT blocked — continue with non-edit work while the companion reviews. The companion notifies via `[COMPANION] Review complete. Findings at: <path>`. Findings are raw TOON (`.toon` file, no markdown fences). Handle the reply per your `tmux-handler` skill.
 
 ### Request plan review (non-blocking)
 After creating a plan:
 ```bash
 ~/.claude/skills/agent-transport/scripts/tmux-companion.sh --plan-review "<plan_path>" <work_dir>
 ```
-`work_dir` is **REQUIRED**. Plan review is advisory — it is ungated and does not create any evidence. The companion notifies via `[COMPANION] Plan review complete. Findings at: <path>` in new sessions and `[CODEX] ...` in legacy sessions. Findings are raw TOON (`.toon` file, no markdown fences).
+`work_dir` is **REQUIRED**. Plan review is advisory — it is ungated and does not create any evidence. The companion notifies via `[COMPANION] Plan review complete. Findings at: <path>`. Findings are raw TOON (`.toon` file, no markdown fences).
 
 ### Send a task (non-blocking)
 **IMPORTANT:** Prompts with quotes, backticks, or >500 characters risk `unmatched '` shell errors when passed inline. Write to a temp file first:
@@ -78,11 +78,11 @@ Short prompts can be passed directly:
 ```bash
 ~/.claude/skills/agent-transport/scripts/tmux-companion.sh --prompt "<task description>" <work_dir>
 ```
-`work_dir` is **REQUIRED**. Returns immediately. The companion notifies via `[COMPANION] Task complete. Response at: <path>` in new sessions and `[CODEX] ...` in legacy sessions. The response path uses `.toon` by convention. If you requested structured findings, expect canonical TOON; if you asked for narrative analysis, plain text is acceptable unless you explicitly required TOON.
+`work_dir` is **REQUIRED**. Returns immediately. The companion notifies via `[COMPANION] Task complete. Response at: <path>`. The response path uses `.toon` by convention. If you requested structured findings, expect canonical TOON; if you asked for narrative analysis, plain text is acceptable unless you explicitly required TOON.
 Do not poll the response file while waiting. The tmux completion notice is the success signal; read the file only after that notice arrives.
 
 ### Record review completion and verdict
-**CRITICAL:** The argument is the **full path to the `.toon` findings file** from the `[COMPANION] Review complete. Findings at: <path>` notification (or legacy `[CODEX]`) — NOT a worktree path. Passing a worktree path will fail with "Findings file not found."
+**CRITICAL:** The argument is the **full path to the `.toon` findings file** from the `[COMPANION] Review complete. Findings at: <path>` notification — NOT a worktree path. Passing a worktree path will fail with "Findings file not found."
 
 ```bash
 ~/.claude/skills/agent-transport/scripts/tmux-companion.sh --review-complete "<findings_file>"

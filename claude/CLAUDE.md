@@ -62,7 +62,7 @@ Save investigation findings to `~/.claude/investigations/<issue-slug>.md`.
 
 ## Inter-Agent Transport
 
-Use the role-aware transport scripts only; never raw tmux commands. If you are the primary agent, dispatch the companion via `agent-transport` / `tmux-companion.sh` and keep working in parallel. If you are the companion agent, notify the primary via `tmux-primary.sh`. `[PRIMARY]` / `[COMPANION]` are the canonical prefixes for new sessions; `[CLAUDE]` / `[CODEX]` remain legacy fallbacks. Handle inbound transport via `tmux-handler`.
+Use the role-aware transport scripts only; never raw tmux commands. If you are the primary agent, dispatch the companion via `agent-transport` / `tmux-companion.sh` and keep working in parallel. If you are the companion agent, notify the primary via `tmux-primary.sh`. `[PRIMARY]` / `[COMPANION]` are the message prefixes. Handle inbound transport via `tmux-handler`.
 
 ### When to Dispatch
 

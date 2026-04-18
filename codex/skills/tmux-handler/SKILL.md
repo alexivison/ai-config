@@ -7,7 +7,7 @@ description: Handle incoming messages from the primary agent via tmux — review
 
 ## Trigger
 
-You see a message in your pane prefixed with `[PRIMARY]`, `[COMPANION]`, `[CLAUDE]`, or `[CODEX]`. These are from the other agent's tmux pane.
+You see a message in your pane prefixed with `[PRIMARY]` or `[COMPANION]`. These are from the other agent's tmux pane.
 
 ## Reply direction
 

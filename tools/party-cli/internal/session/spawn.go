@@ -98,11 +98,5 @@ func masterPrimaryAgent(master state.Manifest) string {
 			return spec.Name
 		}
 	}
-	if master.ExtraString("claude_session_id") != "" || master.ClaudeBin != "" {
-		return "claude"
-	}
-	if master.ExtraString("codex_thread_id") != "" || master.CodexBin != "" {
-		return "codex"
-	}
 	return "claude"
 }

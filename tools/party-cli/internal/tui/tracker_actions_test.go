@@ -4,7 +4,6 @@ package tui
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -109,44 +108,6 @@ func TestDeleteGhostWorkerNoManifest(t *testing.T) {
 	}
 	if len(workers) != 0 {
 		t.Fatalf("expected ghost removal, got %#v", workers)
-	}
-}
-
-func TestLiveSessionFetcherResolvesEvidenceByClaudeSessionID(t *testing.T) {
-	t.Parallel()
-
-	store, err := state.NewStore(t.TempDir())
-	if err != nil {
-		t.Fatalf("new store: %v", err)
-	}
-	client := tmux.NewClient(runnerWithLiveSessions(map[string]bool{"party-worker": true}))
-
-	manifest := state.Manifest{
-		PartyID: "party-worker",
-		Title:   "bugfix",
-		Extra: map[string]json.RawMessage{
-			"parent_session":    json.RawMessage(`"party-master"`),
-			"claude_session_id": json.RawMessage(`"claude-uuid-1"`),
-		},
-	}
-	if err := store.Create(manifest); err != nil {
-		t.Fatalf("create worker: %v", err)
-	}
-	writeEvidence(t, "claude-uuid-1", []string{
-		`{"timestamp":"T","type":"code-critic","result":"APPROVED","diff_hash":"aaa"}`,
-		`{"timestamp":"T","type":"minimizer","result":"APPROVED","diff_hash":"aaa"}`,
-	})
-
-	fetcher := NewLiveSessionFetcher(client, store)
-	snapshot, err := fetcher(SessionInfo{ID: "party-worker", SessionType: "worker"})
-	if err != nil {
-		t.Fatalf("fetch sessions: %v", err)
-	}
-	if len(snapshot.Sessions) != 1 {
-		t.Fatalf("expected one session row, got %d", len(snapshot.Sessions))
-	}
-	if snapshot.Sessions[0].Stage != StageCriticsOK {
-		t.Fatalf("expected stage %q, got %q", StageCriticsOK, snapshot.Sessions[0].Stage)
 	}
 }
 

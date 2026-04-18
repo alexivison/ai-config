@@ -51,13 +51,9 @@ fi
 sender_role="companion"
 target_role="primary"
 case "$(current_role)" in
-  primary|claude)
+  primary)
     sender_role="primary"
     target_role="companion"
-    ;;
-  companion|codex)
-    sender_role="companion"
-    target_role="primary"
     ;;
 esac
 

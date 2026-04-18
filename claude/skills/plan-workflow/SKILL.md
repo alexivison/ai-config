@@ -80,7 +80,7 @@ Dispatch is non-blocking — verify file paths and prepare follow-up context whi
 
 ## Phase 3 — Receive and Verify
 
-When `[COMPANION] Task complete. Response at: <path>` arrives (legacy: `[CODEX] ...`):
+When `[COMPANION] Task complete. Response at: <path>` arrives:
 
 1. **Read the response file first** — The `<path>` from the notification is the companion's
    authoritative result channel. Check `STATUS:` line — if FAILED, report to user.
@@ -129,7 +129,7 @@ Once the user approves:
    ~/.claude/skills/agent-transport/scripts/tmux-companion.sh \
      --plan-review "<plan_path>" <work_dir>
    ```
-   When `[COMPANION] Plan review complete. Findings at: <path>` arrives (legacy: `[CODEX] ...`), triage findings
+   When `[COMPANION] Plan review complete. Findings at: <path>` arrives, triage findings
    per tmux-handler (blocking / non-blocking / out-of-scope). Present any blocking
    findings to the user and iterate if needed before proceeding.
 3. **Signal readiness** — Tell the user the plan is ready for execution. If appropriate,

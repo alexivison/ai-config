@@ -78,7 +78,7 @@ See `references/reviewer-prompts.md` for prompt templates. Adapt them to the spe
 ## Phase 3: Collect and Wait
 
 - The three sub-agents complete via background task notifications.
-- The companion notifies via a `[COMPANION]` message in new sessions and `[CODEX]` in legacy sessions, with a response file path.
+- The companion notifies via a `[COMPANION]` message with a response file path.
 - **Do not proceed until all four have reported.** As each completes, note its findings. Continue waiting for the remainder.
 - If the companion takes significantly longer, start preparing the triage from the three critics and fold in the companion's findings when they arrive.
 

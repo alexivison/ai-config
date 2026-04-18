@@ -148,7 +148,6 @@ assert_log_contains() {
 echo "--- test-transport-role-routing.sh ---"
 
 SESSION_NEW="party-transport-new-$$"
-SESSION_OLD="party-transport-old-$$"
 
 assert "claude agent-transport companion script is a symlink" \
   '[ -L "$REPO_ROOT/claude/skills/agent-transport/scripts/tmux-companion.sh" ]'
@@ -181,13 +180,6 @@ assert_log_contains 'Task complete. Response at: /tmp/resp.toon'
 unset TMUX_PANE
 unset MOCK_CURRENT_ROLE
 
-export MOCK_WINDOW_LIST="0"
-export MOCK_PANES_0=$'0 codex\n1 claude\n2 shell'
-unset MOCK_PANES_1
-> "$MOCK_LOG"
-run_and_capture "$SESSION_OLD" bash "$REPO_ROOT/codex/skills/agent-transport/scripts/tmux-primary.sh" "Task complete. Response at: /tmp/resp.toon"
-assert_log "${SESSION_OLD}:0.1" "[CODEX] Task complete. Response at: /tmp/resp.toon"
-
 echo ""
 echo "  === tmux-companion.sh ==="
 
@@ -210,13 +202,6 @@ unset TMUX_PANE
 unset MOCK_CURRENT_ROLE
 unset CURRENT_ROLE
 
-export MOCK_WINDOW_LIST="0"
-export MOCK_PANES_0=$'0 codex\n1 claude\n2 shell'
-unset MOCK_PANES_1
-> "$MOCK_LOG"
-run_and_capture "$SESSION_OLD" bash "$REPO_ROOT/claude/skills/agent-transport/scripts/tmux-companion.sh" --prompt "inspect this" /tmp/work
-assert_log "${SESSION_OLD}:0.0" "[CLAUDE] cd '/tmp/work' && inspect this"
-
 echo ""
 echo "  === party-relay.sh --companion ==="
 
@@ -224,11 +209,6 @@ export MOCK_PANES_0=$'0 companion\n1 primary\n2 shell'
 > "$MOCK_LOG"
 bash "$REPO_ROOT/session/party-relay.sh" --companion "$SESSION_NEW" "raw ping" >/dev/null
 assert_log "${SESSION_NEW}:0.0" "raw ping"
-
-export MOCK_PANES_0=$'0 codex\n1 claude\n2 shell'
-> "$MOCK_LOG"
-bash "$REPO_ROOT/session/party-relay.sh" --companion "$SESSION_OLD" "legacy ping" >/dev/null
-assert_log "${SESSION_OLD}:0.0" "legacy ping"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

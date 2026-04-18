@@ -33,7 +33,7 @@ _render_template() {
 _apply_sender_prefix() {
   local message="$1"
   case "$message" in
-    "[PRIMARY] "*|"[COMPANION] "*|"[CLAUDE] "*|"[CODEX] "*)
+    "[PRIMARY] "*|"[COMPANION] "*)
       printf '%s %s\n' "$SENDER_PREFIX" "${message#*] }"
       ;;
     *)
@@ -56,7 +56,7 @@ _require_session() {
   TARGET_ROLE="companion"
   SENDER_ROLE="primary"
   case "$CURRENT_ROLE" in
-    companion|codex)
+    companion)
       TARGET_ROLE="primary"
       SENDER_ROLE="companion"
       ;;

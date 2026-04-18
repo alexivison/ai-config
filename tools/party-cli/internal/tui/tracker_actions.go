@@ -302,21 +302,6 @@ func resolveManifestAgent(manifest state.Manifest, role agent.Role, registry *ag
 			return lookupAgent(spec.Name, registry)
 		}
 	}
-
-	switch role {
-	case agent.RolePrimary:
-		if manifest.ExtraString("claude_session_id") != "" || manifest.ClaudeBin != "" {
-			return lookupAgent("claude", registry)
-		}
-		if manifest.ExtraString("codex_thread_id") != "" || manifest.CodexBin != "" {
-			return lookupAgent("codex", registry)
-		}
-	case agent.RoleCompanion:
-		if manifest.ExtraString("codex_thread_id") != "" || manifest.CodexBin != "" {
-			return lookupAgent("codex", registry)
-		}
-	}
-
 	return nil
 }
 
@@ -371,9 +356,6 @@ func evidenceLookupID(sessionID string, manifest state.Manifest, primaryAgent ag
 		if spec.Role == string(agent.RolePrimary) && spec.ResumeID != "" {
 			return spec.ResumeID
 		}
-	}
-	if id := manifest.ExtraString("claude_session_id"); id != "" {
-		return id
 	}
 	return sessionID
 }

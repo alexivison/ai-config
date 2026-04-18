@@ -52,14 +52,6 @@ result=$(party_role_pane_target "party-test" "claude")
 assert "role resolver: claude resolves to pane 1" \
   '[ "$result" = "party-test:0.1" ]'
 
-result=$(party_role_pane_target "party-test" "primary")
-assert "role resolver: primary falls back to legacy primary pane" \
-  '[ "$result" = "party-test:0.1" ]'
-
-result=$(party_role_pane_target "party-test" "companion")
-assert "role resolver: companion falls back to legacy companion pane" \
-  '[ "$result" = "party-test:0.0" ]'
-
 result=$(party_role_pane_target "party-test" "shell")
 assert "role resolver: shell resolves to pane 2" \
   '[ "$result" = "party-test:0.2" ]'
@@ -121,7 +113,7 @@ result=$(party_role_pane_target "party-test" "claude")
 assert "wrapper: role present, resolves by role" \
   '[ "$result" = "party-test:0.1" ]'
 
-# 2-pane session without roles → now rejected (no legacy fallback)
+# 2-pane session without roles → rejected
 MOCK_PANE_DATA=$'0 \n1 '
 
 if party_role_pane_target "party-test" "claude" 2>/dev/null; then
@@ -173,16 +165,6 @@ assert "prefix: new primary sessions use [PRIMARY]" \
 prefix=$(party_role_message_prefix "party-test" "companion")
 assert "prefix: new companion sessions use [COMPANION]" \
   '[ "$prefix" = "[COMPANION]" ]'
-
-MOCK_PANE_DATA=$'0 codex\n1 claude\n2 shell'
-
-prefix=$(party_role_message_prefix "party-test" "primary")
-assert "prefix: legacy primary sessions keep [CLAUDE]" \
-  '[ "$prefix" = "[CLAUDE]" ]'
-
-prefix=$(party_role_message_prefix "party-test" "companion")
-assert "prefix: legacy companion sessions keep [CODEX]" \
-  '[ "$prefix" = "[CODEX]" ]'
 
 # === Sidebar mode: multi-window routing ===
 # In sidebar mode, Codex lives in window 0 and workspace in window 1.
