@@ -4,12 +4,13 @@ import (
 	"fmt"
 
 	"github.com/anthropics/ai-party/tools/party-cli/internal/message"
+	"github.com/anthropics/ai-party/tools/party-cli/internal/session"
 	"github.com/anthropics/ai-party/tools/party-cli/internal/state"
 	"github.com/anthropics/ai-party/tools/party-cli/internal/tmux"
 	"github.com/spf13/cobra"
 )
 
-func newBroadcastCmd(store *state.Store, client *tmux.Client) *cobra.Command {
+func newBroadcastCmd(store *state.Store, client *tmux.Client, repoRoot string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "broadcast [master-id] <message>",
 		Short: "Broadcast a message to all workers of a master session",
@@ -33,7 +34,8 @@ it is a master session. This removes the need for shell-level discovery.`,
 				masterID = id
 			}
 
-			svc := message.NewService(store, client)
+			sessionSvc := session.NewService(store, client, repoRoot)
+			svc := message.NewService(store, client, sessionSvc.TriggerResumeBackfillSync)
 			senderID, err := discoverSession(ctx, client)
 			var result message.BroadcastResult
 			if err == nil {

@@ -104,7 +104,7 @@ func newAutoModel() Model {
 func buildTrackerModel(store *state.Store, client *tmux.Client) TrackerModel {
 	repoRoot := os.Getenv("PARTY_REPO_ROOT")
 	sessionSvc := session.NewService(store, client, repoRoot)
-	messageSvc := message.NewService(store, client)
+	messageSvc := message.NewService(store, client, sessionSvc.TriggerResumeBackfillSync)
 	actions := NewLiveTrackerActions(sessionSvc, messageSvc, client, store)
 	fetcher := NewLiveSessionFetcher(client, store)
 	return NewTrackerModel(SessionInfo{}, fetcher, actions)

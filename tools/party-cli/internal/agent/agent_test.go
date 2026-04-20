@@ -659,3 +659,22 @@ func TestCodexRecoverResumeIDMatchesClosestCreatedAt(t *testing.T) {
 		t.Fatalf("RecoverResumeID = %q, want %q", got, "thr-newer")
 	}
 }
+
+func TestCodexRecoverResumeIDRejectsOlderSameCwdRollout(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	dayDir := filepath.Join(home, ".codex", "sessions", "2026", "04", "20")
+	cwd := "/repo/app"
+	writeCodexRollout(t,
+		filepath.Join(dayDir, "rollout-2026-04-20T09-00-00-thr-old.jsonl"),
+		"thr-old", cwd, "2026-04-20T09:00:00Z", ActivityWindow/2)
+
+	got, err := NewCodex(AgentConfig{}).RecoverResumeID(cwd, "2026-04-20T09:00:10Z")
+	if err != nil {
+		t.Fatalf("RecoverResumeID: %v", err)
+	}
+	if got != "" {
+		t.Fatalf("RecoverResumeID = %q, want empty for stale candidate", got)
+	}
+}

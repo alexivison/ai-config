@@ -92,16 +92,17 @@ When invoked with a subcommand, it runs in CLI mode.`,
 	root.AddCommand(newDeleteCmd(o.store, o.client, o.repoRoot))
 	root.AddCommand(newPromoteCmd(o.store, o.client, o.repoRoot))
 	root.AddCommand(newSpawnCmd(o.store, o.client, o.repoRoot))
-	root.AddCommand(newRelayCmd(o.store, o.client))
-	root.AddCommand(newBroadcastCmd(o.store, o.client))
+	root.AddCommand(newRelayCmd(o.store, o.client, o.repoRoot))
+	root.AddCommand(newBroadcastCmd(o.store, o.client, o.repoRoot))
 	root.AddCommand(newReadCmd(o.store, o.client))
-	root.AddCommand(newReportCmd(o.store, o.client))
+	root.AddCommand(newReportCmd(o.store, o.client, o.repoRoot))
 	root.AddCommand(newWorkersCmd(o.store, o.client))
 	root.AddCommand(newPickerCmd(o.store, o.client, o.repoRoot))
 	root.AddCommand(newResizeCmd(o.store, o.client, o.repoRoot))
 	root.AddCommand(newJumpMasterCmd(o.store, o.client))
 	root.AddCommand(newAgentCmd())
 	root.AddCommand(newConfigCmd())
+	root.AddCommand(newBackfillResumeCmd(o.store, o.client, o.repoRoot))
 
 	return root
 }

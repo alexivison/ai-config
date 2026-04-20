@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/anthropics/ai-party/tools/party-cli/internal/agent"
 	"github.com/anthropics/ai-party/tools/party-cli/internal/state"
@@ -340,6 +341,47 @@ func manifestAgentResumeID(agents []state.AgentManifest, role string) string {
 		}
 	}
 	return ""
+}
+
+func writeCodexRollout(t *testing.T, home, threadID, cwd, startedAt string) {
+	t.Helper()
+
+	if err := writeCodexRolloutRaw(home, threadID, cwd, startedAt); err != nil {
+		t.Fatalf("write codex rollout: %v", err)
+	}
+}
+
+func writeCodexRolloutRaw(home, threadID, cwd, startedAt string) error {
+	started := time.Now().UTC()
+	if parsed, err := time.Parse(time.RFC3339Nano, startedAt); err == nil {
+		started = parsed
+	} else if parsed, err := time.Parse(time.RFC3339, startedAt); err == nil {
+		started = parsed
+	}
+
+	dir := filepath.Join(home, ".codex", "sessions", started.Format("2006"), started.Format("01"), started.Format("02"))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+
+	filename := filepath.Join(dir, "rollout-"+started.Format("2006-01-02T15-04-05")+"-"+threadID+".jsonl")
+	payload := map[string]any{
+		"type":      "session_meta",
+		"timestamp": startedAt,
+		"payload": map[string]any{
+			"id":        threadID,
+			"cwd":       cwd,
+			"timestamp": startedAt,
+		},
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filename, append(data, '\n'), 0o644); err != nil {
+		return err
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -1667,6 +1709,236 @@ func TestStart_CodexPrimaryRegistry(t *testing.T) {
 	}
 }
 
+func TestStart_CodexPrimaryRecoversFreshThreadID(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	svc, runner := setupService(t)
+	svc.Now = func() int64 { return 7787 }
+
+	root := t.TempDir()
+	codexCLI := filepath.Join(root, "codex-bin")
+	if err := os.WriteFile(codexCLI, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatalf("write %s: %v", codexCLI, err)
+	}
+
+	registry, err := agent.NewRegistry(&agent.Config{
+		Agents: map[string]agent.AgentConfig{
+			"codex": {CLI: codexCLI},
+		},
+		Roles: agent.RolesConfig{
+			Primary: &agent.RoleConfig{Agent: "codex", Window: 0},
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	svc.Registry = registry
+
+	cwd := t.TempDir()
+	threadID := "codex-fresh-123"
+	startedAt := time.Now().UTC().Format(time.RFC3339Nano)
+	writeCodexRollout(t, os.Getenv("HOME"), threadID, cwd, startedAt)
+
+	result, err := svc.Start(t.Context(), StartOpts{
+		Title: "codex-fresh",
+		Cwd:   cwd,
+	})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	m, err := svc.Store.Read(result.SessionID)
+	if err != nil {
+		t.Fatalf("read manifest: %v", err)
+	}
+	if got := manifestAgentResumeID(m.Agents, "primary"); got != threadID {
+		t.Fatalf("primary resume_id: got %q, want %q", got, threadID)
+	}
+	if got := m.ExtraString("codex_thread_id"); got != threadID {
+		t.Fatalf("codex_thread_id: got %q, want %q", got, threadID)
+	}
+
+	data, err := os.ReadFile(filepath.Join(result.RuntimeDir, "codex-thread-id"))
+	if err != nil {
+		t.Fatalf("read codex-thread-id: %v", err)
+	}
+	if got := strings.TrimSpace(string(data)); got != threadID {
+		t.Fatalf("codex-thread-id runtime file: got %q, want %q", got, threadID)
+	}
+
+	if got := runner.envVars[result.SessionID+":CODEX_THREAD_ID"]; got != threadID {
+		t.Fatalf("CODEX_THREAD_ID: got %q, want %q", got, threadID)
+	}
+}
+
+func TestStart_CodexPrimaryWaitsForFreshThreadID(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	svc, runner := setupService(t)
+	svc.Now = func() int64 { return 7788 }
+
+	root := t.TempDir()
+	codexCLI := filepath.Join(root, "codex-bin")
+	if err := os.WriteFile(codexCLI, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatalf("write %s: %v", codexCLI, err)
+	}
+
+	registry, err := agent.NewRegistry(&agent.Config{
+		Agents: map[string]agent.AgentConfig{
+			"codex": {CLI: codexCLI},
+		},
+		Roles: agent.RolesConfig{
+			Primary: &agent.RoleConfig{Agent: "codex", Window: 0},
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	svc.Registry = registry
+
+	cwd := t.TempDir()
+	threadID := "codex-delayed-456"
+	home := os.Getenv("HOME")
+	errCh := make(chan error, 1)
+	go func() {
+		time.Sleep(1 * time.Second)
+		errCh <- writeCodexRolloutRaw(home, threadID, cwd, time.Now().UTC().Format(time.RFC3339Nano))
+	}()
+
+	result, err := svc.Start(t.Context(), StartOpts{
+		Title: "codex-delayed",
+		Cwd:   cwd,
+	})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	m, err := svc.Store.Read(result.SessionID)
+	if err != nil {
+		t.Fatalf("read manifest: %v", err)
+	}
+	if got := manifestAgentResumeID(m.Agents, "primary"); got != threadID {
+		t.Fatalf("primary resume_id: got %q, want %q", got, threadID)
+	}
+	if got := runner.envVars[result.SessionID+":CODEX_THREAD_ID"]; got != threadID {
+		t.Fatalf("CODEX_THREAD_ID: got %q, want %q", got, threadID)
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("delayed codex rollout: %v", err)
+	}
+}
+
+func TestStart_CodexPrimaryStartsBoundedBackfillSync(t *testing.T) {
+	t.Parallel()
+
+	svc, runner := setupService(t)
+	svc.Now = func() int64 { return 7789 }
+
+	root := t.TempDir()
+	codexCLI := filepath.Join(root, "codex-bin")
+	if err := os.WriteFile(codexCLI, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatalf("write %s: %v", codexCLI, err)
+	}
+
+	registry, err := agent.NewRegistry(&agent.Config{
+		Agents: map[string]agent.AgentConfig{
+			"codex": {CLI: codexCLI},
+		},
+		Roles: agent.RolesConfig{
+			Primary: &agent.RoleConfig{Agent: "codex", Window: 0},
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	svc.Registry = registry
+
+	result, err := svc.Start(t.Context(), StartOpts{
+		Title: "codex-bounded-sync",
+		Cwd:   t.TempDir(),
+	})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	foundSync := false
+	for _, call := range runner.calls {
+		if len(call.args) < 5 || call.args[0] != "run-shell" || call.args[1] != "-t" || call.args[2] != result.SessionID {
+			continue
+		}
+		cmd := call.args[len(call.args)-1]
+		if !strings.Contains(cmd, "backfill-resume '"+result.SessionID+"'") {
+			continue
+		}
+		if strings.Contains(cmd, "--watch") {
+			t.Fatalf("resume backfill sync must be bounded, got %q", cmd)
+		}
+		foundSync = true
+		break
+	}
+	if !foundSync {
+		t.Fatalf("expected bounded resume backfill sync, calls=%v", runner.calls)
+	}
+}
+
+func TestBackfillMissingResumeIDsRecoversAfterLaunchWindow(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	svc, runner := setupService(t)
+	sessionID := "party-backfill"
+	cwd := t.TempDir()
+	runner.sessions[sessionID] = true
+
+	if err := svc.Store.Create(state.Manifest{
+		PartyID: sessionID,
+		Cwd:     cwd,
+		Agents: []state.AgentManifest{
+			{Name: "codex", Role: "primary", CLI: "/bin/sh", Window: 0},
+		},
+	}); err != nil {
+		t.Fatalf("create manifest: %v", err)
+	}
+
+	threadID := "codex-post-turn-789"
+	delay := freshResumeRecoveryAttempts*freshResumeRecoveryInterval + 250*time.Millisecond
+	errCh := make(chan error, 1)
+	go func() {
+		time.Sleep(delay)
+		errCh <- writeCodexRolloutRaw(os.Getenv("HOME"), threadID, cwd, time.Now().UTC().Format(time.RFC3339Nano))
+	}()
+
+	ctx, cancel := context.WithTimeout(t.Context(), delay+2*time.Second)
+	defer cancel()
+	if err := svc.BackfillMissingResumeIDs(ctx, sessionID, int((delay+time.Second)/(20*time.Millisecond)), 20*time.Millisecond); err != nil {
+		t.Fatalf("BackfillMissingResumeIDs: %v", err)
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("delayed codex rollout: %v", err)
+	}
+
+	m, err := svc.Store.Read(sessionID)
+	if err != nil {
+		t.Fatalf("read manifest: %v", err)
+	}
+	if got := manifestAgentResumeID(m.Agents, "primary"); got != threadID {
+		t.Fatalf("primary resume_id: got %q, want %q", got, threadID)
+	}
+	if got := m.ExtraString("codex_thread_id"); got != threadID {
+		t.Fatalf("codex_thread_id: got %q, want %q", got, threadID)
+	}
+
+	data, err := os.ReadFile(filepath.Join(runtimeDir(sessionID), "codex-thread-id"))
+	if err != nil {
+		t.Fatalf("read codex-thread-id: %v", err)
+	}
+	if got := strings.TrimSpace(string(data)); got != threadID {
+		t.Fatalf("runtime codex-thread-id: got %q, want %q", got, threadID)
+	}
+	if got := runner.envVars[sessionID+":CODEX_THREAD_ID"]; got != threadID {
+		t.Fatalf("CODEX_THREAD_ID: got %q, want %q", got, threadID)
+	}
+}
+
 func TestStart_CodexPrimaryMasterUsesDeveloperInstructions(t *testing.T) {
 	t.Parallel()
 	svc, runner := setupService(t)
@@ -2788,4 +3060,3 @@ func TestOrderedManifestAgents_RejectsLegacyOnlyManifest(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
-

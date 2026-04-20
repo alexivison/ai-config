@@ -21,13 +21,18 @@ const primaryRole = "primary"
 
 // Service provides messaging operations between party sessions.
 type Service struct {
-	store  *state.Store
-	client *tmux.Client
+	store     *state.Store
+	client    *tmux.Client
+	afterSend func(context.Context, string)
 }
 
 // NewService creates a messaging service.
-func NewService(store *state.Store, client *tmux.Client) *Service {
-	return &Service{store: store, client: client}
+func NewService(store *state.Store, client *tmux.Client, afterSend ...func(context.Context, string)) *Service {
+	svc := &Service{store: store, client: client}
+	if len(afterSend) > 0 {
+		svc.afterSend = afterSend[0]
+	}
+	return svc
 }
 
 // WorkerInfo holds status information for a worker session.
@@ -53,6 +58,9 @@ func (s *Service) Relay(ctx context.Context, workerID, message string) error {
 		return err
 	}
 	result := s.client.Send(ctx, target, msg)
+	if result.Err == nil {
+		s.notifyAfterSend(ctx, workerID)
+	}
 	return result.Err
 }
 
@@ -72,6 +80,9 @@ func (s *Service) RelayFrom(ctx context.Context, senderID, targetID, message str
 		return err
 	}
 	result := s.client.Send(ctx, target, msg)
+	if result.Err == nil {
+		s.notifyAfterSend(ctx, targetID)
+	}
 	return result.Err
 }
 
@@ -114,6 +125,7 @@ func (s *Service) Broadcast(ctx context.Context, masterID, message string) (Broa
 		sr := s.client.Send(ctx, target, msg)
 		if sr.Err == nil {
 			result.Delivered++
+			s.notifyAfterSend(ctx, wid)
 		}
 	}
 	return result, transportErr
@@ -152,6 +164,7 @@ func (s *Service) BroadcastFrom(ctx context.Context, senderID, masterID, message
 		sr := s.client.Send(ctx, target, msg)
 		if sr.Err == nil {
 			result.Delivered++
+			s.notifyAfterSend(ctx, wid)
 		}
 	}
 	return result, transportErr
@@ -214,7 +227,17 @@ func (s *Service) Report(ctx context.Context, sessionID, message string) error {
 		msg = prefix + msg
 	}
 	result := s.client.Send(ctx, target, msg)
+	if result.Err == nil {
+		s.notifyAfterSend(ctx, parent)
+	}
 	return result.Err
+}
+
+func (s *Service) notifyAfterSend(ctx context.Context, sessionID string) {
+	if s.afterSend == nil || sessionID == "" {
+		return
+	}
+	s.afterSend(ctx, sessionID)
 }
 
 // Workers returns status information for all workers of a master session.

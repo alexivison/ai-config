@@ -4,18 +4,20 @@ import (
 	"fmt"
 
 	"github.com/anthropics/ai-party/tools/party-cli/internal/message"
+	"github.com/anthropics/ai-party/tools/party-cli/internal/session"
 	"github.com/anthropics/ai-party/tools/party-cli/internal/state"
 	"github.com/anthropics/ai-party/tools/party-cli/internal/tmux"
 	"github.com/spf13/cobra"
 )
 
-func newRelayCmd(store *state.Store, client *tmux.Client) *cobra.Command {
+func newRelayCmd(store *state.Store, client *tmux.Client, repoRoot string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "relay <worker-id> <message>",
 		Short: "Send a message to a worker's primary pane",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			svc := message.NewService(store, client)
+			sessionSvc := session.NewService(store, client, repoRoot)
+			svc := message.NewService(store, client, sessionSvc.TriggerResumeBackfillSync)
 			ctx := cmd.Context()
 			senderID, err := discoverSession(ctx, client)
 			if err == nil {

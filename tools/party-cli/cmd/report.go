@@ -4,12 +4,13 @@ import (
 	"fmt"
 
 	"github.com/anthropics/ai-party/tools/party-cli/internal/message"
+	"github.com/anthropics/ai-party/tools/party-cli/internal/session"
 	"github.com/anthropics/ai-party/tools/party-cli/internal/state"
 	"github.com/anthropics/ai-party/tools/party-cli/internal/tmux"
 	"github.com/spf13/cobra"
 )
 
-func newReportCmd(store *state.Store, client *tmux.Client) *cobra.Command {
+func newReportCmd(store *state.Store, client *tmux.Client, repoRoot string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "report [session-id] <message>",
 		Short: "Report back to the master session (worker → master)",
@@ -31,7 +32,8 @@ If session-id is omitted, discovers the current tmux session.`,
 				sessionID = id
 			}
 
-			svc := message.NewService(store, client)
+			sessionSvc := session.NewService(store, client, repoRoot)
+			svc := message.NewService(store, client, sessionSvc.TriggerResumeBackfillSync)
 			if err := svc.Report(ctx, sessionID, msg); err != nil {
 				return err
 			}

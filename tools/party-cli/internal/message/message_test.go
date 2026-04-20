@@ -226,6 +226,25 @@ func TestRelay_Success(t *testing.T) {
 	}
 }
 
+func TestRelay_NotifiesAfterSendHook(t *testing.T) {
+	t.Parallel()
+	store := setupStore(t)
+	createManifest(t, store, "party-w1", "worker1", "")
+
+	var sent []string
+	var notified string
+	svc := NewService(store, tmux.NewClient(idleAndSendRunner(&sent)), func(_ context.Context, sessionID string) {
+		notified = sessionID
+	})
+
+	if err := svc.Relay(t.Context(), "party-w1", "hello worker"); err != nil {
+		t.Fatalf("relay: %v", err)
+	}
+	if notified != "party-w1" {
+		t.Fatalf("afterSend notified %q, want %q", notified, "party-w1")
+	}
+}
+
 func TestRelayFrom_PrefixesInlineMessage(t *testing.T) {
 	t.Parallel()
 	store := setupStore(t)

@@ -87,6 +87,8 @@ type codexResumeCandidate struct {
 	modTime   time.Time
 }
 
+const codexResumeRecoveryWindow = 3 * time.Second
+
 // IsActive reports whether Codex is currently producing output for this
 // thread. It checks the freshest rollout JSONL under
 // ~/.codex/sessions/YYYY/MM/DD/ whose filename contains the thread ID.
@@ -153,6 +155,15 @@ func (c *Codex) RecoverResumeID(cwd, createdAt string) (string, error) {
 	}
 	if !found {
 		return "", nil
+	}
+	if !created.IsZero() {
+		cutoff := created.Add(-codexResumeRecoveryWindow)
+		switch {
+		case !best.startedAt.IsZero() && best.startedAt.Before(cutoff):
+			return "", nil
+		case best.startedAt.IsZero() && !best.modTime.IsZero() && best.modTime.Before(cutoff):
+			return "", nil
+		}
 	}
 	return best.id, nil
 }

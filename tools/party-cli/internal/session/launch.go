@@ -3,8 +3,10 @@ package session
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/anthropics/ai-party/tools/party-cli/internal/agent"
+	"github.com/anthropics/ai-party/tools/party-cli/internal/config"
 )
 
 // launchConfig captures the resolved parameters for launching a session.
@@ -27,6 +29,11 @@ type resumeInfo struct {
 	provider agent.Agent
 	resumeID string
 }
+
+const (
+	freshResumeRecoveryAttempts = 30
+	freshResumeRecoveryInterval = 100 * time.Millisecond
+)
 
 // launchSession performs the shared tmux session setup:
 // clear env → set PARTY_SESSION → build commands → persist resume IDs →
@@ -73,5 +80,66 @@ func (s *Service) launchSession(ctx context.Context, lc launchConfig) error {
 		return err
 	}
 
+	s.recoverMissingResumeIDs(ctx, lc.sessionID)
+	s.startResumeBackfillSync(ctx, lc)
+
 	return nil
+}
+
+func (s *Service) recoverMissingResumeIDs(ctx context.Context, sessionID string) {
+	for attempt := 0; attempt < freshResumeRecoveryAttempts; attempt++ {
+		status, err := s.SyncMissingResumeIDs(ctx, sessionID)
+		if err == nil && !status.Pending {
+			return
+		}
+		if attempt == freshResumeRecoveryAttempts-1 {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(freshResumeRecoveryInterval):
+		}
+	}
+}
+
+func (s *Service) startResumeBackfillSync(ctx context.Context, lc launchConfig) {
+	if !needsResumeBackfillWatcher(lc) {
+		return
+	}
+	s.TriggerResumeBackfillSync(ctx, lc.sessionID)
+}
+
+// TriggerResumeBackfillSync launches a bounded background sync that writes any
+// newly discovered resume metadata into the manifest, runtime files, and tmux
+// session environment. The helper exits on its own once the metadata appears
+// or its retry budget expires.
+func (s *Service) TriggerResumeBackfillSync(ctx context.Context, sessionID string) {
+	cliCmd, err := s.resolveCLICmd()
+	if err != nil {
+		return
+	}
+
+	cmd := fmt.Sprintf(
+		"%s backfill-resume %s >/dev/null 2>&1",
+		cliCmd,
+		config.ShellQuote(sessionID),
+	)
+	_ = s.Client.RunShell(ctx, sessionID, cmd)
+}
+
+func needsResumeBackfillWatcher(lc launchConfig) bool {
+	for _, role := range []agent.Role{agent.RolePrimary, agent.RoleCompanion} {
+		if _, ok := lc.agentResume[role]; ok {
+			continue
+		}
+		provider, ok := lc.agents[role]
+		if !ok || provider == nil {
+			continue
+		}
+		if _, ok := provider.(resumeRecoverer); ok {
+			return true
+		}
+	}
+	return false
 }
