@@ -4,7 +4,18 @@ set -euo pipefail
 
 MODE="${1:?Usage: tmux-companion.sh --review|--plan-review|--prompt|--review-complete|--needs-discussion}"
 
-SCRIPT_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve symlinks on the script path so SCRIPT_DIR lands in the real shared/
+# skill dir. Invocations come through per-tool symlinks (~/.claude/skills/…,
+# ~/.codex/skills/…); plain dirname would leave SCRIPT_DIR in the tool's tree,
+# where templates/ does not exist.
+_src="${BASH_SOURCE[0]}"
+while [ -L "$_src" ]; do
+  _dir="$(cd -P "$(dirname "$_src")" && pwd)"
+  _src="$(readlink "$_src")"
+  [[ "$_src" != /* ]] && _src="$_dir/$_src"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$_src")" && pwd)"
+unset _src _dir
 TEMPLATE_DIR="$SCRIPT_DIR/../templates"
 source "$SCRIPT_DIR/../../../../session/party-lib.sh"
 
