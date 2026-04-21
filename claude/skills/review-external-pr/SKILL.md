@@ -2,12 +2,12 @@
 name: review-external-pr
 description: >-
   Review someone else's PR by dispatching four independent reviewers
-  (companion, code-critic, minimizer, sentinel) in parallel, then combining and
+  (companion, code-critic, minimizer, deep-reviewer) in parallel, then combining and
   deduplicating their findings into a single PENDING GitHub review with inline
   comments. Use when the user shares a PR URL or number and asks to review it,
   says "review this PR", "check this PR", "look at PR #123", or wants a
   multi-perspective code review of an external pull request. Also use when the
-  user asks to run critics/sentinel/the companion on a PR. This skill
+  user asks to run critics/deep-reviewer/the companion on a PR. This skill
   orchestrates the full pipeline — do not review the PR yourself; dispatch the
   reviewers.
 user-invocable: true
@@ -69,7 +69,7 @@ Provide: diff path, PR context, project review guidelines (if found). Ask for st
 
 Provide: diff path, PR context. Ask it to identify unnecessary complexity, bloat, over-engineering, duplicated patterns, trivial wrappers, and dead code.
 
-### Sentinel (background Agent, subagent_type: sentinel)
+### Deep Reviewer (background Agent, subagent_type: deep-reviewer)
 
 Provide: diff path, PR context. Ask for adversarial deep review covering correctness, security, integration risks, race conditions, stale closures, and clean code violations.
 
@@ -91,7 +91,7 @@ Combine all findings into a single deduplicated list. This is the critical step 
 Multiple reviewers often flag the same issue. When findings overlap:
 - Merge them into a single comment
 - Keep the most detailed explanation
-- Attribute all contributing reviewers: `*Reviewers: code-critic, sentinel*`
+- Attribute all contributing reviewers: `*Reviewers: code-critic, deep-reviewer*`
 
 ### Severity Classification
 
@@ -122,7 +122,7 @@ Create a PENDING review via the GitHub API. Omit the `event` field entirely — 
       "path": "relative/file/path.ts",
       "line": 42,
       "side": "RIGHT",
-      "body": "[must] Description of finding.\n\n*Reviewers: code-critic, sentinel*"
+      "body": "[must] Description of finding.\n\n*Reviewers: code-critic, deep-reviewer*"
     }
   ]
 }
@@ -131,7 +131,7 @@ Create a PENDING review via the GitHub API. Omit the `event` field entirely — 
 ### Summary body format
 
 ```markdown
-## Combined Review (code-critic + minimizer + sentinel + companion)
+## Combined Review (code-critic + minimizer + deep-reviewer + companion)
 
 <verdict summary — how many reviewers said what>
 

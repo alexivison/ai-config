@@ -61,7 +61,7 @@ Label findings as [must], [q], or [nit].
 Return APPROVE, REQUEST_CHANGES, or NEEDS_DISCUSSION.
 ```
 
-## Sentinel
+## Deep Reviewer
 
 ```
 Perform an adversarial deep-reasoning review of PR #{number}.
@@ -87,5 +87,5 @@ Provide severity-labeled findings: [must], [q], [nit].
 
 - **Large PRs (20+ files)**: Add a bullet list of the major change areas so reviewers have structural context before reading the diff.
 - **Test-heavy PRs**: Tell reviewers to focus on production code and only flag test issues if they indicate a gap in coverage or a wrong assertion.
-- **Refactoring PRs**: Tell the minimizer to check that no behavior changed unintentionally, and tell the sentinel to verify API surface compatibility.
+- **Refactoring PRs**: Tell the minimizer to check that no behavior changed unintentionally, and tell the deep-reviewer to verify API surface compatibility.
 - **Project guidelines available**: Append relevant excerpts to each prompt. Reviewers without project context miss convention violations.

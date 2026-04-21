@@ -12,7 +12,7 @@ Review effectiveness metrics are tracked in persistent per-session JSONL logs (`
 
 ## Automatic Recording (via hooks)
 
-- `agent-trace-stop.sh` records `findings_summary` for code-critic, minimizer, scribe, and sentinel by parsing `[must]`/`[should]`/`[nit]` tags and `**BLOCKING**`/`**NON-BLOCKING**` markers from agent responses.
+- `agent-trace-stop.sh` records `findings_summary` for code-critic, minimizer, requirements-auditor, and deep-reviewer by parsing `[must]`/`[should]`/`[nit]` tags and `**BLOCKING**`/`**NON-BLOCKING**` markers from agent responses.
 - `companion-trace.sh` records individual `finding_raised` entries and a `findings_summary` by parsing the TOON findings file when `--review-complete` runs.
 
 ## Manual Recording (via CLI during triage)

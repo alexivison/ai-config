@@ -117,7 +117,7 @@ Classify every finding before acting:
 
 **Lean loop:** Critics: two-pass mode (initial + one re-review). Companion happy-path: two passes, but continue until `VERDICT: APPROVED` regardless. `[q]`/`[nit]` are opt-in. Critics APPROVE when only non-blocking remain.
 
-**Caps:** Critics: hard cap of 2 passes (initial + one re-review) → Paladin uses own judgment on any remaining blocking findings. **Companion: NO cap** — continue until APPROVED. Dispute with evidence if you disagree; never bypass. Non-blocking: 1 round → accept or drop.
+**Caps:** Critics: hard cap of 2 passes (initial + one re-review) → primary agent uses own judgment on any remaining blocking findings. **Companion: NO cap** — continue until APPROVED. Dispute with evidence if you disagree; never bypass. Non-blocking: 1 round → accept or drop.
 
 **Tiered re-review:** One-symbol swap → test-runner only. Logic change → test-runner + critics. New export/signature/security path → full cascade.
 
@@ -132,7 +132,7 @@ Classify every finding before acting:
 | Minimality + Scope Gate | PASS / Scope violation | Critics / **PAUSE** (NEEDS_DISCUSSION) |
 | Critics (code-critic, minimizer) | APPROVE or non-blocking only | Wait for others → companion review |
 | Critics | REQUEST_CHANGES (blocking) | Fix batch + one re-run |
-| Critics | Cap reached (2 passes) | Paladin uses own judgment, proceed to companion review |
+| Critics | Cap reached (2 passes) | Primary agent uses own judgment, proceed to companion review |
 | All critics pass | — | Run companion review |
 | Companion | APPROVE | /pre-pr-verification |
 | Companion | REQUEST_CHANGES (blocking) | Fix + commit + re-run critics + `--review` → `--review-complete`. **Repeat until APPROVED.** |
@@ -146,7 +146,7 @@ Classify every finding before acting:
 
 ## Dispute Resolution
 
-**Critics:** No dispute rounds — after 2 passes, Paladin uses own judgment and proceeds.
+**Critics:** No dispute rounds — after 2 passes, primary agent uses own judgment and proceeds.
 
 **Companion disputes:** Write dispute context file (finding IDs + rationales), pass via `--dispute <file>`. No round cap — continue until the companion accepts or you concede. For NEEDS_DISCUSSION: debate via `--prompt` with evidence-based reasoning until genuine agreement. After resolution, dispatch fresh `--review` → `--review-complete` for gate evidence.
 
@@ -156,7 +156,7 @@ Classify every finding before acting:
 
 **Valid pause conditions:** Investigation findings, security-critical disagreement, oscillation, explicit blockers. Companion review is NEVER a pause condition.
 
-**Sub-agent modes:** Investigation → always pause with findings. Verification (test/check) → never pause, summary only. Critics → 2 passes max, then Paladin decides. Companion → no cap, continue until APPROVED.
+**Sub-agent modes:** Investigation → always pause with findings. Verification (test/check) → never pause, summary only. Critics → 2 passes max, then primary agent decides. Companion → no cap, continue until APPROVED.
 
 ## Verification Principle
 

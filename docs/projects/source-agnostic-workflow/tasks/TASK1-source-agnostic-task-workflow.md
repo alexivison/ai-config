@@ -12,11 +12,11 @@ Remove TASK*.md hardcoding from task-workflow so it can execute work from any pl
 - Update skill frontmatter description to be source-agnostic
 - Rewrite pre-implementation gate to accept scope/requirements/goal from any source
 - Make checkpoint/checkbox updates conditional: update source files when they exist, skip when they don't
-- Generalize scope references throughout (step 5 minimality, step 6 scribe handoff, step 8 sentinel)
+- Generalize scope references throughout (step 5 minimality, step 6 requirements-auditor handoff, step 8 deep-reviewer)
 - Preserve backward compatibility with classic TASK/PLAN files
 
 **Out of scope:**
-- Changing scribe itself (Task 2)
+- Changing the requirements-auditor itself (Task 2)
 - Changing execution-core or CLAUDE.md wording (Task 3)
 - Adding any planning-tool-specific code
 

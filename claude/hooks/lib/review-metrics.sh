@@ -41,7 +41,7 @@ _metrics_append() {
 # Called when a reviewer (sub-agent or Codex) produces a finding.
 #
 # Args: session_id source finding_id severity category file line description diff_hash
-#   source:      code-critic | minimizer | scribe | sentinel | codex
+#   source:      code-critic | minimizer | requirements-auditor | deep-reviewer | codex
 #   finding_id:  unique within session (e.g., "cc-1", "codex-3")
 #   severity:    blocking | non-blocking | advisory
 #   category:    bug | security | style | bloat | scope | correctness | other

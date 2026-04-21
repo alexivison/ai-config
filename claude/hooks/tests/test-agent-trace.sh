@@ -176,9 +176,9 @@ assert "minimizer APPROVE → minimizer evidence" 'has_evidence "minimizer"'
 assert "minimizer APPROVE → no code-critic evidence" '! has_evidence "code-critic"'
 
 clean_evidence
-run_stop "$(stop_input scribe "**APPROVE**")"
-assert "scribe APPROVE → scribe evidence" 'has_evidence "scribe"'
-assert "scribe APPROVE → no code-critic evidence" '! has_evidence "code-critic"'
+run_stop "$(stop_input requirements-auditor "**APPROVE**")"
+assert "requirements-auditor APPROVE → requirements-auditor evidence" 'has_evidence "requirements-auditor"'
+assert "requirements-auditor APPROVE → no code-critic evidence" '! has_evidence "code-critic"'
 
 clean_evidence
 run_stop "$(stop_input check-runner "All passed.\n\nPASS")"

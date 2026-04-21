@@ -108,8 +108,8 @@ if [ "$agent_type" = "minimizer" ] && [ "$verdict" = "APPROVED" ]; then
   append_evidence "$session_id" "minimizer" "APPROVED" "$cwd"
 fi
 
-if [ "$agent_type" = "scribe" ] && [ "$verdict" = "APPROVED" ]; then
-  append_evidence "$session_id" "scribe" "APPROVED" "$cwd"
+if [ "$agent_type" = "requirements-auditor" ] && [ "$verdict" = "APPROVED" ]; then
+  append_evidence "$session_id" "requirements-auditor" "APPROVED" "$cwd"
 fi
 
 if [ "$agent_type" = "test-runner" ] && [ "$verdict" = "PASS" ]; then
@@ -123,13 +123,13 @@ if [ "$agent_type" = "check-runner" ]; then
 fi
 
 # ── Oscillation detection for critics (delegated to lib/oscillation.sh) ──
-if [ "$agent_type" = "code-critic" ] || [ "$agent_type" = "minimizer" ] || [ "$agent_type" = "scribe" ]; then
+if [ "$agent_type" = "code-critic" ] || [ "$agent_type" = "minimizer" ] || [ "$agent_type" = "requirements-auditor" ]; then
   detect_oscillation "$session_id" "$agent_type" "$verdict" "$response" "$cwd"
 fi
 
 # ── Review metrics: extract findings and record triage from reviewer responses ──
 case "$agent_type" in
-  code-critic|minimizer|scribe|sentinel)
+  code-critic|minimizer|requirements-auditor|deep-reviewer)
     if [ -n "$response" ]; then
       diff_hash=$(compute_diff_hash "$cwd")
 

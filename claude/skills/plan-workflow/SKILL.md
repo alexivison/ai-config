@@ -1,8 +1,8 @@
 ---
 name: plan-workflow
 description: >-
-  Orchestrate plan creation by dispatching the companion (default: The Wizard /
-  Codex CLI) to do deep research and produce a PLAN.md. The primary agent
+  Orchestrate plan creation by dispatching the companion (default: Codex CLI)
+  to do deep research and produce a PLAN.md. The primary agent
   gathers context, dispatches the companion, presents findings, relays user
   feedback, and verifies the final plan. Use when the user wants to plan a
   feature, investigate a ticket, design an approach, create a PLAN.md, scope
@@ -16,7 +16,7 @@ user-invocable: true
 
 # Plan Workflow
 
-Orchestrate the companion to produce a PLAN.md. You are the Paladin — the default primary persona. Your role is context-gathering, dispatch, verification, and relay. The companion does the deep research and plan authoring.
+Orchestrate the companion to produce a PLAN.md. You are the primary agent. Your role is context-gathering, dispatch, verification, and relay. The companion does the deep research and plan authoring.
 
 ## Phase 1 — Gather Context
 

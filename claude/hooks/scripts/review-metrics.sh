@@ -27,7 +27,7 @@ case "$MODE" in
 
   --finding)
     SESSION="${2:?Missing session_id}"
-    SOURCE="${3:?Missing source (code-critic|minimizer|scribe|sentinel|codex)}"
+    SOURCE="${3:?Missing source (code-critic|minimizer|requirements-auditor|deep-reviewer|codex)}"
     FINDING_ID="${4:?Missing finding_id}"
     SEVERITY="${5:?Missing severity (blocking|non-blocking|advisory)}"
     CATEGORY="${6:?Missing category (bug|security|style|bloat|scope|correctness|other)}"
