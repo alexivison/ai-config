@@ -567,7 +567,7 @@ func fitToWidth(s string, width int) string {
 
 var (
 	pickerFooterStyle      = lipgloss.NewStyle().Faint(true)
-	pickerDividerLineStyle = lipgloss.NewStyle().Foreground(palette.PickerDividerLine)
+	pickerDividerLineStyle = lipgloss.NewStyle().Foreground(palette.DividerFg)
 	pickerVertDividerStyle = lipgloss.NewStyle().Foreground(palette.PickerVerticalDivider)
 	pickerSelectedStyle    = lipgloss.NewStyle().Reverse(true)
 	pickerCwdStyle         = lipgloss.NewStyle().Faint(true)

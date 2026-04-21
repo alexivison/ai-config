@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -13,6 +14,8 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 
 	"github.com/anthropics/ai-party/tools/party-cli/internal/palette"
 	"github.com/anthropics/ai-party/tools/party-cli/internal/state"
@@ -928,8 +931,8 @@ func TestFormatEntries_MasterUsesGoldDot(t *testing.T) {
 	}
 	got := FormatEntries(entries)
 
-	goldANSI := palette.MasterRoleANSI
-	if !strings.Contains(got, goldANSI+"● ") {
+	goldDot := renderANSI(lipgloss.NewStyle().Foreground(palette.MasterRole), "● ")
+	if !strings.Contains(got, goldDot) {
 		t.Errorf("FormatEntries master entry should have gold dot, got:\n%s", got)
 	}
 }
@@ -972,10 +975,9 @@ func TestFormatEntries_ResumableDividerUsesDividerANSI(t *testing.T) {
 	}
 	got := FormatEntries(entries)
 
-	// Resumable divider must use DividerFg ANSI 240: \033[38;5;240m
-	dividerANSI := "\033[38;5;240m"
-	if !strings.Contains(got, dividerANSI) {
-		t.Errorf("FormatEntries resumable divider should use DividerFg ANSI 240 (\\033[38;5;240m), got:\n%s", got)
+	divider := renderANSI(lipgloss.NewStyle().Foreground(palette.DividerFg), "  ── resumable ─────────────────────────────────────────────")
+	if !strings.Contains(got, divider) {
+		t.Errorf("FormatEntries resumable divider should use DividerFg styling, got:\n%s", got)
 	}
 }
 
@@ -988,7 +990,7 @@ func TestFormatPreview_MasterUsesGoldANSI(t *testing.T) {
 	pd := &PreviewData{Status: "master", WorkerCount: 2, Cwd: "/tmp", Timestamp: "2026-03-10"}
 	got := FormatPreview(pd)
 
-	goldANSI := palette.MasterRoleANSI
+	goldANSI := renderANSI(lipgloss.NewStyle().Foreground(palette.MasterRole).Bold(true), "● master")
 	if !strings.Contains(got, goldANSI) {
 		t.Errorf("FormatPreview master status should use Gold ANSI, got:\n%s", got)
 	}
@@ -1059,7 +1061,7 @@ func TestFormatPreview_PaladinSectionUsesAccentANSI(t *testing.T) {
 	}
 	got := FormatPreview(pd)
 
-	accentANSI := "\033[34m"
+	accentANSI := renderANSI(lipgloss.NewStyle().Foreground(palette.Accent).Bold(true), "paladin")
 	if !strings.Contains(got, accentANSI) {
 		t.Errorf("FormatPreview should use Accent ANSI for paladin section header, got:\n%s", got)
 	}
@@ -1106,7 +1108,7 @@ func TestFormatPreview_TmuxUsesAccentANSI(t *testing.T) {
 	}
 	got := FormatPreview(pd)
 
-	accentANSI := "\033[34m"
+	accentANSI := renderANSI(lipgloss.NewStyle().Foreground(palette.Accent).Bold(true), "● tmux")
 	if !strings.Contains(got, accentANSI) {
 		t.Errorf("FormatPreview tmux status should use Accent ANSI, got:\n%s", got)
 	}
@@ -1122,4 +1124,10 @@ func TestEntryTypeLabel_Tmux(t *testing.T) {
 	if got != "tmux" {
 		t.Errorf("entryTypeLabel: got %q, want %q", got, "tmux")
 	}
+}
+
+func renderANSI(style lipgloss.Style, text string) string {
+	r := lipgloss.NewRenderer(io.Discard)
+	r.SetColorProfile(termenv.ANSI)
+	return r.NewStyle().Inherit(style).Render(text)
 }

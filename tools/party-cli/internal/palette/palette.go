@@ -12,46 +12,21 @@ const (
 	Error      lipgloss.Color = Deleted
 	Accent     lipgloss.Color = "4"
 	Muted      lipgloss.Color = "8"
-	StatusBg   lipgloss.Color = "235"
-	StatusFg   lipgloss.Color = "252"
-	DividerFg  lipgloss.Color = "240"
+	StatusBg   lipgloss.Color = "0"
+	StatusFg   lipgloss.Color = "7"
+	DividerFg  lipgloss.Color = Muted
 	BrightText lipgloss.Color = "15"
-)
 
-const (
-	ResetANSI = "\033[0m"
-	BoldANSI  = "\033[1m"
-	FaintANSI = "\033[2m"
-
-	AccentANSI     = "\033[34m"
-	CleanANSI      = "\033[32m"
-	WarnANSI       = "\033[33m"
-	ErrorANSI      = "\033[31m"
-	MutedANSI      = "\033[90m"
-	DividerFgANSI  = "\033[38;5;240m"
-	BrightTextANSI = "\033[97m"
+	MasterRole lipgloss.Color = "11"
 	// WorkerRole is the picker-reference worker identity color; tracker worker
 	// dots and headers share it so the two UIs stay aligned.
 	WorkerRole     lipgloss.Color = Warn
 	StandaloneRole lipgloss.Color = Clean
 	TmuxRole       lipgloss.Color = Accent
 	OrphanRole     lipgloss.Color = Muted
-)
 
-var (
-	MasterRole lipgloss.Color
-
-	DividerBorder lipgloss.Color
-	// PickerDividerLine intentionally stays darker than DividerBorder to
-	// preserve the picker's existing section-separator contrast.
-	PickerDividerLine lipgloss.Color
-	// PickerVerticalDivider intentionally stays brighter than DividerBorder so
-	// the split between the list and preview panes remains legible.
-	PickerVerticalDivider lipgloss.Color
-	SelectedBoxBorder     lipgloss.Color
-	SelectedRowBg         lipgloss.Color
-	ActivityDim           lipgloss.Color
-
-	MasterRoleANSI    string
-	SelectedRowBgANSI string
+	DividerBorder         lipgloss.Color = Muted
+	PickerVerticalDivider lipgloss.Color = Muted
+	SelectedBoxBorder     lipgloss.Color = Muted
+	ActivityDim           lipgloss.Color = Muted
 )

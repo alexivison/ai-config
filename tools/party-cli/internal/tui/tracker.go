@@ -879,12 +879,10 @@ func lastSnippetLine(snippet string) string {
 	return ""
 }
 
-// applySelectedBg wraps a line with the selected-row background. It re-applies
-// the bg code after every full ANSI reset inside the line so inner styles
-// (each of which emits \x1b[0m at its end) don't strip the highlight mid-row.
+// applySelectedBg highlights the selected row using reverse-video so the
+// selection inherits the terminal's own foreground/background pairing.
 func applySelectedBg(line string) string {
-	const reset = "\x1b[0m"
-	return selectedRowBgANSI + strings.ReplaceAll(line, reset, reset+selectedRowBgANSI) + reset
+	return selectedRowStyle.Render(line)
 }
 
 // stripAgentMarker removes the leading agent/tool output marker from a line.

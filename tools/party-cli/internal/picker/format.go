@@ -2,7 +2,11 @@ package picker
 
 import (
 	"fmt"
+	"io"
 	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 
 	"github.com/anthropics/ai-party/tools/party-cli/internal/palette"
 )
@@ -15,13 +19,39 @@ const (
 	colType  = 14
 )
 
+var (
+	formatRenderer = lipgloss.NewRenderer(io.Discard)
+
+	formatTitleStyle      lipgloss.Style
+	formatMutedStyle      lipgloss.Style
+	formatFaintMutedStyle lipgloss.Style
+	formatAccentStyle     lipgloss.Style
+	formatCleanStyle      lipgloss.Style
+	formatWarnStyle       lipgloss.Style
+	formatDividerStyle    lipgloss.Style
+	formatMasterStyle     lipgloss.Style
+)
+
+func init() {
+	formatRenderer.SetColorProfile(termenv.ANSI)
+	formatTitleStyle = formatRenderer.NewStyle().Bold(true)
+	formatMutedStyle = formatRenderer.NewStyle().Foreground(palette.Muted)
+	formatFaintMutedStyle = formatRenderer.NewStyle().Foreground(palette.Muted).Faint(true)
+	formatAccentStyle = formatRenderer.NewStyle().Foreground(palette.Accent)
+	formatCleanStyle = formatRenderer.NewStyle().Foreground(palette.Clean)
+	formatWarnStyle = formatRenderer.NewStyle().Foreground(palette.Warn)
+	formatDividerStyle = formatRenderer.NewStyle().Foreground(palette.DividerFg)
+	formatMasterStyle = formatRenderer.NewStyle().Foreground(palette.MasterRole)
+}
+
 // FormatEntries renders entries into fixed-width columns for fzf.
 // Each field is truncated to its column width to prevent overflow.
 func FormatEntries(entries []Entry) string {
 	var sb strings.Builder
 	for _, e := range entries {
 		if e.IsSep {
-			sb.WriteString(palette.DividerFgANSI + "  ── resumable ─────────────────────────────────────────────" + palette.ResetANSI + "\n")
+			sb.WriteString(formatDividerStyle.Render("  ── resumable ─────────────────────────────────────────────"))
+			sb.WriteByte('\n')
 			continue
 		}
 		renderEntry(&sb, &e)
@@ -31,57 +61,37 @@ func FormatEntries(entries []Entry) string {
 
 // renderEntry formats a single picker row: dot Title PartyID Type Path.
 func renderEntry(sb *strings.Builder, e *Entry) {
-	dot, typeColor := entryStyle(e)
+	dot, typeStyle := entryStyle(e)
 
 	id := strings.TrimSpace(e.SessionID)
-
 	sb.WriteString(dot)
-
-	// Title
-	title := dash(e.Title)
-	sb.WriteString(palette.BoldANSI)
-	sb.WriteString(padRight(truncStr(title, colTitle), colTitle))
-	sb.WriteString(palette.ResetANSI)
+	sb.WriteString(formatTitleStyle.Render(padRight(truncStr(dash(e.Title), colTitle), colTitle)))
 	sb.WriteString("  ")
-
-	// PartyID — always muted
-	sb.WriteString(palette.MutedANSI)
-	sb.WriteString(padRight(truncStr(id, colID), colID))
-	sb.WriteString(palette.ResetANSI)
+	sb.WriteString(formatMutedStyle.Render(padRight(truncStr(id, colID), colID)))
 	sb.WriteString("  ")
-
-	// Primary agent
 	renderAgentColumn(sb, e.PrimaryAgent)
 	sb.WriteString("  ")
-
-	// Type
-	sb.WriteString(typeColor)
-	sb.WriteString(padRight(truncStr(entryTypeLabel(e), colType), colType))
-	sb.WriteString(palette.ResetANSI)
+	sb.WriteString(typeStyle.Render(padRight(truncStr(entryTypeLabel(e), colType), colType)))
 	sb.WriteString("  ")
-
-	// Path
-	sb.WriteString(palette.MutedANSI)
-	sb.WriteString(dash(e.Cwd))
-	sb.WriteString(palette.ResetANSI)
-	sb.WriteString("\n")
+	sb.WriteString(formatMutedStyle.Render(dash(e.Cwd)))
+	sb.WriteByte('\n')
 }
 
 // entryStyle returns the status dot and type color for an entry.
-func entryStyle(e *Entry) (dot, typeColor string) {
+func entryStyle(e *Entry) (string, lipgloss.Style) {
 	switch {
 	case strings.Contains(e.Status, "master"):
-		return palette.MasterRoleANSI + "● " + palette.ResetANSI, palette.MasterRoleANSI
+		return formatMasterStyle.Render("● "), formatMasterStyle
 	case strings.Contains(e.Status, "worker"):
-		return palette.WarnANSI + "│ " + palette.ResetANSI, palette.WarnANSI
+		return formatWarnStyle.Render("│ "), formatWarnStyle
 	case strings.Contains(e.Status, "orphan"):
-		return palette.MutedANSI + "○ " + palette.ResetANSI, palette.MutedANSI
+		return formatMutedStyle.Render("○ "), formatMutedStyle
 	case strings.Contains(e.Status, "tmux"):
-		return palette.AccentANSI + "● " + palette.ResetANSI, palette.AccentANSI
+		return formatAccentStyle.Render("● "), formatAccentStyle
 	case strings.Contains(e.Status, "active"), strings.Contains(e.Status, "current"):
-		return palette.CleanANSI + "● " + palette.ResetANSI, palette.CleanANSI
+		return formatCleanStyle.Render("● "), formatCleanStyle
 	default:
-		return palette.MutedANSI + "○ " + palette.ResetANSI, palette.MutedANSI + palette.FaintANSI
+		return formatMutedStyle.Render("○ "), formatFaintMutedStyle
 	}
 }
 
@@ -104,26 +114,33 @@ func entryTypeLabel(e *Entry) string {
 // FormatPreview renders preview data into a styled terminal output matching sidebar aesthetics.
 func FormatPreview(pd *PreviewData) string {
 	if pd == nil {
-		return palette.MutedANSI + "  No manifest found." + palette.ResetANSI
+		return formatMutedStyle.Render("  No manifest found.")
 	}
 
 	var sb strings.Builder
-
-	// Status badge.
-	sb.WriteString("\n")
+	sb.WriteByte('\n')
 	switch pd.Status {
 	case "master":
-		fmt.Fprintf(&sb, "  %s● master%s  %s%d workers%s\n", palette.MasterRoleANSI+palette.BoldANSI, palette.ResetANSI, palette.MutedANSI, pd.WorkerCount, palette.ResetANSI)
+		sb.WriteString("  ")
+		sb.WriteString(formatMasterStyle.Bold(true).Render("● master"))
+		sb.WriteString("  ")
+		sb.WriteString(formatMutedStyle.Render(fmt.Sprintf("%d workers", pd.WorkerCount)))
+		sb.WriteByte('\n')
 	case "active":
-		fmt.Fprintf(&sb, "  %s● active%s\n", palette.CleanANSI+palette.BoldANSI, palette.ResetANSI)
+		sb.WriteString("  ")
+		sb.WriteString(formatCleanStyle.Bold(true).Render("● active"))
+		sb.WriteByte('\n')
 	case "tmux":
-		fmt.Fprintf(&sb, "  %s● tmux%s\n", palette.AccentANSI+palette.BoldANSI, palette.ResetANSI)
+		sb.WriteString("  ")
+		sb.WriteString(formatAccentStyle.Bold(true).Render("● tmux"))
+		sb.WriteByte('\n')
 	default:
-		fmt.Fprintf(&sb, "  %s○ resumable%s\n", palette.MutedANSI, palette.ResetANSI)
+		sb.WriteString("  ")
+		sb.WriteString(formatMutedStyle.Render("○ resumable"))
+		sb.WriteByte('\n')
 	}
 
-	// Metadata section.
-	sb.WriteString("\n")
+	sb.WriteByte('\n')
 	previewField(&sb, "dir", pd.Cwd)
 	if pd.Timestamp != "" {
 		previewField(&sb, "time", pd.Timestamp)
@@ -138,30 +155,35 @@ func FormatPreview(pd *PreviewData) string {
 		previewField(&sb, "wizard", pd.CodexID)
 	}
 
-	// Prompt section.
 	if pd.Prompt != "" {
-		sb.WriteString("\n")
-		fmt.Fprintf(&sb, "  %sprompt%s\n", palette.AccentANSI+palette.BoldANSI, palette.ResetANSI)
-		// Wrap prompt at ~40 chars for readability in preview pane.
+		sb.WriteByte('\n')
+		sb.WriteString("  ")
+		sb.WriteString(formatAccentStyle.Bold(true).Render("prompt"))
+		sb.WriteByte('\n')
 		for _, line := range wrapText(pd.Prompt, 40) {
-			fmt.Fprintf(&sb, "  %s%s%s\n", palette.CleanANSI, line, palette.ResetANSI)
+			sb.WriteString("  ")
+			sb.WriteString(formatCleanStyle.Render(line))
+			sb.WriteByte('\n')
 		}
 	}
 
-	// Pane output.
 	if len(pd.PaneLines) > 0 {
-		sb.WriteString("\n")
+		sb.WriteByte('\n')
 		label := "paladin"
 		if pd.Status == "tmux" {
 			label = "terminal"
 		}
-		fmt.Fprintf(&sb, "  %s%s%s\n", palette.AccentANSI+palette.BoldANSI, label, palette.ResetANSI)
+		sb.WriteString("  ")
+		sb.WriteString(formatAccentStyle.Bold(true).Render(label))
+		sb.WriteByte('\n')
 		for _, line := range pd.PaneLines {
-			color := palette.MutedANSI + palette.FaintANSI
+			style := formatFaintMutedStyle
 			if strings.HasPrefix(line, "❯") || strings.HasPrefix(line, "$") {
-				color = palette.CleanANSI
+				style = formatCleanStyle
 			}
-			fmt.Fprintf(&sb, "  %s%s%s\n", color, line, palette.ResetANSI)
+			sb.WriteString("  ")
+			sb.WriteString(style.Render(line))
+			sb.WriteByte('\n')
 		}
 	}
 
@@ -170,18 +192,20 @@ func FormatPreview(pd *PreviewData) string {
 
 // previewField renders a label: value pair for the preview pane.
 func previewField(sb *strings.Builder, label, value string) {
-	fmt.Fprintf(sb, "  %s%-7s%s %s%s%s\n", palette.DividerFgANSI, label, palette.ResetANSI, palette.MutedANSI, value, palette.ResetANSI)
+	sb.WriteString("  ")
+	sb.WriteString(formatDividerStyle.Render(fmt.Sprintf("%-7s", label)))
+	sb.WriteByte(' ')
+	sb.WriteString(formatMutedStyle.Render(value))
+	sb.WriteByte('\n')
 }
 
 func renderAgentColumn(sb *strings.Builder, agent string) {
-	value := dash(agent)
+	value := padRight(truncStr(dash(agent), colAgent), colAgent)
 	if agent == "" {
-		sb.WriteString(palette.MutedANSI)
-	} else {
-		sb.WriteString(palette.BoldANSI)
+		sb.WriteString(formatMutedStyle.Render(value))
+		return
 	}
-	sb.WriteString(padRight(truncStr(value, colAgent), colAgent))
-	sb.WriteString(palette.ResetANSI)
+	sb.WriteString(formatTitleStyle.Render(value))
 }
 
 // wrapText splits text into lines of at most width characters, breaking at spaces.

@@ -80,16 +80,14 @@ var (
 	sessionBoxBorderStyle = lipgloss.NewStyle().Foreground(DividerBorder)
 	// Brighter than inactive, matches gh-dash's focused feel (GitHub fg.muted).
 	selectedBoxBorderStyle = lipgloss.NewStyle().Foreground(palette.SelectedBoxBorder)
-	// Selected-row background — matches gh-dash's selected background.
-	selectedRowBgStyle = lipgloss.NewStyle().Background(palette.SelectedRowBg)
+	selectedRowStyle       = lipgloss.NewStyle().Reverse(true)
 )
 
 // dimActivityStyle renders the activity dot's "blink off" half — a muted
 // grey that the identity-coloured dot alternates with while the agent is
 // generating.
 var (
-	dimActivityStyle  = lipgloss.NewStyle().Foreground(palette.ActivityDim)
-	selectedRowBgANSI = palette.SelectedRowBgANSI
+	dimActivityStyle = lipgloss.NewStyle().Foreground(palette.ActivityDim)
 )
 
 // Status bar and key badge styles.
