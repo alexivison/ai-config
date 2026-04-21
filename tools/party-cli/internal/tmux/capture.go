@@ -23,15 +23,20 @@ func (c *Client) Capture(ctx context.Context, target string, lines int) (string,
 	return out, nil
 }
 
+// claudeSpinnerGlyphs are the six frames Claude cycles through on its
+// tool-execution status line. Single source of truth for IsProgressLine's
+// glyph-prefix match.
+var claudeSpinnerGlyphs = []string{"·", "✻", "✽", "✶", "✳", "✢"}
+
 // IsProgressLine reports whether a cleaned pane line is a live-progress
 // status line from Claude or Codex. The "esc to interrupt" / "esc to clear"
 // phrase is the reliable universal signal (both agents emit it only during
 // active generation); "thinking with" is a Claude-specific supplement that
 // appears during ER/effort turns. Claude's tool-execution spinner omits
 // those phrases and instead renders `<glyph> <verb>… (<time> · ↓ <tokens>)`
-// where glyph cycles through six frames; we match that shape by glyph prefix
-// plus a required `…` (which excludes the static `✻ Worked for Xm Ys` line
-// Claude shows post-completion).
+// where glyph cycles through claudeSpinnerGlyphs; we match that shape by
+// glyph prefix plus a required `…` (which excludes the static
+// `✻ Worked for Xm Ys` line Claude shows post-completion).
 func IsProgressLine(clean string) bool {
 	if strings.Contains(clean, "esc to interrupt") ||
 		strings.Contains(clean, "esc to clear") ||
@@ -41,7 +46,7 @@ func IsProgressLine(clean string) bool {
 	if !strings.Contains(clean, "…") {
 		return false
 	}
-	for _, g := range []string{"·", "✻", "✽", "✶", "✳", "✢"} {
+	for _, g := range claudeSpinnerGlyphs {
 		if strings.HasPrefix(clean, g+" ") {
 			return true
 		}

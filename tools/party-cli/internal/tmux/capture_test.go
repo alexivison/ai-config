@@ -29,6 +29,10 @@ func TestIsProgressLine(t *testing.T) {
 			line: "✽ Crunching… (14s · ↑ 0.1k tokens)",
 			want: true,
 		},
+		"tool-exec spinner glyph asterisk-only": {
+			line: "✳ Pondering… (22s · ↓ 1.2k tokens)",
+			want: true,
+		},
 		"thinking with esc to interrupt": {
 			line: "✳ Lollygagging… (14s · esc to interrupt · ctrl+t to show todos)",
 			want: true,
