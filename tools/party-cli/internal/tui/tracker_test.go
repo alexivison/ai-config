@@ -364,7 +364,7 @@ func TestTrackerRenderSessionRowTodoOverlay(t *testing.T) {
 				cursor:   -1, // keep row unselected so overlay line appears without bg tint
 				sessions: []SessionRow{tc.row},
 			}
-			got := tm.renderSessionRow(tc.row, 0, false, 60)
+			got := tm.renderSessionRow(tc.row, 0, 60)
 			hasOverlay := strings.Contains(got, "▸ ")
 			if hasOverlay != tc.wantOverlay {
 				t.Fatalf("overlay present = %v, want %v\n%s", hasOverlay, tc.wantOverlay, got)
