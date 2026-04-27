@@ -62,7 +62,7 @@ Out-of-scope touches without justification are blocking and require `NEEDS_DISCU
 
 After implementation, if the work source has tracking files, keep them in sync:
 
-1. **Files with checkboxes** (TASK*.md, PLAN.md, etc.): Update `- [ ]` → `- [x]` after implementation. Commit together with implementation.
+1. **Files with checkboxes** (TASK*.md, PLAN.md, dated research plan docs under `~/.ai-party/docs/research/`, etc.): Update `- [ ]` → `- [x]` after implementation. Commit together with implementation.
 2. **External tool tracking files**: Update completion markers per that tool's conventions. Commit together with implementation.
 3. **No tracking files**: Skip this step entirely.
 

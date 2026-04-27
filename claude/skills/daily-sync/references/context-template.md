@@ -1,30 +1,29 @@
-# Daily Context Template
+# Daily Report Template
 
-Shared format for the daily context file written by `/daily-sync` and
+Shared format for the daily report file written by `/daily-sync` and
 `/daily-radar`. Consumed by coding agents at session start for orientation.
 
-## Location
+## Locations
 
-`~/.claude/context/<repo-name>/<YYYY-MM-DD>.md`
-
-- `<repo-name>` — from the repo the user is working in. If running outside a
-  repo, fall back to the Linear team name from `data-sources.md` (kebab-case).
-- `<YYYY-MM-DD>` — today's date.
+- `/daily-sync` → `~/.ai-party/docs/reports/<YYYY-MM-DD>-daily-sync.md`
+- `/daily-radar` → `~/.ai-party/docs/reports/<YYYY-MM-DD>-daily-radar.md`
+- Use today's date for `<YYYY-MM-DD>`.
 
 ## Rules
 
-- **Read the previous TWO context files before writing today's** —
-  `<today-1>.md` AND `<today-2>.md`. Yesterday alone misses rollover state,
-  in-flight blockers, and handoffs from two days ago. Fold both days' still-
-  relevant signal into today's Priority Stack / In Flight / Watch Out.
-- **Overwrite** if today's file already exists (e.g., radar after sync, or
-  mid-day re-runs).
+- **Read the previous TWO reports from the same series before writing today's.**
+  For `/daily-sync`, read the previous two `*-daily-sync.md` files. For
+  `/daily-radar`, read the previous two `*-daily-radar.md` files. Yesterday
+  alone misses rollover state, in-flight blockers, and handoffs from two days
+  ago. Fold both days' still-relevant signal into today's Priority Stack /
+  In Flight / Watch Out.
+- **Overwrite** if today's file already exists (e.g., a later rerun the same day).
 - **Target ~10-20 lines / ~250 tokens.** Hard cap at 30 lines. Injected into
   every coding session — every line must earn its keep.
 - **Omit empty sections entirely.** Don't write "None" or "No pending reviews."
   Absence of signal isn't signal.
-- **Prune** files older than 14 days in the same directory on write.
-- Create the directory if it doesn't exist.
+- Preserve older reports. Do **not** prune historical files.
+- Create the reports directory if it doesn't exist.
 
 ## Format
 
@@ -68,7 +67,7 @@ Shared format for the daily context file written by `/daily-sync` and
 - **Do NOT** prescribe implementation approaches
 - **Do NOT** restate team, milestones, architecture, or cadence — already in
   `project-context.md` auto-memory
-- **Do NOT** include a `# Daily Context — <date>` H1 — the date is in the
+- **Do NOT** include a `# Daily Report — <date>` H1 — the date is in the
   filename and wastes a line
 - **Do NOT** dump Slack threads verbatim — summarize the decision/outcome
 - **Do NOT** include a "recently completed" log — if a handoff matters, put it

@@ -17,11 +17,11 @@ Your job is to orient the user on their workday and help them communicate with t
 
 ## Prior Context
 
-**Always read the previous TWO daily context files** before drafting the briefing,
-sync message, or today's context file — not just yesterday's:
+**Always read the previous TWO daily sync reports** before drafting the briefing,
+sync message, or today's report — not just yesterday's:
 
-- `~/.claude/context/<repo-name>/<today-1>.md`
-- `~/.claude/context/<repo-name>/<today-2>.md`
+- `~/.ai-party/docs/reports/<today-1>-daily-sync.md`
+- `~/.ai-party/docs/reports/<today-2>-daily-sync.md`
 
 Yesterday alone misses rollover state, in-flight blockers, and handoffs from two
 days ago that still apply. Fold both days' signal into Priority Stack / In Flight /
@@ -120,17 +120,19 @@ When invoked outside the morning briefing context (e.g., "check updates", "any r
 - Summarize what changed since the morning briefing
 - If the user asks about a specific thread, PR, or ticket, fetch that directly
 
-## Daily Context File
+## Daily Report File
 
 After completing the briefing (whether or not a sync message is posted), write a
-context snapshot for coding agents to consume at session start.
+daily report for coding agents to consume at session start.
+
+Write it to `~/.ai-party/docs/reports/YYYY-MM-DD-daily-sync.md`.
 
 Read `references/context-template.md` (relative to this skill's directory) for
 the file location, format, rules, and section guidelines. Follow it exactly.
 
 ## What This Skill Does NOT Do
 
-- No code editing (except the daily context file), no PRs
+- No code editing (except the daily report file), no PRs
 - No implementation work — that goes to separate worker sessions
 - No committing or pushing
 - No architectural decisions — surface information, don't prescribe solutions

@@ -147,17 +147,19 @@ or suggest following up on stale threads.
 - Never prescribe implementation approaches — only suggest what to work on next and why.
 - Keep to 2-3 items. Don't list every ticket.
 
-## Daily Context File
+## Daily Report File
 
 After completing the radar scan, write a context snapshot for coding agents to
 consume at session start.
+
+Write it to `~/.ai-party/docs/reports/YYYY-MM-DD-daily-radar.md`.
 
 Read `../daily-sync/references/context-template.md` for the file location,
 format, rules, and section guidelines. Follow it exactly.
 
 ## What This Skill Does NOT Do
 
-- No code editing (except the daily context file), no PRs
+- No code editing (except the daily report file), no PRs
 - No implementation work
 - No posting to Slack
 - No architectural decisions — surface information, don't prescribe solutions

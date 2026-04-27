@@ -2,28 +2,28 @@
 name: planning
 description: >
   Feature planning from discovery through task breakdown. Produces design docs
-  and implementation plans, then submits a draft PR for review. Use when asked
+  and implementation plans under `~/.ai-party/docs/research/`. Use when asked
   to plan a feature, create a design doc, break work into tasks, or produce
-  SPEC.md / DESIGN.md / PLAN.md / TASK files.
+  plan or design docs.
 ---
 
 # Planning Skill
 
-Feature planning from discovery through task breakdown. Produces design docs and implementation plans, then submits a draft PR for Claude to review.
+Feature planning from discovery through task breakdown. Produces design docs and implementation plans in the canonical docs tree. Only create repo-tracked planning artifacts when the user explicitly asks for them.
 
 ## Modes
 
 | Mode | Purpose | Output |
 |------|---------|--------|
 | **Discover** | Explore codebase, clarify requirements, map standards and integration points | Notes (internal) |
-| **Design** | Write architecture and data flow | SPEC.md + DESIGN.md |
-| **Plan** | Break design into executable tasks | PLAN.md + TASK*.md |
+| **Design** | Write architecture and data flow | `YYYY-MM-DD-design-<slug>.md` |
+| **Plan** | Break design into executable tasks | `YYYY-MM-DD-plan-<slug>.md` (+ optional `YYYY-MM-DD-task-...` docs) |
 
 Start wherever the work requires. No hard entry gate — jump straight to Plan if the design is already clear.
 
 ## Readiness Gate (Before Plan Output)
 
-Before generating PLAN.md or TASK*.md, verify ALL of the following. If any are missing, go back and fill them — materialise into DESIGN.md if needed.
+Before generating the dated plan doc or related task docs, verify ALL of the following. If any are missing, go back and fill them — materialise them into the design doc if needed.
 
 | Requirement | Evidence |
 |-------------|----------|
@@ -33,7 +33,7 @@ Before generating PLAN.md or TASK*.md, verify ALL of the following. If any are m
 | Acceptance criteria defined | Machine-verifiable, not vague |
 | UI/component task design context captured | Each UI/component TASK includes a Figma node URL or image/screenshot link/path |
 
-If design decisions were made inline during planning, auto-materialise them into DESIGN.md before final plan output.
+If design decisions were made inline during planning, auto-materialise them into the design doc before final plan output.
 
 ## Discover Mode
 
@@ -45,16 +45,17 @@ If design decisions were made inline during planning, auto-materialise them into
 
 ## Design Mode
 
-1. Write SPEC.md — requirements and acceptance criteria (skip if external spec provided)
-2. Write DESIGN.md — architecture, data flow, transformation points, integration points
+1. Write the design doc at `~/.ai-party/docs/research/YYYY-MM-DD-design-<slug>.md`
+2. Capture requirements and acceptance criteria in that design doc unless the user explicitly asks for a separate repo-tracked spec
 3. All patterns must reference existing code with `file:line`
 4. Include "Data Transformation Points" section mapping every shape change
 
 ## Plan Mode
 
-1. Read DESIGN.md and SPEC.md
-2. Create PLAN.md with task breakdown, dependencies, verification commands
-3. Create `tasks/TASK*.md` — small, independently executable tasks (~200 LOC each)
+1. Read the design doc and any external requirements source
+2. Create the primary plan doc at `~/.ai-party/docs/research/YYYY-MM-DD-plan-<slug>.md` with task breakdown, dependencies, and verification commands
+3. Create separate task docs only when a single-file plan would become unclear
+   - Use flat sibling files: `~/.ai-party/docs/research/YYYY-MM-DD-task-<slug>-<n>.md`
    - For every task that creates or updates UI components, include a `Design References` section with at least one Figma node URL or image/screenshot link/path
 4. Evaluate against planning checks (see below)
 5. Refine until evaluation passes
@@ -71,7 +72,7 @@ If design decisions were made inline during planning, auto-materialise them into
 
 ## Self-Evaluation
 
-Before creating PR, record in PLAN.md:
+Before handing the plan off, record in the plan doc:
 
 ```
 ## Plan Evaluation Record
@@ -103,9 +104,12 @@ If FAIL: fix blocking gaps, re-evaluate.
 
 ## Output
 
-1. Create branch with `-plan` suffix (e.g., `ENG-123-feature-plan`)
-2. Submit draft docs-only PR containing SPEC.md, DESIGN.md, PLAN.md, TASK*.md
-3. Stop at PR — Claude reviews
+1. Write planning docs directly to `~/.ai-party/docs/research/` without asking the user for a path
+2. Use these default filenames:
+   - Plan: `YYYY-MM-DD-plan-<slug>.md` with frontmatter `type: plan`
+   - Design: `YYYY-MM-DD-design-<slug>.md` with frontmatter `type: design`
+   - Separate task plan doc: `YYYY-MM-DD-task-<slug>.md` (or `...-<n>.md` when multiple) with frontmatter `type: plan`
+3. Only open a docs PR if the user explicitly wants repo-tracked planning artifacts
 
 ## Verification Principle
 

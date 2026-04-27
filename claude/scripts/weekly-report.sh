@@ -1,6 +1,6 @@
 #!/bin/bash
 # Weekly report of Claude Code activity
-# Collects investigations, git activity, code reviews, tech stack,
+# Collects research notes, git activity, code reviews, tech stack,
 # quality signals, and session summaries
 
 set -eo pipefail
@@ -9,7 +9,8 @@ set -eo pipefail
 WEEKS_AGO=${1:-0}
 
 CLAUDE_DIR="$HOME/.claude"
-REPORTS_DIR="$HOME/Documents/Claude-Reports"
+RESEARCH_DIR="$HOME/.ai-party/docs/research"
+REPORTS_DIR="$HOME/.ai-party/docs/reports"
 HOME_ENCODED=$(echo "$HOME" | sed 's/\//-/g')
 GIT_AUTHOR=$(git config user.name 2>/dev/null || echo "")
 
@@ -34,14 +35,14 @@ mkdir -p "$EXPORT_DIR"
 echo "Generating weekly report: $SINCE to $TODAY"
 echo "Output: $EXPORT_DIR"
 
-# ── Copy investigation markdown (skip operational logs) ─────────
-inv_files=()
-if [ -d "$CLAUDE_DIR/investigations" ]; then
+# ── Copy research markdown (skip operational logs) ─────────────
+research_files=()
+if [ -d "$RESEARCH_DIR" ]; then
   while IFS= read -r f; do
-    inv_files+=("$f")
+    research_files+=("$f")
     cp "$f" "$EXPORT_DIR/"
-  done < <(find "$CLAUDE_DIR/investigations" -type f -name "*.md" -newermt "$SINCE" ! -newermt "$UNTIL" 2>/dev/null)
-  [ ${#inv_files[@]} -gt 0 ] && echo "  - Investigations: ${#inv_files[@]} file(s)"
+  done < <(find "$RESEARCH_DIR" -type f -name "*.md" -newermt "$SINCE" ! -newermt "$UNTIL" 2>/dev/null)
+  [ ${#research_files[@]} -gt 0 ] && echo "  - Research notes: ${#research_files[@]} file(s)"
 fi
 
 # ── Build SUMMARY.md ───────────────────────────────────────────
@@ -53,22 +54,22 @@ SUMMARY="$EXPORT_DIR/SUMMARY.md"
 **Period:** $SINCE to $TODAY
 **Generated:** $(date +%Y-%m-%d\ %H:%M)
 
-## Investigations
+## Research Notes
 
 EOF
 
-  # List investigation files copied to export dir
-  inv_found=false
+  # List research files copied to export dir
+  research_found=false
   for f in "$EXPORT_DIR"/*.md; do
     [ -f "$f" ] || continue
     [ "$(basename "$f")" = "SUMMARY.md" ] && continue
-    inv_found=true
+    research_found=true
     BASENAME=$(basename "$f")
     TITLE=$(grep -m1 "^#" "$f" 2>/dev/null | sed 's/^#* *//' || true)
     [ -z "$TITLE" ] && TITLE="$BASENAME"
     echo "- [$TITLE]($BASENAME)"
   done
-  $inv_found || echo "_No investigations this week_"
+  $research_found || echo "_No research notes this week_"
 
   # ── Phase 1: Per-repo loop (Git Activity + accumulate cross-repo data) ──
 
@@ -431,8 +432,8 @@ if not ci_has_data and not reviewer_passes and findings_raised == 0 and total_tr
     print('_No quality signal data this week_')
 " 2>/dev/null || echo "_Could not parse quality signals_"
 
-  # ── Investigation Resolution Tracking ─────────────────────────
-  if $inv_found; then
+  # ── Research Resolution Tracking ──────────────────────────────
+  if $research_found; then
     echo ""
     echo "### Resolution Tracking"
     echo ""
@@ -547,7 +548,9 @@ except Exception: print('?')
   echo "| PRs reviewed | $review_count |"
   echo "| Lines added | +$total_additions |"
   echo "| Lines removed | -$total_deletions |"
-  [ -n "$active_projects" ] && echo "| Active projects | $active_projects |"
+  if [ -n "$active_projects" ]; then
+    echo "| Active projects | $active_projects |"
+  fi
 
 } > "${SUMMARY}.tmp" && mv "${SUMMARY}.tmp" "$SUMMARY"
 

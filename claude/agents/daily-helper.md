@@ -29,20 +29,20 @@ Read these files at the start of every session:
 
 - `~/.claude/config/data-sources.md` — channel IDs, Linear team, Notion page IDs, user info
 - Auto-memory `project-context.md` — team, milestones, architecture, priority signals (loaded from the project's memory directory automatically)
-- `~/.claude/context/<repo-name>/` — previous daily context files for reference on recent work
+- `~/.ai-party/docs/reports/` — recent `*-daily-sync.md` and `*-daily-radar.md` files for reference on recent work
 
 Use data-sources for ad-hoc queries (e.g., "check #channel-name"). Use project-context
 to assess priority, understand who owns what, and connect dots between tickets and roadmap.
 
-## Daily Context File
+## Daily Report File
 
 After completing a `/daily-sync` or `/daily-radar`, write a context snapshot to
-`~/.claude/context/<repo-name>/<YYYY-MM-DD>.md`. Derive `<repo-name>` from the repo
-the user is working in.
+`~/.ai-party/docs/reports/<YYYY-MM-DD>-daily-sync.md` or
+`~/.ai-party/docs/reports/<YYYY-MM-DD>-daily-radar.md`, depending on the skill.
 
 This file is consumed by coding agents at session start so they don't need to
 re-query Linear/Slack for orientation. Keep it under ~30 lines / ~500 tokens.
-Prune files older than 14 days on write. See skill definitions for the full format.
+Preserve historical reports. See skill definitions for the full format.
 
 ## Response Style
 
@@ -56,4 +56,4 @@ Prune files older than 14 days on write. See skill definitions for the full form
 - No code editing or PRs
 - No implementation work
 - No architectural decisions — surface information, don't prescribe solutions
-- **Exception:** Writing daily context files to `~/.claude/context/` is permitted
+- **Exception:** Writing daily reports to `~/.ai-party/docs/reports/` is permitted

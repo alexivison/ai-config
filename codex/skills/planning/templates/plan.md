@@ -4,8 +4,7 @@
 
 ## Prerequisites
 
-- SPEC.md exists with acceptance criteria
-- DESIGN.md exists with technical details
+- A dated design doc exists with acceptance criteria and technical details
 
 ## Structure
 
@@ -18,7 +17,7 @@
 >
 > **Tech Stack:** [Languages, frameworks, libraries involved]
 >
-> **Specification:** [SPEC.md](./SPEC.md) | **Design:** [DESIGN.md](./DESIGN.md)
+> **Design:** [<design-filename>](./<design-filename>) | **Related:** <free-text refs>
 
 ## Scope
 
@@ -31,10 +30,10 @@ What this plan covers. If multi-service, note the order.
 
 ## Tasks
 
-- [ ] [Task 1](./tasks/TASK1-short-title.md) — <Description> (deps: none)
-- [ ] [Task 2](./tasks/TASK2-short-title.md) — <Description> (deps: Task 1)
-- [ ] [Task 3](./tasks/TASK3-short-title.md) — <Description> (deps: Task 1)
-- [ ] [Task 4](./tasks/TASK4-short-title.md) — <Description> (deps: Task 2, Task 3)
+- [ ] [Task 1](./<task-1-filename>.md) — <Description> (deps: none)
+- [ ] [Task 2](./<task-2-filename>.md) — <Description> (deps: Task 1)
+- [ ] [Task 3](./<task-3-filename>.md) — <Description> (deps: Task 1)
+- [ ] [Task 4](./<task-4-filename>.md) — <Description> (deps: Task 2, Task 3)
 
 If a task creates or updates UI/components, that task file must include a `Design References` section with a Figma node URL or image/screenshot link/path.
 
@@ -89,13 +88,13 @@ Source reconciliation: [References or "None"]
 
 - [ ] All task checkboxes complete
 - [ ] All verification commands pass
-- [ ] SPEC.md acceptance criteria satisfied
+- [ ] Design doc acceptance criteria satisfied
 ```
 
 ## Notes
 
 - Target ~200 lines per task (standard) or 2-5 min steps (atomic)
-- All plan artifacts go in `docs/projects/<project-slug>/` (PLAN.md, SPEC.md, DESIGN.md, diagrams)
-- Task files go in `docs/projects/<project-slug>/tasks/` with naming: `TASK<N>-<kebab-case-title>.md`
+- Write the plan to `~/.ai-party/docs/research/YYYY-MM-DD-plan-<slug>.md`
+- Related design docs and optional task docs live as flat sibling files in the same directory
 - Use ASCII for dependency graph (not Mermaid)
 - Each task = one PR, independently mergeable

@@ -2,10 +2,11 @@
 name: plan-workflow
 description: >-
   Orchestrate plan creation by dispatching the companion (default: Codex CLI)
-  to do deep research and produce a PLAN.md. The primary agent
+  to do deep research and produce a dated plan doc under
+  `~/.ai-party/docs/research/`. The primary agent
   gathers context, dispatches the companion, presents findings, relays user
   feedback, and verifies the final plan. Use when the user wants to plan a
-  feature, investigate a ticket, design an approach, create a PLAN.md, scope
+  feature, investigate a ticket, design an approach, create a plan, scope
   work, or says things like "plan this", "how should we approach", "let's
   think through", "create a plan for", or references a Linear ticket they want
   planned. Also use when task-workflow needs a plan that doesn't exist yet.
@@ -16,7 +17,7 @@ user-invocable: true
 
 # Plan Workflow
 
-Orchestrate the companion to produce a PLAN.md. You are the primary agent. Your role is context-gathering, dispatch, verification, and relay. The companion does the deep research and plan authoring.
+Orchestrate the companion to produce a dated research plan doc in `~/.ai-party/docs/research/`. You are the primary agent. Your role is context-gathering, dispatch, verification, and relay. The companion does the deep research and plan authoring.
 
 ## Phase 1 — Gather Context
 
@@ -29,8 +30,9 @@ Before dispatching the companion, assemble everything needed for good reasoning.
 3. **Read relevant code** — Identify the files, modules, or areas of the codebase that
    the plan will touch. Read them. The default companion can read files too, but pre-loading key context
    into the prompt reduces its search time and improves plan quality.
-4. **Check for existing plans** — Look for `PLAN.md` or `plans/*.md` in the repo. If a
-   plan already exists for this work, the user may want iteration rather than creation.
+4. **Check for existing plans** — Look for matching docs under `~/.ai-party/docs/research/`
+   first, then repo-tracked `PLAN.md` or `plans/*.md` only when the user explicitly wants tracked docs.
+   If a plan already exists for this work, the user may want iteration rather than creation.
 5. **Identify constraints** — Deadlines, dependencies, blocked-by items, scope limits.
    These go into the companion prompt so the plan accounts for them.
 
@@ -85,7 +87,7 @@ When `[COMPANION] Task complete. Response at: <path>` arrives:
 1. **Read the response file first** — The `<path>` from the notification is the companion's
    authoritative result channel. Check `STATUS:` line — if FAILED, report to user.
    Extract `PLAN:` and `TASKS:` paths. Note any warnings.
-2. **Read the plan and task files** — Open PLAN.md and each TASK*.md at the paths from
+2. **Read the plan and task files** — Open the dated plan doc and any related task docs at the paths from
    the response file. If paths differ from your prompt, use the response file's paths.
 3. **Verify completeness:**
    - Does it cover all requirements from the user's ask?
@@ -121,8 +123,9 @@ revision prompt alongside the user's feedback. You are a reviewer, not just a re
 
 Once the user approves:
 
-1. **Confirm plan location** — Ensure PLAN.md and TASK*.md files are at the expected
-   paths (typically `PLAN.md` in the repo root plus `tasks/TASK-*.md`)
+1. **Confirm plan location** — Ensure the primary plan doc is at
+   `~/.ai-party/docs/research/YYYY-MM-DD-plan-<slug>.md`. If separate task docs exist,
+   keep them as flat sibling files in the same directory with `YYYY-MM-DD-task-...` names.
 2. **Dispatch plan review (MANDATORY)** — Per CLAUDE.md contract, every created plan
    must go through `--plan-review`. This is not optional:
    ```bash
@@ -140,7 +143,7 @@ Once the user approves:
 | Phase | Primary Agent's Job | Companion's Job |
 |-------|---------------------|-----------------|
 | Gather | Read code, fetch tickets, assemble context | — |
-| Dispatch | Compose prompt, send via tmux-companion.sh | Research, write PLAN.md + TASK*.md (canonical templates) |
+| Dispatch | Compose prompt, send via tmux-companion.sh | Research, write the dated plan doc and any related task docs |
 | Verify | Check paths, scope, completeness | — |
 | Present | Summarize plan, flag concerns | — |
 | Iterate | Relay feedback + own concerns | Revise plan |
@@ -156,7 +159,6 @@ Once the user approves:
 
 ## Integration with Other Workflows
 
-- **task-workflow** executes TASK*.md files. This skill produces both PLAN.md (overall plan)
-  and TASK*.md files (executable tasks), so the output feeds directly into task-workflow.
+- **task-workflow** can execute work from these dated research plan docs just as it can from repo-tracked tasks.
 - **party-dispatch** can parallelize tasks from the plan across worker sessions.
 - **bugfix-workflow** may invoke this skill when investigation reveals the fix needs planning.

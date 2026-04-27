@@ -26,13 +26,15 @@ You are Claude Code. You default to the primary role but may be configured as co
 - **No Laziness**: Root causes only. Senior developer standards.
 - **Clean Code**: Follow `shared/clean-code.md` (LoB, SRP, YAGNI, DRY, KISS). Self-check every function.
 
-## Daily Context
+## Daily Reports
 
-Read `~/.claude/context/<repo-name>/` for today's date file (e.g., `2026-04-13.md`) at session start.
-Derive `<repo-name>` from the repo you're working in.
+Read today's daily report files in `~/.ai-party/docs/reports/` at session start when they exist:
+
+- `YYYY-MM-DD-daily-sync.md`
+- `YYYY-MM-DD-daily-radar.md`
 
 - **Use it for orientation only** — ticket scope and implementation details come from the ticket itself.
-- Previous days' files are available for reference when you need context on recent work.
+- Previous reports are available for reference when you need recent context.
 
 ## Default Mode: Direct Editing
 
@@ -49,6 +51,15 @@ Each workflow skill writes an `execution-preset` marker via `skill-marker.sh`. T
 Claude-specific hook paths, evidence storage, override knobs, and review metrics live in `claude/rules/execution-core-claude-internals.md`.
 
 When a workflow is active, **do NOT stop between steps.** Follow `shared/execution-core.md` for sequence, gates, decision matrix, and pause conditions. Companion review is NEVER a pause condition or skippable — see execution-core § Review Governance.
+
+## Docs Workspace
+
+Write agent-produced docs directly under `~/.ai-party/docs/`. Do not ask the user for a path.
+
+- Research notes, investigations, plans, designs, and reviews go in `~/.ai-party/docs/research/`.
+- Daily syncs, daily radar snapshots, ad-hoc reports, and weekly bundles go in `~/.ai-party/docs/reports/`.
+- New research docs use `YYYY-MM-DD-<slug>.md` filenames with the required frontmatter from `~/.ai-party/docs/CLAUDE.md`.
+- Legacy migrated notes from `~/.claude/investigations/` may lack frontmatter. Leave them as-is unless the user asks for a rewrite.
 
 ## Stage Bindings
 
@@ -74,8 +85,6 @@ Claude-specific sub-agents live under `claude/agents/`:
 **NEVER run tests or checks via Bash directly.** When a workflow is active, always delegate verification to `test-runner` / `check-runner` via the Task tool — they discover and run the full suite regardless of project.
 
 Keep the main context clean. One task per sub-agent.
-
-Save investigation findings to `~/.claude/investigations/<issue-slug>.md`.
 
 ## Inter-Agent Transport
 

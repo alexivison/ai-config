@@ -43,6 +43,15 @@ As the default companion, you typically run one of:
 - **Reviewing a primary-authored change** → respond per the incoming `[PRIMARY]` message via `tmux-handler`
 - **Investigation or delegated analysis** → answer the `--prompt` request, write the response file, notify the primary
 
+## Docs Workspace
+
+Write agent-produced docs directly under `~/.ai-party/docs/`. Do not ask the user for a path.
+
+- Research notes, investigations, plans, designs, and reviews go in `~/.ai-party/docs/research/`.
+- Daily syncs, daily radar snapshots, ad-hoc reports, and weekly bundles go in `~/.ai-party/docs/reports/`.
+- New research docs use `YYYY-MM-DD-<slug>.md` filenames with the required frontmatter from `~/.ai-party/docs/AGENTS.md`.
+- Legacy migrated notes from `~/.claude/investigations/` may lack frontmatter. Leave them as-is unless the user asks for a rewrite.
+
 ## Stage Bindings
 
 Shared workflow skills describe logical stages. This section binds each stage to the concrete mechanism Codex uses when acting as primary. Codex does not have Claude-style `subagent_type` sub-agents, so bindings run inline shell commands and inline review passes.

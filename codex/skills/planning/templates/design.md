@@ -7,7 +7,7 @@
 ```markdown
 # <Feature Name> Design
 
-> **Specification:** [SPEC.md](./SPEC.md)
+> **Related Plan:** [<plan-filename>](./<plan-filename>)
 
 ## Architecture Overview
 

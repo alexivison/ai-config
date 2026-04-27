@@ -26,6 +26,7 @@ echo "==========================="
 echo ""
 
 run_suite "test-hooks.sh"
+run_suite "test-weekly-report.sh"
 run_suite "test-party-routing.sh"
 run_suite "test-transport-role-routing.sh"
 run_suite "test-party-multilaunch.sh"

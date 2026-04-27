@@ -33,6 +33,7 @@ Task-workflow is a thin shim over execution-core. It triggers the full pipeline 
 1. **Scope extraction** — Read the planning source and extract scope boundaries, requirements, and goal per the pre-implementation gate in `shared/execution-core.md`.
 2. **Requirements audit** — Because planned work has requirements, the critics stage is `code-critic + minimizer + requirements-auditor`.
 3. **Source-file updates** — Tracking files (TASK/PLAN/external checkboxes) are updated alongside the implementation commit.
+4. **Task-plan location** — If you create a separate task plan doc, write it to `~/.ai-party/docs/research/YYYY-MM-DD-task-<slug>.md` with frontmatter `type: plan`.
 
 ## Execution
 

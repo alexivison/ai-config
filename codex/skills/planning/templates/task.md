@@ -2,9 +2,9 @@
 
 **Answers:** "What exactly do I do for this step?"
 
-**Location:** `tasks/` subfolder
+**Location:** `~/.ai-party/docs/research/`
 
-**File naming:** `TASK<N>-<kebab-case-title>.md`
+**File naming:** `YYYY-MM-DD-task-<slug>-<n>.md`
 
 ## Structure
 

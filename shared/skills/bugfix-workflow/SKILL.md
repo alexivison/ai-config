@@ -23,6 +23,7 @@ On Claude, invoking this skill writes the `bugfix` execution-preset via `skill-m
 - **No PLAN.md checkboxes** — bugfixes aren't planned work
 - **Investigation gate** — complex bugs go to the companion before implementation
 - **Regression test first** — write a test that reproduces the bug before fixing
+- **Research note location** — write investigation findings to `~/.ai-party/docs/research/YYYY-MM-DD-investigation-<slug>.md` with frontmatter `type: investigation`
 
 ## Pre-Bugfix Gate
 
@@ -59,6 +60,7 @@ Analyze this bug and identify the root cause.
 **Bug description:** {symptom/error message}
 **Relevant files:** {files where bug manifests}
 Trace data/control flow, identify root cause with file:line, specify fix (don't implement).
+Write findings to `~/.ai-party/docs/research/YYYY-MM-DD-investigation-<slug>.md`.
 ```
 
 **On APPROVE:** Show findings, ask user before fixing.
