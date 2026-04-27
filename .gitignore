@@ -9,6 +9,9 @@ codex/cache/
 codex/plugins/
 codex/installation_id
 
+# Claude Code local artifacts
+/.claude/scheduled_tasks.lock
+
 # Go build artifacts
 tools/party-cli/party-cli
 tools/party-tracker/party-tracker
