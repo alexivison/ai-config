@@ -34,6 +34,7 @@ augment_primary_request() {
 }
 
 # Register the default companion thread ID with the party session (write-once).
+# TODO(agent-transport): generalize via per-agent thread-id resolver to remove the Codex-specific name.
 if [[ -n "${CODEX_THREAD_ID:-}" && ! -s "$STATE_DIR/codex-thread-id" ]]; then
   printf '%s\n' "$CODEX_THREAD_ID" > "$STATE_DIR/codex-thread-id"
   tmux set-environment -t "$SESSION_NAME" CODEX_THREAD_ID "$CODEX_THREAD_ID" 2>/dev/null || true
