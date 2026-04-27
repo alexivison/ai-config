@@ -126,6 +126,8 @@ After ANY user correction: identify the pattern, write a preventive rule, save t
 
 ### Worktree Isolation
 
+**Always create a dedicated worktree before editing any file**, including in direct-edit mode with no workflow active. Bypassing a workflow gate does NOT exempt you from this. Never edit in another session's cwd — concurrent workers in the same worktree trample each other's diffs.
+
 1. Prefer `gwta <branch>` if available.
 2. Otherwise: `git worktree add ../<repo>-<branch> -b <branch>`.
 3. One session per worktree. Never use `git checkout` or `git switch` in shared repos.
