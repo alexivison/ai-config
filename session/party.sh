@@ -4,7 +4,7 @@
 # (tmux-companion.sh, tmux-primary.sh).
 #
 # Usage: party.sh [--detached] [--prompt "text"] [--primary AGENT] [--companion AGENT] [--no-companion] [--resume-agent ROLE=ID] [TITLE]
-#        party.sh --switch | --continue <party-id> | --stop [name] | --list | --install-tpm
+#        party.sh --switch | --continue <party-id> | --delete <party-id> | --list | --install-tpm
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
@@ -43,7 +43,7 @@ Usage:
   party.sh --switch
   party.sh --continue <party-id>
   party.sh continue <party-id>
-  party.sh --stop [name]
+  party.sh --delete <party-id>
   party.sh --list
   party.sh --install-tpm
 
@@ -99,24 +99,6 @@ while [[ $# -gt 0 ]]; do
     --list)
       _resolve_party_cli || exit 1
       exec "${PARTY_CLI_CMD[@]}" list
-      ;;
-    --stop)
-      _resolve_party_cli || exit 1
-      if [[ -n "${2:-}" ]]; then
-        exec "${PARTY_CLI_CMD[@]}" stop "$2"
-      elif [[ -n "${TMUX:-}" ]]; then
-        # No argument: stop current session only (not all)
-        _current="$(tmux display-message -p '#{session_name}' 2>/dev/null)"
-        if [[ "$_current" == party-* ]]; then
-          exec "${PARTY_CLI_CMD[@]}" stop "$_current"
-        else
-          echo "Error: not in a party session. Specify a session ID." >&2
-          exit 1
-        fi
-      else
-        echo "Error: --stop requires a session ID when run outside tmux." >&2
-        exit 1
-      fi
       ;;
     --delete)
       _resolve_party_cli || exit 1

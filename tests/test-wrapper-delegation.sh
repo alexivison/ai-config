@@ -37,7 +37,6 @@ echo "$@" >> "${PARTY_CLI_LOG:?}"
 case "$1" in
   start)  echo "Party session 'party-mock-123' started." ;;
   list)   echo "No party sessions found." ;;
-  stop)   echo "Stopped: ${2:-all}" ;;
   delete) echo "Deleted: ${2:-}" ;;
   prune)  echo "Pruned." ;;
   promote) echo "Promoted." ;;
@@ -67,12 +66,6 @@ echo "--- test-wrapper-delegation.sh ---"
 bash "$REPO_ROOT/session/party.sh" --list 2>/dev/null || true
 assert "party.sh --list delegates to party-cli" \
   'grep -q "^list" "$MOCK_LOG"'
-
-# ---- party.sh --stop <id> delegates to party-cli stop ----
-> "$MOCK_LOG"
-bash "$REPO_ROOT/session/party.sh" --stop party-test-123 2>/dev/null || true
-assert "party.sh --stop delegates to party-cli" \
-  'grep -q "^stop party-test-123" "$MOCK_LOG"'
 
 # ---- party.sh --delete <id> delegates to party-cli delete ----
 > "$MOCK_LOG"
@@ -133,6 +126,12 @@ assert "party-relay.sh --report delegates to party-cli (auto-discover)" \
 bash "$REPO_ROOT/session/party-relay.sh" --list 2>/dev/null || true
 assert "party-relay.sh --list delegates to party-cli (auto-discover)" \
   'grep -q "^workers" "$MOCK_LOG"'
+
+# ---- party-relay.sh --delete delegates to party-cli delete ----
+> "$MOCK_LOG"
+bash "$REPO_ROOT/session/party-relay.sh" --delete party-worker-1 2>/dev/null || true
+assert "party-relay.sh --delete delegates to party-cli" \
+  'grep -q "^delete party-worker-1" "$MOCK_LOG"'
 
 # ---- party-relay.sh <worker> "msg" delegates to party-cli relay ----
 > "$MOCK_LOG"

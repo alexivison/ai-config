@@ -153,7 +153,7 @@ Workers are separate sessions registered under the master:
 ./session/party.sh --detached --master-id <master-id> "ENG-456 fix auth"
 ```
 
-The tracker shows live status of all workers with vim-style navigation. Press `Enter` to jump to a worker, `r` to relay a message, `b` to broadcast, `s` to spawn, `x` to stop.
+The tracker shows live status of all workers with vim-style navigation. Press `Enter` to jump to a worker, `r` to relay a message, `b` to broadcast, `s` to spawn, `d` to delete (destructive).
 
 Any standalone session can be promoted to master mid-flight:
 
@@ -172,7 +172,7 @@ Any standalone session can be promoted to master mid-flight:
 | `--switch` | Interactive session switcher |
 | `--continue [party-id]` | Resume a session; opens interactive fzf picker if no ID given |
 | `--list` | List active and resumable party sessions |
-| `--stop [name]` | Stop one or all party sessions |
+| `--delete <party-id>` | Delete a party session completely |
 | `--detached` | Launch without attaching |
 | `--prompt "text"` | Send an initial prompt to the primary agent |
 | `--install-tpm` | Install tmux Plugin Manager |

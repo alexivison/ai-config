@@ -8,7 +8,7 @@
 #   party-relay.sh --read <worker-id> [--lines N]  # read worker's primary pane
 #   party-relay.sh --report "message"              # worker reports back to master
 #   party-relay.sh --list                          # list workers + status
-#   party-relay.sh --stop <worker-id>              # stop a worker
+#   party-relay.sh --delete <worker-id>            # delete a worker
 #   party-relay.sh --spawn [--prompt "..."] "title" # spawn a new worker
 #   party-relay.sh --file <path> <worker-id>         # send file pointer to worker
 #   party-relay.sh --companion <worker-id> "message" # send raw text to worker's companion pane
@@ -51,7 +51,7 @@ Usage:
   party-relay.sh --read <worker-id> [--lines N]
   party-relay.sh --report "message"
   party-relay.sh --list
-  party-relay.sh --stop <worker-id>
+  party-relay.sh --delete <worker-id>
   party-relay.sh --spawn [--prompt "text"] "title"
   party-relay.sh --file <path> <worker-id>         # send file pointer to worker
   party-relay.sh --companion <worker-id> "msg"     # send raw text to worker's companion pane
@@ -91,8 +91,8 @@ case "$1" in
     # party-cli workers auto-discovers master session when master-id is omitted
     exec "${PARTY_CLI_CMD[@]}" workers
     ;;
-  --stop)
-    exec "${PARTY_CLI_CMD[@]}" stop "${2:?--stop requires a worker ID}"
+  --delete)
+    exec "${PARTY_CLI_CMD[@]}" delete "${2:?--delete requires a worker ID}"
     ;;
   --spawn)
     shift
