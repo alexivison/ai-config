@@ -273,8 +273,6 @@ setup_agent() {
 setup_tmux() {
     echo ""
     echo "━━━ tmux ━━━"
-
-    create_file_symlink "$SCRIPT_DIR/tmux/tmux.conf" "$HOME/.tmux.conf" "tmux config"
 }
 
 

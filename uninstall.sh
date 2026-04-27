@@ -56,8 +56,6 @@ for tool in "${TOOLS[@]}"; do
     remove_symlink "$tool"
 done
 
-remove_file_symlink "$SCRIPT_DIR/tmux/tmux.conf" "$HOME/.tmux.conf" "~/.tmux.conf"
-
 echo ""
 echo "Uninstall complete!"
 echo "The ai-party repo remains at: $SCRIPT_DIR"
