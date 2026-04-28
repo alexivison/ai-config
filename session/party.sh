@@ -128,11 +128,6 @@ while [[ $# -gt 0 ]]; do
       _resolve_party_cli || exit 1
       exec "${PARTY_CLI_CMD[@]}" resize "$_resize_target"
       ;;
-    --pick-entries)
-      _resolve_party_cli || exit 1
-      exec "${PARTY_CLI_CMD[@]}" picker entries
-      ;;
-
     # Commands that delegate to party-cli then attach
     --switch|switch)
       _resolve_party_cli || exit 1

@@ -154,12 +154,6 @@ assert "party-relay.sh --file tells workers to act and report back" \
   'grep -Fq "relay party-worker-1 Read and follow the instructions in '"$tmp_relay_file"'. Act on them now, then report back with results." "$MOCK_LOG"'
 rm -f "$tmp_relay_file"
 
-# ---- party.sh --pick-entries delegates to party-cli picker entries ----
-> "$MOCK_LOG"
-bash "$REPO_ROOT/session/party.sh" --pick-entries 2>/dev/null || true
-assert "party.sh --pick-entries delegates to party-cli" \
-  'grep -q "^picker entries" "$MOCK_LOG"'
-
 # ---- Verify party-master.sh is fully deleted ----
 assert "party-master.sh is deleted" \
   '[ ! -e "$REPO_ROOT/session/party-master.sh" ]'
