@@ -56,6 +56,16 @@ for tool in "${TOOLS[@]}"; do
     remove_symlink "$tool"
 done
 
+# Pi has no repo-tracked config symlink. The pi binary was installed via
+# `npm install -g @mariozechner/pi-coding-agent`; user data lives in
+# ~/.pi/agent/ (settings.json, auth.json, sessions/). Leave both untouched.
+if command -v pi &> /dev/null; then
+    echo ""
+    echo "ℹ  pi CLI was installed via npm and is not removed by this script."
+    echo "   To remove: npm uninstall -g @mariozechner/pi-coding-agent"
+    echo "   User data (~/.pi/agent/) is preserved."
+fi
+
 echo ""
 echo "Uninstall complete!"
 echo "The ai-party repo remains at: $SCRIPT_DIR"

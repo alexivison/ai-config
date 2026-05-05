@@ -246,10 +246,61 @@ setup_codex() {
     fi
 }
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PI
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PI_NPM_PACKAGE="@mariozechner/pi-coding-agent"
+PI_REQUIRED_PACKAGES=("npm:pi-subagents")
+
+setup_pi() {
+    echo ""
+    echo "━━━ pi ━━━"
+
+    if [[ "$SYMLINKS_ONLY" == true ]]; then
+        echo "⏭  Skipping pi (no repo-tracked config; user prefs live in ~/.pi/agent/settings.json)"
+        return
+    fi
+
+    if ! command -v pi &> /dev/null; then
+        if ! command -v npm &> /dev/null; then
+            echo "⚠  npm not found. Install Node.js (e.g. brew install node) and re-run."
+            return
+        fi
+        prompt_install "pi" \
+            "npm install -g $PI_NPM_PACKAGE" \
+            "npm install -g $PI_NPM_PACKAGE" || return
+    else
+        echo "✓  pi CLI already installed"
+    fi
+
+    if ! command -v pi &> /dev/null; then
+        return
+    fi
+
+    local installed_packages
+    installed_packages="$(pi list 2>/dev/null || true)"
+    local pkg
+    for pkg in "${PI_REQUIRED_PACKAGES[@]}"; do
+        if grep -Fq "$pkg" <<< "$installed_packages"; then
+            echo "✓  pi package already installed: $pkg"
+        else
+            echo "📦 Installing pi package: $pkg"
+            if pi install "$pkg"; then
+                echo "✓  Installed pi package: $pkg"
+            else
+                echo "⚠  Failed to install pi package: $pkg"
+            fi
+        fi
+    done
+
+    prompt_auth "pi" "agent/auth.json"
+}
+
 setup_agent() {
     case "$1" in
         claude) setup_claude ;;
         codex) setup_codex ;;
+        pi) setup_pi ;;
         *)
             echo ""
             echo "━━━ $1 ━━━"
@@ -371,9 +422,14 @@ if [[ $REPLY =~ ^[Nn]$ ]]; then
     exit 0
 fi
 
+pi_already_setup=false
 for agent_name in "${CONFIGURED_AGENTS[@]}"; do
     setup_agent "$agent_name"
+    [[ "$agent_name" == "pi" ]] && pi_already_setup=true
 done
+if [[ "$pi_already_setup" == false ]]; then
+    setup_pi
+fi
 setup_tmux
 setup_party_cli
 setup_fzf

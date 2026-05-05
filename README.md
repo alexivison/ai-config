@@ -66,6 +66,7 @@ The installer will:
 |------------|-----------------|
 | Claude | `curl -fsSL https://cli.anthropic.com/install.sh \| sh` |
 | Codex | `brew install --cask codex` |
+| Pi | `npm install -g @mariozechner/pi-coding-agent && pi install npm:pi-subagents` |
 | tmux | `brew install tmux` |
 | fzf | `brew install fzf` |
 | Go | `brew install go` *(required — for building party-cli)* |
