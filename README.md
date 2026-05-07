@@ -1,7 +1,7 @@
 # ai-party
 
 <p align="center">
-  <img src="assets/the-adventuring-party.png" alt="The Adventuring Party — Claude the Warforged Paladin, the Mastermind Rogue, and The Wizard (High Elf)" width="700">
+  <img src="assets/the-adventuring-party.png" alt="The Adventuring Party — Claude the Warforged Paladin, the User as the Mastermind Rogue, and Codex the High Elf Wizard" width="700">
 </p>
 
 <p align="center"><em>"Evidence before claims. Tests before implementation."</em></p>
@@ -10,9 +10,9 @@ Shared configuration and orchestration for an adventuring party of AI coding ass
 
 ## The Party
 
-Roles (primary, companion) are configurable per session via
-`party-cli config` — any installed agent (Claude, Codex, Pi) can
-fill either role.
+The party assembles around the User (the Mastermind Rogue), with three coding agents under their command: Claude (the Warforged Paladin — implementation, testing, orchestration), Codex (the High Elf Wizard — deep reasoning, analysis, review), and Pi (the Halfling Bard — lean direct edits, parallel side-work, custom-tool host).
+
+Roles (primary, companion) are configurable per session via `party-cli config` — any installed agent can fill either role.
 
 ## Structure
 
@@ -87,7 +87,7 @@ Use `party-cli config` to manage your default agent assignments:
 party-cli config init
 party-cli config show
 party-cli config set-primary codex
-party-cli config set-companion claude
+party-cli config set-companion pi
 party-cli config unset-companion
 ```
 
@@ -198,5 +198,6 @@ Transport scripts (`tmux-companion.sh`, `tmux-primary.sh`) route messages by `@p
 
 ## Documentation
 
-- **Primary configuration**: See [claude/CLAUDE.md](claude/CLAUDE.md) for the Paladin's prompt
-- **Companion configuration**: See [codex/AGENTS.md](codex/AGENTS.md) for the Wizard's prompt
+- [claude/CLAUDE.md](claude/CLAUDE.md) — the Paladin's prompt (Claude)
+- [codex/AGENTS.md](codex/AGENTS.md) — the Wizard's prompt (Codex)
+- [pi/agent/AGENTS.md](pi/agent/AGENTS.md) — the Bard's prompt (Pi)
