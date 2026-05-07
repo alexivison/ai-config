@@ -8,5 +8,10 @@
   "terminal": {
     "showTerminalProgress": true
   },
-  "hideThinkingBlock": true
+  "hideThinkingBlock": true,
+  "packages": [
+    "npm:pi-mcp-adapter",
+    "npm:@samfp/pi-memory",
+    "npm:pi-web-access"
+  ]
 }

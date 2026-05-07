@@ -3,6 +3,7 @@ agent/auth.json
 
 # Runtime/session data
 agent/sessions/
+memory/
 
 # Pi-managed binaries/cache
 agent/bin/
