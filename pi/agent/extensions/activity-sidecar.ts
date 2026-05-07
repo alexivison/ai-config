@@ -1,15 +1,69 @@
-import { mkdirSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 
-const ACTIVITY_FILE = process.env.PI_ACTIVITY_FILE;
-const ACTIVITY_ID = process.env.PI_ACTIVITY_ID;
+const PARTY_SESSION = process.env.PARTY_SESSION;
+const DEFAULT_ACTIVITY_FILE = PARTY_SESSION && /^party-[A-Za-z0-9_-]+$/.test(PARTY_SESSION) ? `/tmp/${PARTY_SESSION}/pi-activity.json` : undefined;
+const ACTIVITY_FILE = process.env.PI_ACTIVITY_FILE || DEFAULT_ACTIVITY_FILE;
+const ACTIVITY_ID = process.env.PI_ACTIVITY_ID || PARTY_SESSION;
 const RECENT_LIMIT = 40;
 const SNIPPET_LIMIT = 180;
 const HEARTBEAT_MS = 1_500;
 const WRITE_THROTTLE_MS = 100;
 
 type ActivityPhase = "idle" | "thinking" | "message_update" | "tool" | "done" | "error";
+
+type ActivityModel = {
+	provider?: string;
+	id?: string;
+	name?: string;
+	api?: string;
+	reasoning?: boolean;
+	context_window?: number;
+	max_tokens?: number;
+	input?: string[];
+};
+
+type ActivityThinking = {
+	level?: string;
+};
+
+type ActivityContext = {
+	tokens?: number | null;
+	context_window?: number;
+	percent?: number | null;
+};
+
+type ActivityTurn = {
+	index?: number;
+	status?: "running" | "done";
+	started_at_ms?: number;
+	ended_at_ms?: number;
+	tool_calls?: number;
+	errors?: number;
+};
+
+type ActivityTool = {
+	name?: string;
+	call_id?: string;
+	summary?: string;
+	status?: "running" | "done" | "error";
+	started_at_ms?: number;
+	ended_at_ms?: number;
+};
+
+type ActivityUsageSnapshot = {
+	input?: number;
+	output?: number;
+	cache_read?: number;
+	cache_write?: number;
+	total_tokens?: number;
+	cost_total?: number;
+};
+
+type ActivityUsage = {
+	last?: ActivityUsageSnapshot;
+};
 
 type ActivityState = {
 	version: 1;
@@ -23,6 +77,12 @@ type ActivityState = {
 	phase: ActivityPhase;
 	snippet?: string;
 	recent?: string[];
+	model?: ActivityModel;
+	thinking?: ActivityThinking;
+	context?: ActivityContext;
+	turn?: ActivityTurn;
+	tool?: ActivityTool;
+	usage?: ActivityUsage;
 };
 
 type TextContent = { type?: string; text?: unknown; thinking?: unknown };
@@ -30,8 +90,11 @@ type AgentMessage = { role?: string; content?: unknown };
 type SessionManagerLike = { getSessionId?: () => string | undefined; getSessionFile?: () => string | undefined };
 
 type ToolEvent = {
+	toolCallId?: string;
 	toolName?: string;
+	name?: string;
 	args?: unknown;
+	arguments?: unknown;
 	input?: unknown;
 	result?: { content?: unknown };
 	partialResult?: { content?: unknown };
@@ -40,6 +103,18 @@ type ToolEvent = {
 
 function safeLine(text: string, limit = SNIPPET_LIMIT): string {
 	return text.replace(/\s+/g, " ").trim().slice(0, limit);
+}
+
+function cleanString(value: unknown, limit = SNIPPET_LIMIT): string | undefined {
+	return typeof value === "string" && value.trim() ? safeLine(value, limit) : undefined;
+}
+
+function cleanNumber(value: unknown): number | undefined {
+	return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function cleanNullableNumber(value: unknown): number | null | undefined {
+	return value === null ? null : cleanNumber(value);
 }
 
 function nonEmptyLines(text: string): string[] {
@@ -83,12 +158,15 @@ function textFromMessage(message: unknown): string {
 	return textFromContent(msg.content);
 }
 
-function contentText(content: unknown): string {
-	return textFromContent(content);
-}
-
 function toolArgs(args: unknown): Record<string, unknown> {
-	return args && typeof args === "object" ? (args as Record<string, unknown>) : {};
+	if (args && typeof args === "object") return args as Record<string, unknown>;
+	if (typeof args !== "string" || !args.trim()) return {};
+	try {
+		const parsed = JSON.parse(args) as unknown;
+		return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+	} catch {
+		return {};
+	}
 }
 
 function argString(args: Record<string, unknown>, keys: string[]): string | undefined {
@@ -121,6 +199,64 @@ function formatTool(toolName: string | undefined, rawArgs: unknown): string {
 	}
 }
 
+function modelState(raw: unknown): ActivityModel | undefined {
+	if (!raw || typeof raw !== "object") return undefined;
+	const model = raw as Record<string, unknown>;
+	const input = Array.isArray(model.input) ? model.input.filter((value): value is string => typeof value === "string") : undefined;
+	const state: ActivityModel = {
+		provider: cleanString(model.provider, 80),
+		id: cleanString(model.id, 120),
+		name: cleanString(model.name, 120),
+		api: cleanString(model.api, 80),
+		...(typeof model.reasoning === "boolean" ? { reasoning: model.reasoning } : {}),
+		context_window: cleanNumber(model.contextWindow),
+		max_tokens: cleanNumber(model.maxTokens),
+		...(input && input.length > 0 ? { input } : {}),
+	};
+	return Object.values(state).some((value) => value !== undefined) ? state : undefined;
+}
+
+function mergeAssistantModel(current: ActivityModel | undefined, message: unknown): ActivityModel | undefined {
+	if (!message || typeof message !== "object" || (message as AgentMessage).role !== "assistant") return current;
+	const msg = message as Record<string, unknown>;
+	const next = { ...(current ?? {}) };
+	next.provider = cleanString(msg.provider, 80) ?? next.provider;
+	next.id = cleanString(msg.model, 120) ?? next.id;
+	next.api = cleanString(msg.api, 80) ?? next.api;
+	return Object.values(next).some((value) => value !== undefined) ? next : undefined;
+}
+
+function contextState(ctx: ExtensionContext): ActivityContext | undefined {
+	const usage = ctx.getContextUsage?.();
+	if (!usage) return undefined;
+	const state: ActivityContext = {
+		tokens: cleanNullableNumber(usage.tokens),
+		context_window: cleanNumber(usage.contextWindow),
+		percent: cleanNullableNumber(usage.percent),
+	};
+	return Object.values(state).some((value) => value !== undefined) ? state : undefined;
+}
+
+function usageSnapshot(raw: unknown): ActivityUsageSnapshot | undefined {
+	if (!raw || typeof raw !== "object") return undefined;
+	const usage = raw as Record<string, unknown>;
+	const cost = usage.cost && typeof usage.cost === "object" ? (usage.cost as Record<string, unknown>) : {};
+	const state: ActivityUsageSnapshot = {
+		input: cleanNumber(usage.input),
+		output: cleanNumber(usage.output),
+		cache_read: cleanNumber(usage.cacheRead),
+		cache_write: cleanNumber(usage.cacheWrite),
+		total_tokens: cleanNumber(usage.totalTokens),
+		cost_total: cleanNumber(cost.total),
+	};
+	return Object.values(state).some((value) => value !== undefined) ? state : undefined;
+}
+
+function assistantUsage(message: unknown): ActivityUsageSnapshot | undefined {
+	if (!message || typeof message !== "object" || (message as AgentMessage).role !== "assistant") return undefined;
+	return usageSnapshot((message as Record<string, unknown>).usage);
+}
+
 export default function (pi: ExtensionAPI) {
 	if (!ACTIVITY_FILE) return;
 
@@ -135,6 +271,64 @@ export default function (pi: ExtensionAPI) {
 	let sessionID = ACTIVITY_ID || "";
 	let sessionFile = "";
 	let cwd = process.cwd();
+	let model: ActivityModel | undefined;
+	let thinking: ActivityThinking | undefined;
+	let contextUsage: ActivityContext | undefined;
+	let turn: ActivityTurn | undefined;
+	let tool: ActivityTool | undefined;
+	let usage: ActivityUsage | undefined;
+
+	function restorePreviousState() {
+		try {
+			const state = JSON.parse(readFileSync(activityPath, "utf8")) as ActivityState;
+			if (state.version !== 1 || state.source !== "pi") return;
+			const stateID = state.id || state.session_id || "";
+			if (sessionID && stateID && stateID !== sessionID) return;
+
+			const restoredRecent = (Array.isArray(state.recent) ? state.recent : [])
+				.map((line) => (typeof line === "string" ? safeLine(line) : ""))
+				.filter(Boolean)
+				.slice(-RECENT_LIMIT);
+			recent = restoredRecent;
+			snippet = safeLine(state.snippet || restoredRecent[restoredRecent.length - 1] || "");
+			model = state.model && typeof state.model === "object" ? state.model : model;
+			thinking = state.thinking && typeof state.thinking === "object" ? state.thinking : thinking;
+			contextUsage = state.context && typeof state.context === "object" ? state.context : contextUsage;
+			usage = state.usage && typeof state.usage === "object" ? state.usage : usage;
+		} catch {
+			// Missing or malformed previous sidecars are fine.
+		}
+	}
+
+	restorePreviousState();
+
+	function refreshModel(ctx: ExtensionContext) {
+		model = modelState(ctx.model) ?? model;
+	}
+
+	function refreshThinking() {
+		try {
+			thinking = { level: safeLine(pi.getThinkingLevel(), 40) };
+		} catch {
+			// Thinking level may be unavailable before Pi finishes binding context.
+		}
+	}
+
+	function refreshContext(ctx: ExtensionContext) {
+		contextUsage = contextState(ctx) ?? contextUsage;
+	}
+
+	function recordAssistantMessage(message: unknown) {
+		model = mergeAssistantModel(model, message);
+		const last = assistantUsage(message);
+		if (last) usage = { last };
+	}
+
+	function refreshMetadata(ctx: ExtensionContext) {
+		refreshModel(ctx);
+		refreshThinking();
+		refreshContext(ctx);
+	}
 
 	function pushRecent(line: string | undefined) {
 		const clean = safeLine(line ?? "");
@@ -143,12 +337,12 @@ export default function (pi: ExtensionAPI) {
 		if (recent.length > RECENT_LIMIT) recent = recent.slice(recent.length - RECENT_LIMIT);
 	}
 
-	function setSnippet(next: string | undefined, nextPhase?: ActivityPhase) {
+	function setSnippet(next: string | undefined, nextPhase?: ActivityPhase, remember = true) {
 		const clean = safeLine(next ?? "");
 		if (nextPhase) phase = nextPhase;
 		if (clean) {
 			snippet = clean;
-			pushRecent(clean);
+			if (remember) pushRecent(clean);
 		}
 		scheduleWrite();
 	}
@@ -168,6 +362,12 @@ export default function (pi: ExtensionAPI) {
 				phase,
 				...(snippet ? { snippet } : {}),
 				...(recent.length > 0 ? { recent } : {}),
+				...(model ? { model } : {}),
+				...(thinking ? { thinking } : {}),
+				...(contextUsage ? { context: contextUsage } : {}),
+				...(turn ? { turn } : {}),
+				...(tool ? { tool } : {}),
+				...(usage ? { usage } : {}),
 			};
 			const tmp = `${activityPath}.${process.pid}.tmp`;
 			writeFileSync(tmp, `${JSON.stringify(state)}\n`, "utf8");
@@ -210,12 +410,56 @@ export default function (pi: ExtensionAPI) {
 		sessionID = ACTIVITY_ID || sessionManager.getSessionId?.() || sessionID;
 		sessionFile = sessionManager.getSessionFile?.() || sessionFile;
 		cwd = ctx.cwd || cwd;
+		tool = undefined;
+		refreshMetadata(ctx);
 		setBusy(false, "idle");
 	});
 
-	pi.on("agent_start", () => {
+	pi.on("agent_start", (_event, ctx) => {
 		currentTool = "";
+		tool = undefined;
+		refreshMetadata(ctx);
 		setBusy(true, "thinking", "Thinking...");
+	});
+
+	pi.on("model_select", (event: { model?: unknown }) => {
+		model = modelState(event.model) ?? model;
+		scheduleWrite();
+	});
+
+	pi.on("thinking_level_select", (event: { level?: unknown }) => {
+		const level = cleanString(event.level, 40);
+		if (level) thinking = { level };
+		scheduleWrite();
+	});
+
+	pi.on("context", (_event, ctx) => {
+		refreshContext(ctx);
+		scheduleWrite();
+	});
+
+	pi.on("turn_start", (event: { turnIndex?: unknown; timestamp?: unknown }, ctx) => {
+		refreshMetadata(ctx);
+		turn = {
+			index: cleanNumber(event.turnIndex),
+			status: "running",
+			started_at_ms: cleanNumber(event.timestamp) ?? Date.now(),
+		};
+		scheduleWrite();
+	});
+
+	pi.on("turn_end", (event: { turnIndex?: unknown; message?: unknown; toolResults?: Array<{ isError?: boolean }> }, ctx) => {
+		recordAssistantMessage(event.message);
+		refreshMetadata(ctx);
+		turn = {
+			...(turn ?? {}),
+			index: cleanNumber(event.turnIndex) ?? turn?.index,
+			status: "done",
+			ended_at_ms: Date.now(),
+			tool_calls: Array.isArray(event.toolResults) ? event.toolResults.length : undefined,
+			errors: Array.isArray(event.toolResults) ? event.toolResults.filter((result) => result?.isError).length : undefined,
+		};
+		scheduleWrite();
 	});
 
 	pi.on("message_update", (event: { message?: unknown; assistantMessageEvent?: { type?: string; delta?: unknown; content?: unknown } }) => {
@@ -226,7 +470,7 @@ export default function (pi: ExtensionAPI) {
 		}
 
 		if (delta?.type === "text_delta" && typeof delta.delta === "string") {
-			setSnippet(lastTextLine(textFromMessage(event.message)) ?? lastTextLine(delta.delta), "message_update");
+			setSnippet(lastTextLine(textFromMessage(event.message)) ?? lastTextLine(delta.delta), "message_update", false);
 			return;
 		}
 
@@ -238,36 +482,58 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("message_end", (event: { message?: unknown }) => {
+		recordAssistantMessage(event.message);
 		const text = textFromMessage(event.message);
-		if (!text) return;
+		if (!text) {
+			scheduleWrite();
+			return;
+		}
 		for (const line of nonEmptyLines(text).slice(-RECENT_LIMIT)) pushRecent(line);
 		setSnippet(lastTextLine(text), "message_update");
 	});
 
 	pi.on("tool_execution_start", (event: ToolEvent) => {
-		currentTool = formatTool(event.toolName, event.args ?? event.input);
+		const name = event.toolName ?? event.name;
+		currentTool = formatTool(name, event.args ?? event.arguments ?? event.input);
+		tool = {
+			name: cleanString(name, 80) ?? "tool",
+			call_id: cleanString(event.toolCallId, 120),
+			summary: currentTool,
+			status: "running",
+			started_at_ms: Date.now(),
+		};
 		setSnippet(currentTool, "tool");
 	});
 
-	pi.on("tool_execution_update", (event: ToolEvent) => {
-		const output = contentText(event.partialResult?.content);
-		setSnippet(lastTextLine(output) ?? currentTool, "tool");
+	pi.on("tool_execution_update", () => {
+		if (tool) tool.status = "running";
+		setSnippet(currentTool, "tool", false);
 	});
 
 	pi.on("tool_execution_end", (event: ToolEvent) => {
-		const output = contentText(event.result?.content);
-		const label = currentTool || formatTool(event.toolName, event.args ?? event.input);
-		setSnippet(lastTextLine(output) ?? `${event.isError ? "✗" : "✓"} ${label}`, event.isError ? "error" : "tool");
+		const name = event.toolName ?? event.name;
+		const label = currentTool || formatTool(name, event.args ?? event.arguments ?? event.input);
+		tool = {
+			...(tool ?? {}),
+			name: cleanString(name, 80) ?? tool?.name ?? "tool",
+			call_id: cleanString(event.toolCallId, 120) ?? tool?.call_id,
+			summary: label,
+			status: event.isError ? "error" : "done",
+			ended_at_ms: Date.now(),
+		};
+		setSnippet(`${event.isError ? "✗" : "✓"} ${label}`, event.isError ? "error" : "tool");
 		currentTool = "";
 	});
 
-	pi.on("agent_end", (event: { messages?: unknown[] }) => {
+	pi.on("agent_end", (event: { messages?: unknown[] }, ctx) => {
 		for (const message of event.messages ?? []) {
+			recordAssistantMessage(message);
 			const text = textFromMessage(message);
 			if (!text) continue;
 			for (const line of nonEmptyLines(text).slice(-RECENT_LIMIT)) pushRecent(line);
 			snippet = lastTextLine(text) ?? snippet;
 		}
+		refreshMetadata(ctx);
 		setBusy(false, "done", snippet || "Done");
 	});
 
