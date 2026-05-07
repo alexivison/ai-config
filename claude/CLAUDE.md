@@ -63,7 +63,7 @@ Workflow skills describe logical stages; this section binds each stage to the co
 |-------|----------------|
 | `write-tests` | Dispatch the `test-runner` sub-agent via the Task tool (both RED and GREEN). |
 | `critics` | Dispatch `code-critic` + `minimizer` (+ `requirements-auditor` when requirements are provided) in parallel via the Task tool. |
-| `companion-review` | Dispatch the configured companion via `~/.claude/skills/agent-transport/scripts/tmux-companion.sh --review`, then record the verdict with `--review-complete`. |
+| `companion-review` | Dispatch the configured companion via the `agent-transport` skill, then record the verdict with `--review-complete`. |
 | `pre-pr-verification` | Dispatch `test-runner` + `check-runner` in parallel via the Task tool. |
 
 **NEVER run tests or checks via Bash directly.** When a workflow is active, always delegate verification to `test-runner` / `check-runner` via the Task tool — they discover and run the full suite regardless of project.
@@ -72,22 +72,11 @@ Keep the main context clean. One task per sub-agent.
 
 ## Inter-Agent Transport
 
-Use the role-aware transport scripts only; never raw tmux commands. If you are the primary agent, dispatch the companion via `agent-transport` / `tmux-companion.sh` and keep working in parallel. If you are the companion agent, notify the primary via `tmux-primary.sh`. `[PRIMARY]` / `[COMPANION]` are the message prefixes. Handle inbound transport via `tmux-handler`.
-
-### When to Dispatch
-
-When acting as primary, see `agent-transport` for dispatch guidelines (mandatory and proactive triggers).
-
-### Transport
-
-- Primary → companion: `~/.claude/skills/agent-transport/scripts/tmux-companion.sh`
-- Companion → primary: `~/.codex/skills/agent-transport/scripts/tmux-primary.sh`
-- Dispatch modes (`--review`, `--plan-review`, `--prompt`) are non-blocking and require `work_dir` as the last arg
-- See `agent-transport` for the full mode references
+When in a party session, use the `agent-transport` skill to coordinate with the configured companion or primary. Party-cli injects role-specific transport rules at launch.
 
 ## Master Session Mode
 
-See `party-dispatch` skill for master session rules.
+When running as a master, use the `party-dispatch` skill. Party-cli injects master-specific rules at launch.
 
 ## Verification Principle
 

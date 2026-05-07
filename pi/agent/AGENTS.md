@@ -39,10 +39,7 @@ Write agent-produced docs under `~/.ai-party/docs/`; do not ask the user for a p
 
 ## Inter-Agent Transport
 
-- Use role-aware party transport only; never raw tmux commands.
-- File-based handoff is preferred for structured plans, reviews, and findings.
-- When acting as primary, dispatch review/planning/investigation work to the configured companion when useful.
-- When acting as companion, answer the requested scope and notify the primary when complete.
+When in a party session, use the `agent-transport` skill to coordinate with the configured companion or primary. Party-cli injects role-specific transport rules at launch.
 
 ## Git and PRs
 
