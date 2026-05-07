@@ -14,6 +14,8 @@ codex/installation_id
 
 # Claude Code local artifacts
 /.claude/scheduled_tasks.lock
+claude/.last-cleanup
+claude/remote-settings.json
 
 # Go build artifacts
 tools/party-cli/party-cli
