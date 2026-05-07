@@ -8,19 +8,31 @@ This plan is the first milestone of a longer migration that could eventually rep
 
 ## Phases
 
-| Phase | Deliverable | Effort | Depends on |
-|---|---|---|---|
-| 0 | Reconnaissance — verify Pi's actual flag and output behavior | ½ day | — |
-| 1 | Pi provider stub in `internal/agent/pi.go` + registry wiring | 1 day | Phase 0 |
-| 2 | Output filter strategy for Pi panes (`read` command) | ½–1½ days | Phase 1 |
-| 3 | Resume-ID plumbing | ½–1½ days | Phase 0 |
-| 4 | Tests and integration wiring | 1 day | Phases 1–3 |
-| 5 | Manual end-to-end validation | ½ day | Phase 4 |
-| 6 | Docs and migration notes | ½ day | Phase 5 |
+| Phase | Deliverable | Effort | Depends on | Status |
+|---|---|---|---|---|
+| 0 | Reconnaissance — verify Pi's actual flag and output behavior | ½ day | — | ✅ Done |
+| 1 | Pi provider stub in `internal/agent/pi.go` + registry wiring | 1 day | Phase 0 | ✅ Done |
+| 2 | Output filter strategy for Pi panes (`read` command) | ½–1½ days | Phase 1 | 🟡 Partial — tracker/sessions use Pi activity sidecar; `party-cli read` still uses pane capture |
+| 3 | Resume-ID plumbing | ½–1½ days | Phase 0 | 🟡 Partial — `BuildCmd` supports `--session`; Pi UUID capture/persistence still missing |
+| 4 | Tests and integration wiring | 1 day | Phases 1–3 | 🟡 Partial — activity/provider smoke coverage exists; full Pi resume/read/prune coverage still missing |
+| 5 | Manual end-to-end validation | ½ day | Phase 4 | 🟡 Partial — standalone Pi/activity validated; full role-swap and transport matrix still missing |
+| 6 | Docs and migration notes | ½ day | Phase 5 | 🟡 Partial — install/config docs mention Pi; role tables and companion limitations doc still missing |
 
 **Total budget:** ~4–6 working days. The wider end accounts for Phase 2's JSON-sidecar branch and Phase 3's indirection branch (both decided by Phase 0).
 
-## Phase 0 — Reconnaissance
+## Completed so far
+
+- [x] Phase 0 reconnaissance captured in `docs/projects/pi-third-agent/RECON.md`
+- [x] Pi provider added in `tools/party-cli/internal/agent/pi.go`
+- [x] Pi registered in the party-cli agent registry and default config
+- [x] Pi artifact prune paths added for `~/.pi/agent/sessions` and `~/.pi/agent/git`
+- [x] Pi launch command supports system prompts, thinking level, resume flag, positional prompt, and activity sidecar env
+- [x] Generic Pi activity sidecar extension writes JSON activity state
+- [x] Tracker and `party-cli sessions` consume Pi activity sidecars
+- [x] Tracker preserves last non-empty snippet when a refresh returns empty
+- [x] Current test suite passes with `cd tools/party-cli && go test ./...`
+
+## Phase 0 — Reconnaissance ✅ Done
 
 The earlier research was ~85% derived from Pi's docs. Seven facts must be verified on a real Pi binary before code is written; each one determines a branch in Phases 1–3.
 
@@ -34,9 +46,9 @@ The earlier research was ~85% derived from Pi's docs. Seven facts must be verifi
 | 0.6 | How is the initial user-turn prompt delivered? Positional arg, stdin, dedicated flag? | `pi "hello"`, `echo "hello" \| pi`, `pi --help \| grep -i prompt` | Whether `BuildCmd` ends with `<positional-prompt>` or relies on post-launch `tmux send-keys` |
 | 0.7 | What `PI_*` env vars does Pi read at launch? Any collision with our planned `PI_SESSION_ID`? | `pi --help`, grep `pi-mono` source/README for env-var references | Whether `EnvVar()` needs renaming, and whether `PreLaunchSetup` needs to unset something the way Claude unsets `CLAUDECODE` |
 
-**Deliverable:** `docs/projects/pi-third-agent/RECON.md` answering all seven with output snippets.
+**Deliverable:** `docs/projects/pi-third-agent/RECON.md` answering all seven with output snippets. ✅ Done
 
-## Phase 1 — Provider Stub
+## Phase 1 — Provider Stub ✅ Done
 
 **Files to create**
 
@@ -78,7 +90,7 @@ export PATH=<agentPath>; exec pi
 
 The Phase 1 deliverable is a *stub* — methods compile and snapshot tests pass; full filter behavior lands in Phase 2 and resume-ID nuances in Phase 3.
 
-## Phase 2 — Output Filter Strategy
+## Phase 2 — Output Filter Strategy 🟡 Partial
 
 `internal/message/message.go:filterPrimaryPaneLines` currently has an asymmetric one-arm dispatch — `if primaryAgentName(m) == "codex" → FilterCodexLines, else FilterAgentLines`. Adding Pi means refactoring to a switch (or staying as nested if-else). Pi has no glyph prefixes (component-based rendering), so the right strategy depends on Phase 0:
 
@@ -90,7 +102,7 @@ The Phase 1 deliverable is a *stub* — methods compile and snapshot tests pass;
 
 The chosen branch updates `Pi.FilterPaneLines` from its Phase 1 stub and (for branch 1) extends `BuildCmd` with the sidecar redirect.
 
-## Phase 3 — Resume-ID Plumbing
+## Phase 3 — Resume-ID Plumbing 🟡 Partial
 
 Decision tree based on Phase 0 outcome 0.2:
 
@@ -99,7 +111,7 @@ Decision tree based on Phase 0 outcome 0.2:
 3. **IDs needing indirection (e.g., long/binary tokens)** → add a `pi-session-map.json` under `~/.party-state/` mapping ULIDs → Pi session paths. Pi provider's `BuildCmd` looks up the path; manifest stores the ULID. ~1 day extra. Avoid if possible.
 4. **No exposed session ID at all (resume-by-cwd or auto-only)** → `ResumeKey`/`EnvVar`/`ResumeFileName` become decorative; `BuildCmd` resumes by passing `--no-session=false` and relying on Pi's per-CWD auto-resume. Document the limitation: cross-cwd resume won't work, and `party-cli continue` semantics for Pi panes degrade to "rerun in same cwd."
 
-## Phase 4 — Tests and Wiring
+## Phase 4 — Tests and Wiring 🟡 Partial
 
 **Tests to add**
 
@@ -110,7 +122,7 @@ Decision tree based on Phase 0 outcome 0.2:
 
 **No new tests for tmux/message layer** unless Phase 2 takes the JSON-sidecar route, in which case add an integration test with a fake sidecar file.
 
-## Phase 5 — Manual Validation
+## Phase 5 — Manual Validation 🟡 Partial
 
 Concrete checklist on a real machine. Steps 1, 2, and 7 also exercise the no-regression invariant for Claude+Codex.
 
@@ -127,7 +139,7 @@ Concrete checklist on a real machine. Steps 1, 2, and 7 also exercise the no-reg
 
 Anything that fails here goes back to its Phase as a follow-up task.
 
-## Phase 6 — Docs
+## Phase 6 — Docs 🟡 Partial
 
 - Update `README.md` "The Party" table to mention Pi as a third available agent
 - Update `README.md` "CLI Installation Methods" with Pi's install command (npm or homebrew, whichever Phase 0 confirms)
@@ -142,8 +154,9 @@ Anything that fails here goes back to its Phase as a follow-up task.
 - [ ] `read` returns output for Pi panes — quality per the Phase 2 branch chosen; documented limitations acceptable
 - [ ] Role swap works in both directions (Pi-as-primary, Pi-as-companion)
 - [ ] `party-cli prune --artifacts` actually removes Pi session artifacts (not just dry-run output)
-- [ ] No regression for Claude+Codex setups: `go test ./...` passes, and the Phase 5 step 8 manual smoke confirms the default Claude/Codex layout still launches and exchanges a relay
-- [ ] `docs/projects/pi-third-agent/RECON.md` exists with verified Phase 0 answers
+- [x] `go test ./...` passes for `tools/party-cli`
+- [ ] Phase 5 step 8 manual smoke confirms the default Claude/Codex layout still launches and exchanges a relay
+- [x] `docs/projects/pi-third-agent/RECON.md` exists with verified Phase 0 answers
 - [ ] README and CLAUDE.md/AGENTS.md updated to mention Pi as a third option
 
 **Explicitly out of scope for this phase:** hooks, skills, subagents, evidence system, pr-gate. Pi panes have no governance until the full migration (separate project). Existing Claude/Codex hooks continue firing on their own panes regardless of which agent occupies the other role.
