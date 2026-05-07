@@ -87,7 +87,7 @@ If not already a master, promote:
 party-cli promote <session-name>
 ```
 
-This replaces the companion pane (Codex by default) with the tracker and sets `session_type=master`.
+This replaces the companion pane with the tracker and sets `session_type=master`.
 If already a master, this is a no-op.
 
 ### Step 4 — Construct prompts and spawn workers
@@ -309,8 +309,8 @@ When running in a master session (`session_type == "master"` in manifest):
 
 ## Important
 
-- The spawned workers run whatever CLI is configured for the primary role
-  (Claude Code by default), so they execute autonomously. The prompt is all
+- The spawned workers run whatever CLI is configured for the primary role,
+  so they execute autonomously. The prompt is all
   they get — make it complete.
 - Each worker creates its own worktree (per workflow conventions), so there
   are no git conflicts between sessions.

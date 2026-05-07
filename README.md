@@ -6,17 +6,13 @@
 
 <p align="center"><em>"Evidence before claims. Tests before implementation."</em></p>
 
-Shared configuration and orchestration for an adventuring party of AI coding assistants. Each role brings unique strengths; this repo equips the default primary agent (Claude Code) and companion agent (Codex CLI) through symlink-based installation and launches them side by side in a tmux party session.
+Shared configuration and orchestration for an adventuring party of AI coding assistants. Each role brings unique strengths; this repo equips the configured primary and companion agents through symlink-based installation and launches them side by side in a tmux party session.
 
 ## The Party
 
-| Member | Default Agent | Role |
-|--------|---------------|------|
-| **The User** | — | Commander and final authority. Leads the party. |
-| **Primary** | Claude Code (Warforged Paladin) | Living construct of steel and divine fire. Implementation, testing, orchestration. |
-| **Companion** | Codex CLI (High Elf Wizard) | Ancient arcanist of deep intellect. Deep reasoning, analysis, review. |
-
-> Agent assignments are configurable via `party-cli config` in the user-global config file at `~/.config/party-cli/config.toml`. The table above shows the default layout.
+Roles (primary, companion) are configurable per session via
+`party-cli config` — any installed agent (Claude, Codex, Pi) can
+fill either role.
 
 ## Structure
 
@@ -95,7 +91,7 @@ party-cli config set-companion claude
 party-cli config unset-companion
 ```
 
-The config file lives at `~/.config/party-cli/config.toml` (or `$XDG_CONFIG_HOME/party-cli/config.toml` when `XDG_CONFIG_HOME` is set). Without a user config file, the default configuration is Claude as primary and Codex as companion. Use `party-cli config unset-companion` to make primary-only sessions the default.
+The config file lives at `~/.config/party-cli/config.toml` (or `$XDG_CONFIG_HOME/party-cli/config.toml` when `XDG_CONFIG_HOME` is set). Without a user config file, party-cli falls back to Claude as primary and Codex as companion. Use `party-cli config unset-companion` to run primary-only sessions.
 
 ## Migrating from ai-config
 
@@ -119,7 +115,7 @@ git remote set-url origin git@github.com:alexivison/ai-party.git
 
 ## Usage
 
-Launch a party session to run the default primary and companion side by side in a three-pane tmux layout:
+Launch a party session to run the configured primary and companion side by side in a three-pane tmux layout:
 
 ```bash
 ./session/party.sh "my task"
@@ -131,13 +127,13 @@ Each party is a standalone tmux session with three panes:
 
 | Pane | Role | Agent |
 |------|------|-------|
-| 0 | `companion` | The Wizard (Codex CLI, default) |
-| 1 | `primary` | The Paladin (Claude Code, default) |
+| 0 | `companion` | configured companion |
+| 1 | `primary` | configured primary |
 | 2 | `shell` | Operator terminal |
 
 ### Master Session
 
-A master session replaces the default companion pane with an interactive tracker TUI. The primary agent (Claude by default) acts as an orchestrator, dispatching work to worker sessions instead of implementing directly.
+A master session replaces the companion pane with an interactive tracker TUI. The primary agent acts as an orchestrator, dispatching work to worker sessions instead of implementing directly.
 
 ```bash
 ./session/party.sh --master "Project Alpha"
@@ -146,7 +142,7 @@ A master session replaces the default companion pane with an interactive tracker
 | Pane | Role | Agent |
 |------|------|-------|
 | 0 | `tracker` | Party Tracker (Bubble Tea TUI) |
-| 1 | `primary` | The Paladin (orchestrator by default) |
+| 1 | `primary` | configured primary (acts as orchestrator) |
 | 2 | `shell` | Operator terminal |
 
 Workers are separate sessions registered under the master:
@@ -202,5 +198,5 @@ Transport scripts (`tmux-companion.sh`, `tmux-primary.sh`) route messages by `@p
 
 ## Documentation
 
-- **Primary default**: See [claude/CLAUDE.md](claude/CLAUDE.md) for the Paladin's default primary configuration
-- **Companion default**: See [codex/AGENTS.md](codex/AGENTS.md) for the Wizard's default companion configuration
+- **Primary configuration**: See [claude/CLAUDE.md](claude/CLAUDE.md) for the Paladin's prompt
+- **Companion configuration**: See [codex/AGENTS.md](codex/AGENTS.md) for the Wizard's prompt
