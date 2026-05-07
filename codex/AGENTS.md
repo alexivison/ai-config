@@ -42,6 +42,10 @@ Write agent-produced docs under `~/.ai-party/docs/`; do not ask the user for a p
 
 When in a party session, use the `agent-transport` skill to coordinate with the configured companion or primary. Party-cli injects role-specific transport rules at launch.
 
+## Master Session Mode
+
+When running as a master, use the `party-dispatch` skill. Party-cli injects master-specific rules at launch.
+
 ## Git and PRs
 
 - Use `gh` for GitHub operations.
