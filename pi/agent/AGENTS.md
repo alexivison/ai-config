@@ -46,11 +46,12 @@ When in a party session, use the `agent-transport` skill to coordinate with the 
 - Use `gh` for GitHub operations.
 - Create branches from `main`.
 - Branch naming: `<ISSUE-ID>-<kebab-case-description>` when an issue ID exists.
+- Open draft PRs unless instructed otherwise.
 - Create separate PRs for changes in different services.
 
 ## Worktree Isolation
 
-- Use a dedicated worktree before editing files in shared or long-lived repos.
+- Always use a dedicated worktree before editing any file. Concurrent sessions in the same worktree trample each other's diffs.
 - One session per worktree. Never edit another session's working tree.
-- `main` is the source of truth. Reapply only the narrow task delta on top of current `main`.
-- Prefer `gwta <branch>` when available; otherwise use `git worktree add ../<repo>-<branch> -b <branch>`.
+- `main` is the source of truth. Reapply only the narrow task delta on top of current `main`; never revive stale branch behavior.
+- Prefer `gwta <branch>` when available; otherwise use `git worktree add ../<repo>-<branch> -b <branch>`. Clean up with `git worktree remove ../<repo>-<branch>` after PR merge.
