@@ -256,8 +256,9 @@ setup_pi() {
     echo ""
     echo "━━━ pi ━━━"
 
+    create_symlink "pi" || return
+
     if [[ "$SYMLINKS_ONLY" == true ]]; then
-        echo "⏭  Skipping pi (no repo-tracked config; user prefs live in ~/.pi/agent/settings.json)"
         return
     fi
 
@@ -439,12 +440,17 @@ echo "━━━━━━━━━━━━━━━━━━━━"
 echo "Installation complete!"
 echo ""
 echo "Installed symlinks:"
+printed_pi_symlink=false
 for tool in "${CONFIGURED_AGENTS[@]}"; do
     target="$HOME/.$tool"
     if [[ -L "$target" ]]; then
         echo "  ~/.$tool → $(readlink "$target")"
+        [[ "$tool" == "pi" ]] && printed_pi_symlink=true
     fi
 done
+if [[ "$printed_pi_symlink" == false && -L "$HOME/.pi" ]]; then
+    echo "  ~/.pi → $(readlink "$HOME/.pi")"
+fi
 if [[ -L "$HOME/.tmux.conf" ]]; then
     echo "  ~/.tmux.conf → $(readlink "$HOME/.tmux.conf")"
 fi

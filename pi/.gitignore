@@ -1,0 +1,13 @@
+# Credentials
+agent/auth.json
+
+# Runtime/session data
+agent/sessions/
+
+# Pi-managed binaries/cache
+agent/bin/
+agent/cache/
+agent/tmp/
+
+# macOS
+.DS_Store

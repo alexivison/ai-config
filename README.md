@@ -25,6 +25,7 @@ ai-party/
 ├── assets/          # Static assets (banner image)
 ├── claude/          # Claude Code configuration (hooks, skills, agents, rules)
 ├── codex/           # OpenAI Codex CLI configuration
+├── pi/              # Pi Coding Agent configuration (settings, themes, extensions)
 ├── docs/            # Project documentation
 ├── shared/          # Shared skill implementations and references
 ├── session/         # Shell wrappers and retained routing library
@@ -56,7 +57,7 @@ cd ~/Code/ai-party
 ```
 
 The installer will:
-1. Create config symlinks (`~/.claude`, `~/.codex`, `~/.tmux.conf`)
+1. Create config symlinks (`~/.claude`, `~/.codex`, `~/.pi`, `~/.tmux.conf`)
 2. Offer to install missing CLI tools (optional)
 3. Offer to run authentication for each tool (optional)
 

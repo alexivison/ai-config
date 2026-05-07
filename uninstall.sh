@@ -5,7 +5,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TOOLS=("claude" "codex")
+TOOLS=("claude" "codex" "pi")
 
 echo "ai-party uninstaller"
 echo "====================="
@@ -56,14 +56,13 @@ for tool in "${TOOLS[@]}"; do
     remove_symlink "$tool"
 done
 
-# Pi has no repo-tracked config symlink. The pi binary was installed via
-# `npm install -g @mariozechner/pi-coding-agent`; user data lives in
-# ~/.pi/agent/ (settings.json, auth.json, sessions/). Leave both untouched.
+# The pi binary is installed via npm; uninstall only removes the ~/.pi symlink.
+# Repo data remains under ./pi (including ignored auth/session/runtime files).
 if command -v pi &> /dev/null; then
     echo ""
     echo "ℹ  pi CLI was installed via npm and is not removed by this script."
     echo "   To remove: npm uninstall -g @mariozechner/pi-coding-agent"
-    echo "   User data (~/.pi/agent/) is preserved."
+    echo "   Pi data remains in: $SCRIPT_DIR/pi"
 fi
 
 echo ""
