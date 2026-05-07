@@ -24,3 +24,14 @@ Claude's hook chain is the concrete implementation behind the shared execution-c
 
 - Review metrics are defined in `claude/reference/review-metrics.md` (installed at `~/.claude/reference/review-metrics.md`).
 - Metrics are written under `~/.claude/logs/review-metrics/` when Claude hooks are active.
+
+## Stage Bindings
+
+Workflow skills describe logical stages; this section binds each stage to the concrete mechanism Claude uses.
+
+| Stage | Claude binding |
+|-------|----------------|
+| `write-tests` | Dispatch the `test-runner` sub-agent via the Task tool (both RED and GREEN). |
+| `critics` | Dispatch `code-critic` + `minimizer` (+ `requirements-auditor` when requirements are provided) in parallel via the Task tool. |
+| `companion-review` | Dispatch the configured companion via the `agent-transport` skill, then record the verdict with `--review-complete`. |
+| `pre-pr-verification` | Dispatch `test-runner` + `check-runner` in parallel via the Task tool. |
