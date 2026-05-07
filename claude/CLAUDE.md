@@ -42,11 +42,11 @@ When a workflow is active, **do NOT stop between steps.** Follow `shared/referen
 
 ## Docs Workspace
 
-Write agent-produced docs directly under `~/.ai-party/docs/`. Do not ask the user for a path.
+Write agent-produced docs under `~/.ai-party/docs/`; do not ask the user for a path.
 
-- Research notes, investigations, plans, designs, and reviews go in `~/.ai-party/docs/research/`.
-- Daily syncs, daily radar snapshots, ad-hoc reports, and weekly bundles go in `~/.ai-party/docs/reports/`.
-- New research docs use `YYYY-MM-DD-<slug>.md` filenames with the required frontmatter from `~/.ai-party/docs/CLAUDE.md`.
+- Research, investigations, plans, designs, and reviews go in `~/.ai-party/docs/research/`.
+- Daily syncs, radar snapshots, ad-hoc reports, and weekly bundles go in `~/.ai-party/docs/reports/`.
+- New docs use `YYYY-MM-DD-<slug>.md` filenames.
 - Legacy migrated notes from `~/.claude/investigations/` may lack frontmatter. Leave them as-is unless the user asks for a rewrite.
 
 ## Stage Bindings
@@ -73,24 +73,17 @@ Evidence before claims. Code edits invalidate prior results. Never mark complete
 
 After ANY user correction: identify the pattern, write a preventive rule, save to auto-memory (`~/.claude/projects/.../memory/`).
 
-## Development Rules
-
-### Git and PR
+## Git and PRs
 
 - Use `gh` for GitHub operations.
 - Create branches from `main`.
-- Branch naming: `<ISSUE-ID>-<kebab-case-description>`.
-- PR descriptions: follow the `pr-descriptions` skill.
-- Include issue ID in PR description (e.g., `Closes ENG-123`).
+- Branch naming: `<ISSUE-ID>-<kebab-case-description>` when an issue ID exists.
+- Open draft PRs unless instructed otherwise.
 - Create separate PRs for changes in different services.
 
-### Worktree Isolation
+## Worktree Isolation
 
-**Always create a dedicated worktree before editing any file**, including in direct-edit mode with no workflow active. Bypassing a workflow gate does NOT exempt you from this. Never edit in another session's cwd — concurrent workers in the same worktree trample each other's diffs.
-
-`main` is always the source of truth. When syncing or resolving conflicts, current `main` behavior/specs win. Reapply only your narrow ticket delta on top of latest `main`; never revive stale branch behavior.
-
-1. Prefer `gwta <branch>` if available.
-2. Otherwise: `git worktree add ../<repo>-<branch> -b <branch>`.
-3. One session per worktree. Never use `git checkout` or `git switch` in shared repos.
-4. After PR merge, clean up: `git worktree remove ../<repo>-<branch>`.
+- Always use a dedicated worktree before editing any file. Concurrent sessions in the same worktree trample each other's diffs.
+- One session per worktree. Never edit another session's working tree.
+- `main` is the source of truth. Reapply only the narrow task delta on top of current `main`; never revive stale branch behavior.
+- Prefer `gwta <branch>` when available; otherwise use `git worktree add ../<repo>-<branch> -b <branch>`. Clean up with `git worktree remove ../<repo>-<branch>` after PR merge.
