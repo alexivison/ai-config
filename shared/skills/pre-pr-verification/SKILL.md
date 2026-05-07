@@ -34,7 +34,7 @@ Any edit (even a comment fix) after verification passes also invalidates evidenc
 
 Run both the test suite and the static checks (typecheck, lint). This is the primary action of this skill; everything else supports it.
 
-Your top-level agent doc binds `pre-pr-verification` to a concrete mechanism (see "Stage Bindings" in `claude/CLAUDE.md` or `codex/AGENTS.md`). Dispatch both halves in parallel whenever the mechanism supports it so the verification finishes in a single round.
+Use the concrete verification mechanism from your current agent's instructions (for example `claude/CLAUDE.md`, `codex/AGENTS.md`, or `pi/agent/AGENTS.md`). Dispatch both halves in parallel whenever the mechanism supports it so the verification finishes in a single round.
 
 The mechanism must auto-discover the repo's test, lint, and typecheck commands — no need to pre-identify them. Wait for both halves to finish, then review the summaries.
 

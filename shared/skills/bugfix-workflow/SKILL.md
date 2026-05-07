@@ -4,8 +4,8 @@ description: >-
   Debug and fix bugs with full autonomous workflow. INVOKE FIRST when the user
   reports a bug, error, crash, test failure, unexpected behavior, broken feature,
   or anything that looks wrong. Handles investigation (optionally via the
-  companion, default: Codex, for complex bugs), regression test writing, root
-  cause analysis, and fix implementation.
+  configured companion for complex bugs), regression test writing, root cause
+  analysis, and fix implementation.
   Follows execution-core rules without PLAN.md checkboxes.
 user-invocable: true
 ---
@@ -16,7 +16,7 @@ Debug and fix bugs. Follows the same execution flow as task-workflow with these 
 
 ## Enforcement
 
-On Claude, invoking this skill writes the `bugfix` execution-preset via `skill-marker.sh`, so `pr-gate.sh` enforces the bugfix evidence set. On Codex, there is no local preset hook, so the same sequence and evidence list are self-enforced from `codex/AGENTS.md`.
+Invoking this skill selects the `bugfix` execution preset. Claude's hook implementation records that preset via `skill-marker.sh`, so `pr-gate.sh` enforces the bugfix evidence set. Agents without Claude's hook chain, including Codex and Pi, self-enforce the same sequence and evidence list from their current agent instructions.
 
 ## Deltas from Task Workflow
 
@@ -31,7 +31,7 @@ On Claude, invoking this skill writes the `bugfix` execution-preset via `skill-m
 
 1. **Create worktree first** — `git worktree add ../repo-branch-name -b branch-name`
 2. **Understand the bug** — Read relevant code, reproduce if possible
-3. **Complex bug?** → Dispatch the companion via the default transport script `tmux-companion.sh --prompt` → `[wait for user]`
+3. **Complex bug?** → Dispatch the configured companion via the agent-transport script `tmux-companion.sh --prompt` → `[wait for user]`
 
 Investigation agents ALWAYS require user review before proceeding.
 

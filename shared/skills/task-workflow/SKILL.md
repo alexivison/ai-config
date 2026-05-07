@@ -11,11 +11,11 @@ user-invocable: true
 
 # Task Workflow
 
-Execute planned work using the full autonomous pipeline defined in the shared execution-core rules at `shared/reference/execution-core.md` (also accessible via agent-local shims such as `claude/rules/execution-core.md`).
+Execute planned work using the full autonomous pipeline defined in the shared execution-core rules at `shared/reference/execution-core.md` (or an agent-local shim when one is installed).
 
 ## Enforcement
 
-On Claude, invoking this skill writes the `task` execution-preset via `skill-marker.sh`, so `pr-gate.sh` requires the full task-preset evidence set. On Codex, there is no local preset hook, so the same sequence and evidence list are self-enforced from `codex/AGENTS.md`.
+Invoking this skill selects the `task` execution preset. Claude's hook implementation records that preset via `skill-marker.sh`, so `pr-gate.sh` requires the full task-preset evidence set. Agents without Claude's hook chain, including Codex and Pi, self-enforce the same sequence and evidence list from their current agent instructions.
 
 ## When to Use
 
@@ -39,4 +39,4 @@ Task-workflow is a thin shim over execution-core. It triggers the full pipeline 
 
 Follow `shared/reference/execution-core.md` end-to-end — pre-implementation gate, RED evidence, implementation, source-file updates, critics (`code-critic + minimizer + requirements-auditor`), companion review, commit, pre-pr-verification, PR. No stopping until PR is created.
 
-Concrete stage mechanisms come from your agent's "Stage Bindings" section (`claude/CLAUDE.md` or `codex/AGENTS.md`). This recipe describes the stages; the bindings describe how to execute them.
+Concrete stage mechanisms come from your current agent's instructions (for example `claude/CLAUDE.md`, `codex/AGENTS.md`, or `pi/agent/AGENTS.md`). This recipe describes the stages; the agent instructions describe how to execute them.

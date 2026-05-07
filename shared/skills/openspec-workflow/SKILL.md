@@ -59,10 +59,11 @@ Goal: produce OpenSpec artifacts and get them approved by the spec review bot.
 
 3. **Commit and push** the spec artifacts.
 
-4. **Pre-PR verification** — invoke `/pre-pr-verification`. The `pr-gate`
-   hook requires CI-tier evidence (test-runner + check-runner) before
-   `gh pr create` — this applies even to spec-only pushes with no source
-   changes. Skipping this step will cause PR creation to be blocked.
+4. **Pre-PR verification** — invoke `/pre-pr-verification`. The generic
+   contract requires CI-tier evidence (test-runner + check-runner) before
+   `gh pr create`; Claude's `pr-gate` hook enforces this locally, and other
+   agents self-enforce the same requirement. This applies even to spec-only
+   pushes with no source changes.
 
 5. **Create a draft PR** targeting `main`.
 
@@ -101,8 +102,9 @@ Prerequisite: Phase 1 spec review is APPROVED and all checks are green.
 4. **Implement** — work through `tasks.md`. Mark checkboxes (`- [x]`) as
    each task is completed. Never pre-fill checkboxes.
 
-5. **Verify** — run test-runner and check-runner in parallel via
-   sub-agents. Never run tests or lint via Bash directly.
+5. **Verify** — run tests and static checks via the current agent's
+   verification mechanism. Use parallel test/check runners when the agent
+   provides them; do not bypass the workflow verification contract.
 
 6. **Archive** — move the OpenSpec change to archive so openspec-hygiene
    CI passes. Follow the repo's AGENTS.md archive instructions (move
@@ -171,9 +173,10 @@ as soon as results arrive.
      may still be in progress.
    - **Missing bootstrap**: if a push fails on pre-push hooks citing
      missing tooling or artifacts (browser binaries, generated build
-     output, etc.), check the project's `AGENTS.md` / `CLAUDE.md` for
-     required bootstrap steps before retrying. Bootstrap is typically a
-     once-per-worktree step.
+     output, etc.), check the current agent and project instructions (for
+     example `AGENTS.md`, `CLAUDE.md`, or `pi/agent/AGENTS.md`) for required
+     bootstrap steps before retrying. Bootstrap is typically a once-per-worktree
+     step.
    - Fix and push
    - Continue polling
 
