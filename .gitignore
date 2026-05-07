@@ -3,6 +3,9 @@
 blog/
 tmux-capture-*.txt
 
+# Pi local settings
+pi/agent/settings.json
+
 # Codex CLI runtime artifacts
 codex/.tmp/
 codex/cache/
