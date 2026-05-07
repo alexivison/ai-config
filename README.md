@@ -6,7 +6,7 @@
 
 <p align="center"><em>"Evidence before claims. Tests before implementation."</em></p>
 
-Shared configuration and orchestration for an adventuring party of AI coding assistants. Each role brings unique strengths; this repo equips the configured primary and companion agents through symlink-based installation and launches them side by side in a tmux party session.
+Shared configuration and orchestration for an adventuring party of AI coding assistants. Each role brings unique strengths; this repo equips the configured primary and companion agents through symlink-based installation and launches them side by side in a tmux party session. Pi is available as a third selectable provider; see [docs/pi-companion.md](docs/pi-companion.md) for current limitations.
 
 ## The Party
 
@@ -81,17 +81,34 @@ Removes symlinks but keeps the repository.
 
 ## Configuration
 
-Use `party-cli config` to manage your default agent assignments:
+Use `party-cli config` to manage agent assignments:
 
 ```bash
 party-cli config init
 party-cli config show
 party-cli config set-primary codex
 party-cli config set-companion pi
+party-cli config set-primary pi
 party-cli config unset-companion
 ```
 
 The config file lives at `~/.config/party-cli/config.toml` (or `$XDG_CONFIG_HOME/party-cli/config.toml` when `XDG_CONFIG_HOME` is set). Without a user config file, party-cli falls back to Claude as primary and Codex as companion. Use `party-cli config unset-companion` to run primary-only sessions.
+
+Pi can be selected for either role:
+
+```bash
+# Claude primary + Pi companion
+party-cli config set-primary claude
+party-cli config set-companion pi
+
+# Pi primary + Codex companion
+party-cli config set-primary pi
+party-cli config set-companion codex
+
+# Restore defaults
+party-cli config set-primary claude
+party-cli config set-companion codex
+```
 
 ## Migrating from ai-config
 
@@ -123,7 +140,7 @@ Launch a party session to run the configured primary and companion side by side 
 
 ### Standard Session
 
-Each party is a standalone tmux session with three panes:
+Each party is a standalone tmux session with three panes. Use `party-cli config set-companion pi` or `party-cli config set-primary pi` before launch to swap Pi into a role:
 
 | Pane | Role | Agent |
 |------|------|-------|
@@ -201,3 +218,4 @@ Transport scripts (`tmux-companion.sh`, `tmux-primary.sh`) route messages by `@p
 - [claude/CLAUDE.md](claude/CLAUDE.md) — the Paladin's prompt (Claude)
 - [codex/AGENTS.md](codex/AGENTS.md) — the Wizard's prompt (Codex)
 - [pi/agent/AGENTS.md](pi/agent/AGENTS.md) — the Bard's prompt (Pi)
+- [docs/pi-companion.md](docs/pi-companion.md) — current Pi support and limitations

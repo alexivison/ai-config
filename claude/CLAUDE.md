@@ -1,6 +1,6 @@
 # Claude
 
-Roles (primary, companion) are configurable per session via `party-cli config` — any installed agent (Claude, Codex, Pi) can fill either role.
+Roles (primary, companion) are configurable per session via `party-cli config` — any installed agent (Claude, Codex, Pi) can fill either role. Use `party-cli config set-companion pi` or `party-cli config set-primary pi` to select Pi; see `docs/pi-companion.md` for current limitations.
 
 You are Claude Code. In a party session, follow the role assigned by the session/config. In a standalone session, act as the primary implementer.
 
