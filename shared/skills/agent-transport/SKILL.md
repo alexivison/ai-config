@@ -101,7 +101,7 @@ Do not poll the response file while waiting. The tmux completion notice is the s
 ```
 
 This reads the findings file and extracts the verdict the companion wrote:
-- If findings contain `VERDICT: APPROVED` → creates the default companion APPROVED evidence directly
+- If findings contain `VERDICT: APPROVED` → creates the companion APPROVED evidence directly
 - If findings contain `VERDICT: REQUEST_CHANGES` → no evidence created
 - If no verdict line found → no evidence created (warning emitted)
 

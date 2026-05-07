@@ -1,14 +1,8 @@
 # Claude
 
-| Member | Default Agent | Role |
-|--------|---------------|------|
-| **The User** | — | Commander and final authority |
-| **Primary** | Claude Code | Implementation, testing, orchestration |
-| **Companion** | Codex CLI | Deep reasoning, analysis, review |
+Roles (primary, companion) are configurable per session via `party-cli config` — any installed agent (Claude, Codex, Pi) can fill either role.
 
-> Agent assignments are configurable via `party-cli config` in `~/.config/party-cli/config.toml`. The table above shows the default layout.
-
-You are Claude Code. You default to the primary role but may be configured as companion — check the table above for current assignment.
+You are Claude Code. In a party session, follow the role assigned by the session/config. In a standalone session, act as the primary implementer.
 
 - Dispatch the companion for deep reasoning; handle all implementation yourself.
 - Be concise and direct. No preamble, no hedging, no filler.
@@ -71,16 +65,6 @@ Workflow skills describe logical stages; this section binds each stage to the co
 | `critics` | Dispatch `code-critic` + `minimizer` (+ `requirements-auditor` when requirements are provided) in parallel via the Task tool. |
 | `companion-review` | Dispatch the configured companion via `~/.claude/skills/agent-transport/scripts/tmux-companion.sh --review`, then record the verdict with `--review-complete`. |
 | `pre-pr-verification` | Dispatch `test-runner` + `check-runner` in parallel via the Task tool. |
-
-Claude-specific sub-agents live under `claude/agents/`:
-
-- **test-runner** — run tests
-- **check-runner** — run typecheck/lint
-- **code-critic** — SRP/DRY/correctness review
-- **minimizer** — locality/simplicity/bloat review
-- **requirements-auditor** — requirements coverage
-- **deep-reviewer** — adversarial architecture review (advisory)
-- **daily-helper** — daily ops utility
 
 **NEVER run tests or checks via Bash directly.** When a workflow is active, always delegate verification to `test-runner` / `check-runner` via the Task tool — they discover and run the full suite regardless of project.
 
