@@ -34,15 +34,9 @@ Read today's daily report files in `~/.ai-party/docs/reports/` at session start 
 
 **The default session mode is direct editing.** If the user has not invoked a workflow skill, just do the work — read files, make changes, run commands. The PR gate stays out of the way until a workflow skill opts the session into an execution preset.
 
-Invoke a workflow skill when the request matches the preset:
+For the workflow preset table (when to invoke /task-workflow, /bugfix-workflow, /quick-fix-workflow, /openspec-workflow) and the gate evidence each preset requires, see `shared/reference/execution-core.md § Opt-In Presets`. Each workflow skill's own SKILL.md owns its trigger description.
 
-- **Planned work** (TASK files, external planning tool output, or any source providing scope + requirements) → `/task-workflow`
-- **Bug fix / debugging** → `/bugfix-workflow`
-- **Quick fixes / small or straightforward changes** → `/quick-fix-workflow`
-- **OpenSpec repos with CI review bots** → `/openspec-workflow`
-
-Each workflow skill writes an `execution-preset` marker via `skill-marker.sh`. That marker is what makes the PR gate enforce the preset's evidence set. See `shared/reference/execution-core.md § Opt-In Presets` for the preset-to-evidence mapping.
-Claude-specific hook paths, evidence storage, override knobs, and review metrics live in `claude/rules/execution-core-claude-internals.md`.
+Claude-specific hook paths, evidence storage, override knobs, and Stage Bindings live in `claude/rules/execution-core-claude-internals.md`.
 
 When a workflow is active, **do NOT stop between steps.** Follow `shared/reference/execution-core.md` for sequence, gates, decision matrix, and pause conditions. Companion review is NEVER a pause condition or skippable — see execution-core § Review Governance.
 
@@ -57,14 +51,7 @@ Write agent-produced docs directly under `~/.ai-party/docs/`. Do not ask the use
 
 ## Stage Bindings
 
-Workflow skills describe logical stages; this section binds each stage to the concrete mechanism Claude uses.
-
-| Stage | Claude binding |
-|-------|----------------|
-| `write-tests` | Dispatch the `test-runner` sub-agent via the Task tool (both RED and GREEN). |
-| `critics` | Dispatch `code-critic` + `minimizer` (+ `requirements-auditor` when requirements are provided) in parallel via the Task tool. |
-| `companion-review` | Dispatch the configured companion via the `agent-transport` skill, then record the verdict with `--review-complete`. |
-| `pre-pr-verification` | Dispatch `test-runner` + `check-runner` in parallel via the Task tool. |
+The stage→sub-agent binding contract for Claude lives in `claude/rules/execution-core-claude-internals.md § Stage Bindings`.
 
 **NEVER run tests or checks via Bash directly.** When a workflow is active, always delegate verification to `test-runner` / `check-runner` via the Task tool — they discover and run the full suite regardless of project.
 
