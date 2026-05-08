@@ -18,7 +18,7 @@ Workflows invoke this skill to dispatch the configured companion and record its 
 
 ## Reference Documentation
 
-Reference files live under this skill's `reference/` directory, accessible via your agent-local symlink (e.g. `~/.claude/skills/companion-review/reference/...` or `~/.codex/skills/companion-review/reference/...`):
+Reference files live under this skill's `reference/` directory, accessible via your agent-local symlink (for example `~/.claude/skills/companion-review/reference/...`, `~/.codex/skills/companion-review/reference/...`, or `~/.pi/agent/skills/companion-review/reference/...`):
 
 - **General**: `companion-review/reference/general.md` — SRP, DRY, thresholds, quality checklist
 - **Frontend**: `companion-review/reference/frontend.md` — React, TypeScript, CSS, testing patterns

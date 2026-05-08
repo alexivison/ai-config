@@ -68,14 +68,19 @@ echo "=== Shared skill paths ==="
 
 assert_grep "shared SKILL.md uses no ~/.claude paths" "$SKILL_ROOT/SKILL.md" '~/.claude' "!"
 assert_grep "shared SKILL.md uses no ~/.codex paths" "$SKILL_ROOT/SKILL.md" '~/.codex' "!"
+assert_grep "shared SKILL.md uses no ~/.pi paths" "$SKILL_ROOT/SKILL.md" '~/.pi' "!"
 assert_grep "shared SKILL.md documents primary-agent placeholder" "$SKILL_ROOT/SKILL.md" '<primary-agent-skill-root>'
 assert_grep "shared SKILL.md documents companion-agent placeholder" "$SKILL_ROOT/SKILL.md" '<companion-agent-skill-root>'
 
 assert_grep "create-plan uses relative plan template path" "$SKILL_ROOT/templates/create-plan.md" './templates/plan.md'
 assert_grep "create-plan uses relative task template path" "$SKILL_ROOT/templates/create-plan.md" './templates/task.md'
 assert_grep "revise-plan uses relative canonical templates path" "$SKILL_ROOT/templates/revise-plan.md" './templates/'
+assert_grep "prompt templates avoid ~/.claude" "$SKILL_ROOT/templates/create-plan.md" '~/.claude' "!"
 assert_grep "prompt templates avoid ~/.codex" "$SKILL_ROOT/templates/create-plan.md" '~/.codex' "!"
+assert_grep "prompt templates avoid ~/.pi" "$SKILL_ROOT/templates/create-plan.md" '~/.pi' "!"
+assert_grep "revise template avoids ~/.claude" "$SKILL_ROOT/templates/revise-plan.md" '~/.claude' "!"
 assert_grep "revise template avoids ~/.codex" "$SKILL_ROOT/templates/revise-plan.md" '~/.codex' "!"
+assert_grep "revise template avoids ~/.pi" "$SKILL_ROOT/templates/revise-plan.md" '~/.pi' "!"
 
 echo "=== Agent-local wiring ==="
 
@@ -89,6 +94,10 @@ assert "codex plan-workflow is a symlink" \
   "[ -L '$REPO_ROOT/codex/skills/plan-workflow' ]"
 assert_readlink "codex plan-workflow points at shared skill" \
   "$REPO_ROOT/codex/skills/plan-workflow" "../../shared/skills/plan-workflow"
+assert "pi plan-workflow is a symlink" \
+  "[ -L '$REPO_ROOT/pi/agent/skills/plan-workflow' ]"
+assert_readlink "pi plan-workflow points at shared skill" \
+  "$REPO_ROOT/pi/agent/skills/plan-workflow" "../../../shared/skills/plan-workflow"
 assert "legacy codex planning path removed" \
   "[ ! -e '$legacy_codex_dir' ]"
 

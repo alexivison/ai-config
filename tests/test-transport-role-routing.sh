@@ -165,8 +165,23 @@ echo "--- test-transport-role-routing.sh ---"
 
 SESSION_NEW="party-transport-new-$$"
 SESSION_SWAPPED="party-transport-swapped-$$"
+SESSION_PI_COMPANION="party-transport-pi-companion-$$"
 write_manifest "$SESSION_NEW" "claude" "codex"
 write_manifest "$SESSION_SWAPPED" "codex" "claude"
+write_manifest "$SESSION_PI_COMPANION" "claude" "pi"
+
+source "$REPO_ROOT/session/party-lib.sh"
+
+assert "agent skill root resolver maps claude" \
+  '[ "$(party_agent_skill_root claude)" = "$HOME/.claude/skills" ]'
+assert "agent skill root resolver maps codex" \
+  '[ "$(party_agent_skill_root codex)" = "$HOME/.codex/skills" ]'
+assert "agent skill root resolver maps pi" \
+  '[ "$(party_agent_skill_root pi)" = "$HOME/.pi/agent/skills" ]'
+assert "agent skill root resolver preserves unknown-agent fallback" \
+  '[ "$(party_agent_skill_root custom)" = "$HOME/.custom/skills" ]'
+assert "notify script resolver uses pi companion skill root" \
+  '[ "$(party_transport_notify_script_for_role "$SESSION_PI_COMPANION" companion claude)" = "$HOME/.pi/agent/skills/agent-transport/scripts/tmux-primary.sh" ]'
 
 assert "claude agent-transport companion script is a regular file" \
   '[ -f "$REPO_ROOT/claude/skills/agent-transport/scripts/tmux-companion.sh" ] && [ ! -L "$REPO_ROOT/claude/skills/agent-transport/scripts/tmux-companion.sh" ]'
@@ -176,6 +191,10 @@ assert "codex agent-transport companion script is a regular file" \
   '[ -f "$REPO_ROOT/codex/skills/agent-transport/scripts/tmux-companion.sh" ] && [ ! -L "$REPO_ROOT/codex/skills/agent-transport/scripts/tmux-companion.sh" ]'
 assert "codex agent-transport primary script is a regular file" \
   '[ -f "$REPO_ROOT/codex/skills/agent-transport/scripts/tmux-primary.sh" ] && [ ! -L "$REPO_ROOT/codex/skills/agent-transport/scripts/tmux-primary.sh" ]'
+assert "pi agent-transport companion script is a regular file" \
+  '[ -f "$REPO_ROOT/pi/agent/skills/agent-transport/scripts/tmux-companion.sh" ] && [ ! -L "$REPO_ROOT/pi/agent/skills/agent-transport/scripts/tmux-companion.sh" ]'
+assert "pi agent-transport primary script is a regular file" \
+  '[ -f "$REPO_ROOT/pi/agent/skills/agent-transport/scripts/tmux-primary.sh" ] && [ ! -L "$REPO_ROOT/pi/agent/skills/agent-transport/scripts/tmux-primary.sh" ]'
 
 echo ""
 echo "  === tmux-primary.sh ==="
@@ -218,6 +237,13 @@ assert_log "${SESSION_SWAPPED}:0.0" "[PRIMARY] cd '/tmp/work' && inspect swapped
 assert "swapped-role prompt output tells requester not to poll" \
   'printf "%s" "$prompt_output_swapped" | grep -Fq "Do not poll the response file. Wait for '\''[COMPANION] Task complete. Response at:"'
 assert_log_contains '/.claude/skills/agent-transport/scripts/tmux-primary.sh'
+
+> "$MOCK_LOG"
+prompt_output_pi_companion="$(PARTY_SESSION="$SESSION_PI_COMPANION" bash "$REPO_ROOT/claude/skills/agent-transport/scripts/tmux-companion.sh" --prompt "inspect pi companion" /tmp/work)"
+assert_log "${SESSION_PI_COMPANION}:0.0" "[PRIMARY] cd '/tmp/work' && inspect pi companion"
+assert "pi companion prompt output tells requester not to poll" \
+  'printf "%s" "$prompt_output_pi_companion" | grep -Fq "Do not poll the response file. Wait for '\''[COMPANION] Task complete. Response at:"'
+assert_log_contains '/.pi/agent/skills/agent-transport/scripts/tmux-primary.sh'
 
 export TMUX_PANE="%41"
 export MOCK_CURRENT_ROLE="companion"

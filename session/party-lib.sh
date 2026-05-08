@@ -376,6 +376,16 @@ party_role_agent_name() {
   jq -r --arg role "$role" '.agents[] | select(.role == $role) | .name // empty' "$file" 2>/dev/null | head -n 1
 }
 
+party_agent_skill_root() {
+  local agent_name="${1:?Usage: party_agent_skill_root AGENT_NAME}"
+  case "$agent_name" in
+    claude) printf '%s/.claude/skills\n' "$HOME" ;;
+    codex) printf '%s/.codex/skills\n' "$HOME" ;;
+    pi) printf '%s/.pi/agent/skills\n' "$HOME" ;;
+    *) printf '%s/.%s/skills\n' "$HOME" "$agent_name" ;;
+  esac
+}
+
 party_transport_notify_script_for_role() {
   local session="${1:?Usage: party_transport_notify_script_for_role SESSION ROLE LOCAL_AGENT}"
   local role="${2:?Missing role}"
@@ -395,7 +405,9 @@ party_transport_notify_script_for_role() {
     esac
   fi
 
-  printf '%s/.%s/skills/agent-transport/scripts/tmux-primary.sh\n' "$HOME" "$agent_name"
+  local skill_root
+  skill_root="$(party_agent_skill_root "$agent_name")"
+  printf '%s/agent-transport/scripts/tmux-primary.sh\n' "$skill_root"
 }
 
 # ---------------------------------------------------------------------------
