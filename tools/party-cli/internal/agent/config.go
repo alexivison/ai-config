@@ -39,11 +39,11 @@ type EvidenceConfig struct {
 
 // ConfigOverrides are per-session role overrides.
 //
-// NoCompanion is internal-only: callers (start --master, start --no-companion,
-// the picker, and worker spawn when --companion is absent) set it to drop the
-// configured companion before LoadConfig runs. There is no user-facing
-// --no-companion flag on `party-cli spawn`; the spawn path opts in to a
-// companion via --companion.
+// NoCompanion is internal-only: callers (start --master, the picker, and worker
+// spawn when --companion is absent) set it to drop the configured companion
+// before LoadConfig runs. There is no user-facing --no-companion flag; spawn
+// is opt-in via --companion, and start always honours [roles.companion]
+// (except for --master, which forces the tracker).
 type ConfigOverrides struct {
 	Primary     string
 	Companion   string

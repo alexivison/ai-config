@@ -14,13 +14,13 @@ Lightweight workflow for small or straightforward changes. Invoking this skill s
 
 ## Enforcement
 
-On Claude, invoking this skill writes the `quick` execution-preset via `skill-marker.sh`, so `pr-gate.sh` enforces the quick evidence set. On Codex, there is no local preset hook, so the same sequence and evidence list are self-enforced from `codex/AGENTS.md`.
+Invoking this skill selects the `quick` execution preset. Claude's hook implementation records that preset via `skill-marker.sh`, so `pr-gate.sh` enforces the quick evidence set. Agents without Claude's hook chain, including Codex and Pi, self-enforce the same sequence and evidence list from their current agent instructions.
 
 ## Scope Guidance
 
 Use this workflow when speed matters and the requested change seems contained. There is no category whitelist or hard size rejection in this skill.
 
-- On Claude, preset evidence wiring happens automatically when this skill is invoked. On Codex, there is no local marker hook, so follow the quick preset checklist manually.
+- Follow the quick preset checklist regardless of agent. Claude wires the evidence marker automatically when this skill is invoked; agents without that marker hook self-enforce the checklist manually.
 - Satisfy the quick preset gate with `code-critic`, `test-runner`, and `check-runner` (plus `pr-verified`).
 - If the work turns into deep debugging or broad planned implementation, switching to `bugfix-workflow` or `task-workflow` may still be the cleaner framing, but it is a judgment call rather than an enforced gate.
 

@@ -33,7 +33,7 @@ augment_primary_request() {
   printf '%s — %s\n' "$message" "$handoff_instruction"
 }
 
-# Register the default companion thread ID with the party session (write-once).
+# Register the Codex companion thread ID with the party session (write-once).
 # TODO(agent-transport): generalize via per-agent thread-id resolver to remove the Codex-specific name.
 if [[ -n "${CODEX_THREAD_ID:-}" && ! -s "$STATE_DIR/codex-thread-id" ]]; then
   printf '%s\n' "$CODEX_THREAD_ID" > "$STATE_DIR/codex-thread-id"

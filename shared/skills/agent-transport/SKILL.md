@@ -18,7 +18,7 @@ The transport uses `[PRIMARY]` / `[COMPANION]` message prefixes.
 
 Path convention used below:
 
-- `<primary-agent-skill-root>` = the primary agent's own skill root (`~/.claude/skills` when Claude is primary, `~/.codex/skills` when Codex is primary)
+- `<primary-agent-skill-root>` = the primary agent's own skill root (for example `~/.claude/skills`, `~/.codex/skills`, or `~/.pi/agent/skills`)
 - `<companion-agent-skill-root>` = the companion agent's own skill root
 - `<agent-skill-root>` = the current agent's own skill root
 
@@ -115,7 +115,7 @@ When critics flag out-of-scope code (e.g., from rebase), you can override with a
 <primary-agent-skill-root>/agent-transport/scripts/tmux-companion.sh --triage-override minimizer "Out-of-scope: auth files from PR #65315 landed via rebase, not our changes"
 ```
 
-Only critic types (`code-critic`, `minimizer`) can be overridden — codex and PR gates cannot. The override is recorded with a rationale in the evidence log for audit trail. Use sparingly and only for genuinely out-of-scope findings.
+Only critic types (`code-critic`, `minimizer`) can be overridden — configured companion evidence and PR gates cannot. The override is recorded with a rationale in the evidence log for audit trail. Use sparingly and only for genuinely out-of-scope findings.
 
 ### Signal escalation
 ```bash

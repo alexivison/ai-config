@@ -15,7 +15,7 @@ Write appropriate tests based on code characteristics and Testing Trophy princip
 
 ## Reference Documentation
 
-Load ONLY the relevant reference based on the files being tested. Use the agent-local symlink to this shared skill (e.g. `~/.claude/skills/write-tests/...` or `~/.codex/skills/write-tests/...`) — the reference files live alongside this SKILL.md under `reference/`:
+Load ONLY the relevant reference based on the files being tested. Use the agent-local symlink to this shared skill (for example `~/.claude/skills/write-tests/...`, `~/.codex/skills/write-tests/...`, or `~/.pi/agent/skills/write-tests/...`) — the reference files live alongside this SKILL.md under `reference/`:
 
 - **Frontend (TypeScript/React)**: `write-tests/reference/frontend/testing-reference.md`
 - **Backend (Go)**: `write-tests/reference/backend/testing-reference.md`
@@ -54,7 +54,7 @@ Cover the **happy path + each distinct error/rejection path + boundary cases for
 
 ## Running Tests
 
-Run the relevant test target using your agent's `write-tests` binding (see the "Stage Bindings" section in your top-level agent doc, such as `claude/CLAUDE.md` or `codex/AGENTS.md`). The important part is simple: observe a meaningful RED failure, then rerun the same target until it turns GREEN.
+Run the relevant test target using your current agent's `write-tests` mechanism (see that agent's instructions, such as `claude/CLAUDE.md`, `codex/AGENTS.md`, or `pi/agent/AGENTS.md`). The important part is simple: observe a meaningful RED failure, then rerun the same target until it turns GREEN.
 
 If the first run fails for the wrong reason (syntax error, missing import, broken setup), fix that noise or narrow the command until the failure actually represents the missing behavior.
 

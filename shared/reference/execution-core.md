@@ -1,6 +1,6 @@
 # Execution Core
 
-Shared rules for all workflow skills. **Execution-core is opt-in** — the default session mode is direct editing with no workflow enforcement. These rules activate when a workflow skill (`task-workflow`, `bugfix-workflow`, `quick-fix-workflow`, `openspec-workflow`) opts the session into an execution preset. On Claude, the preset is also recorded for hook enforcement. On Codex and other agents without Claude's hook chain, the same preset is self-enforced from the agent doc and workflow skill. Bugfix-workflow omits source-file updates (no tracking files).
+Shared rules for all workflow skills. **Execution-core is opt-in** — the default session mode is direct editing with no workflow enforcement. These rules activate when a workflow skill (`task-workflow`, `bugfix-workflow`, `quick-fix-workflow`, `openspec-workflow`) opts the session into an execution preset. The generic contract is the same for every agent. Claude additionally records the selected preset for hook enforcement; agents without Claude's hook chain, including Codex and Pi, self-enforce it from their current agent instructions and workflow skill. Bugfix-workflow omits source-file updates (no tracking files).
 
 ## Core Sequence
 
@@ -84,7 +84,7 @@ Agent-specific hook plumbing, log files, metrics, and override knobs belong in a
 
 ## Opt-In Presets
 
-Execution-core is **opt-in**. If no workflow skill is invoked, the session stays in direct-edit mode. A workflow skill opts the session into a preset, which drives the expected evidence requirements. On Claude, that preset also drives `pr-gate.sh`. On Codex, there is no local preset marker, so treat this table as a required checklist.
+Execution-core is **opt-in**. If no workflow skill is invoked, the session stays in direct-edit mode. A workflow skill opts the session into a preset, which drives the expected evidence requirements. The generic contract is the preset/evidence mapping in this table. Claude additionally feeds it into `pr-gate.sh`; agents without that hook chain, including Codex and Pi, treat this table as a required checklist.
 
 | Preset | Opt-in Skill | Sequence | Gate Evidence |
 |--------|--------------|----------|---------------|
@@ -94,7 +94,7 @@ Execution-core is **opt-in**. If no workflow skill is invoked, the session stays
 | **quick** | `quick-fix-workflow` | `implement → code-critic → commit → /pre-pr-verification → PR` | code-critic, pr-verified, test-runner, check-runner |
 | **spec** | `openspec-workflow` | `draft → CI spec-review → implement → CI ai-pr-review → PR` | pr-verified |
 
-Claude writes `execution-preset = <name>` via `skill-marker.sh` when a workflow skill is invoked. Agents without Claude's hook chain do not write this marker locally; they still follow the same preset and evidence contract as self-enforced workflow rules.
+Claude's hook implementation writes `execution-preset = <name>` via `skill-marker.sh` when a workflow skill is invoked. Other agents do not need to write this marker locally; they still follow the same preset and evidence contract as self-enforced workflow rules.
 
 Spec-review checks: atomicity, normative language (SHALL/MUST), testable scenarios (GIVEN/WHEN/THEN), non-overlapping requirements. Plan-review checks: architecture coherence, feasibility, completeness. Both follow review governance rules.
 
@@ -158,11 +158,11 @@ Classify every finding before acting:
 
 Evidence before claims. No assertions without proof (test output, file:line, grep result). Code edits invalidate prior evidence — rerun. Red flags: "should work", commit without checks, stale evidence.
 
-**Always use your agent's verification mechanism** (see Stage Bindings in your top-level agent doc). Run tests and lint/typecheck through that mechanism — it discovers and runs the full suite. Verify checks before every push.
+**Always use your current agent's verification mechanism** (see that agent's instructions, for example `claude/CLAUDE.md`, `codex/AGENTS.md`, or `pi/agent/AGENTS.md`). Run tests and lint/typecheck through that mechanism — it discovers and runs the full suite. Verify checks before every push.
 
 ## PR Gate
 
-On Claude, `pr-gate.sh` is the enforcement point. When no preset is set, it allows PR creation (opt-in default). When a preset is set, it requires the preset-specific evidence at the current diff_hash (see § Opt-In Presets for the preset-to-evidence mapping). Agents without the Claude hook chain do not run `pr-gate.sh`; they must self-enforce the same preset-specific checklist before PR or push.
+Generic contract: no PR or push until the preset-specific checklist is satisfied. Claude's hook implementation enforces that contract in `pr-gate.sh`: when no preset is set, it allows PR creation (opt-in default); when a preset is set, it requires the preset-specific evidence at the current diff_hash (see § Opt-In Presets for the preset-to-evidence mapping). Agents without the Claude hook chain self-enforce the same checklist before PR or push.
 
 **Post-PR:** Changes in same branch → re-run /pre-pr-verification → amend + force-push with `--force-with-lease`.
 

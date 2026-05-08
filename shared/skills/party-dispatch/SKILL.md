@@ -62,8 +62,9 @@ remaining arguments are work items. Classify each item:
 ### Step 2 — Gather context
 
 - **Linear URL/ID**: Extract the issue identifier (the `TEAM-123` segment
-  after `/issue/`). Fetch details via `mcp__claude_ai_Linear__get_issue`.
-  Extract: title, description, labels, priority, assignee. Fetch all in parallel.
+  after `/issue/`). Fetch details via the current agent's available Linear
+  integration or MCP tool. Extract: title, description, labels, priority,
+  assignee. Fetch all in parallel when the mechanism supports it.
 - **File path**: Read the file for context (title, scope, description).
 - **Freeform**: The user's prompt is the context — no fetching needed.
 
@@ -172,9 +173,9 @@ party-cli spawn <session-name> "<title>" --prompt "$(cat /tmp/party-prompt-N.md)
 
 ### Step 5 — Create tracker and report
 
-After spawning all workers, create a task list to track each worker's progress
-using `TaskCreate`. Each task should include the worker session name, item ID,
-and current status:
+After spawning all workers, create a task list or tracker entry using the
+current agent's available task-tracking mechanism. Each task should include the
+worker session name, item ID, and current status:
 
 ```
 - [ ] party-1234 | ENG-123 — Fix auth bug | dispatched
@@ -208,7 +209,7 @@ Workers report back via `[WORKER:<session-id>]` prefixed messages. When a
 report arrives:
 
 1. Read the report content
-2. Update the corresponding task via `TaskUpdate` (mark completed, add summary)
+2. Update the corresponding task/tracker entry with the current agent's available mechanism (mark completed, add summary)
 3. If the worker opened a PR, note the PR URL in the task
 4. **ALWAYS review the PR** — proceed to "Reviewing worker PRs" below
 5. Check if all workers are done — if so, proceed to final summary
@@ -292,7 +293,7 @@ Any party session can be promoted to master: `party-cli promote [party-id]`. Thi
 When running in a master session (`session_type == "master"` in manifest):
 - You are an **orchestrator**, not an implementor.
 - **HARD RULE:** Never use Edit or Write on production code. Investigation (Read, Grep, Glob, read-only Bash) is fine — all code changes go to a worker. No exceptions: not for "quick fixes", not for bugs found during testing, not for "obvious" one-liners.
-- There is **no companion pane** — the default transport script `tmux-companion.sh` will return `COMPANION_NOT_AVAILABLE`.
+- There is **no companion pane** — the agent-transport script `tmux-companion.sh` will return `COMPANION_NOT_AVAILABLE`.
 - Skip companion review/plan-review/prompt steps entirely.
 - Use `/party-dispatch` to dispatch any number of tasks to workers (single freeform, batch tickets, or mixed).
 - Monitor workers via the tracker pane (left pane).

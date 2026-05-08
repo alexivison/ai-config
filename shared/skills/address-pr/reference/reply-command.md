@@ -18,7 +18,7 @@ Addressed in {commit}.' \
 | `{owner}/{repo}` | Repository | `legalforce/loc-app` |
 | `{pr_number}` | PR number | `58959` |
 | `{comment_id}` | Review comment ID | `2730495039` |
-| `{username}` | Original commenter | `claude[bot]` |
+| `{username}` | Original commenter | `reviewer[bot]` |
 | `{message}` | Your reply text | `Fixed the issue.` |
 | `{commit}` | Commit hash (if applicable) | `6a5ec38` |
 
@@ -27,7 +27,7 @@ Addressed in {commit}.' \
 ```bash
 gh api repos/legalforce/loc-app/pulls/58959/comments \
   -X POST \
-  --raw-field 'body=@claude[bot] Fixed the naming issue.
+  --raw-field 'body=@reviewer[bot] Fixed the naming issue.
 
 Addressed in 6a5ec38.' \
   -F in_reply_to=2730495039

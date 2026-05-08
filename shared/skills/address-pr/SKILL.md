@@ -70,7 +70,7 @@ Fetch PR review comments, analyze them, and automatically implement fixes.
 After fixing or answering a comment:
 
 1. **Reply in the comment thread** — NEVER post to the main PR discussion
-2. **Mention the commenter** — ALWAYS start reply with `@{username}` (e.g., `@claude[bot]`)
+2. **Mention the commenter** — ALWAYS start reply with `@{username}` (e.g., `@reviewer[bot]`)
 3. **Reference the fix** — Mention commit hash or describe change made
 
 See `reference/reply-command.md` for the exact `gh api` command template.

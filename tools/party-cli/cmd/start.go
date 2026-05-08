@@ -12,14 +12,13 @@ import (
 
 func newStartCmd(store *state.Store, client *tmux.Client, repoRoot string) *cobra.Command {
 	var opts struct {
-		title       string
-		cwd         string
-		master      bool
-		masterID    string
-		agentFlags  sessionAgentFlags
-		prompt      string
-		attach      bool
-		noCompanion bool
+		title      string
+		cwd        string
+		master     bool
+		masterID   string
+		agentFlags sessionAgentFlags
+		prompt     string
+		attach     bool
 	}
 
 	cmd := &cobra.Command{
@@ -32,9 +31,8 @@ func newStartCmd(store *state.Store, client *tmux.Client, repoRoot string) *cobr
 			}
 
 			overrides := opts.agentFlags.ConfigOverrides()
-			// Master sessions replace the companion with the tracker; --no-companion
-			// is the standalone-session opt-out for the configured companion.
-			if opts.master || opts.noCompanion {
+			// Master sessions replace the companion with the tracker.
+			if opts.master {
 				if overrides == nil {
 					overrides = &agent.ConfigOverrides{}
 				}
@@ -82,7 +80,6 @@ func newStartCmd(store *state.Store, client *tmux.Client, repoRoot string) *cobr
 	cmd.Flags().BoolVar(&opts.master, "master", false, "start as a master session")
 	cmd.Flags().StringVar(&opts.masterID, "master-id", "", "parent master session ID (for worker spawn)")
 	opts.agentFlags.AddFlags(cmd)
-	cmd.Flags().BoolVar(&opts.noCompanion, "no-companion", false, "run without a companion agent")
 	cmd.Flags().StringVar(&opts.prompt, "prompt", "", "initial prompt for the primary agent")
 	cmd.Flags().BoolVar(&opts.attach, "attach", false, "attach to session after creation")
 	// Note: by default, attach behavior is handled by shell wrappers (party.sh).

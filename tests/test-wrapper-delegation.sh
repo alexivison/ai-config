@@ -97,11 +97,15 @@ bash "$REPO_ROOT/session/party.sh" --detached test-title 2>/dev/null || true
 assert "party.sh --detached omits --attach" \
   '! grep -q "\-\-attach" "$MOCK_LOG"'
 
-# ---- party.sh --master forces --no-companion ----
+# ---- party.sh --master forwards --master to party-cli ----
+# party-cli start enforces NoCompanion internally when --master is set;
+# party.sh no longer translates that itself.
 > "$MOCK_LOG"
 bash "$REPO_ROOT/session/party.sh" --master --primary codex test-title 2>/dev/null || true
-assert "party.sh --master forwards --no-companion" \
-  'grep -q "start.*--master.*--primary codex.*--no-companion" "$MOCK_LOG"'
+assert "party.sh --master forwards --master and --primary to start" \
+  'grep -q "start.*--master.*--primary codex" "$MOCK_LOG"'
+assert "party.sh no longer forwards --no-companion (flag removed)" \
+  '! grep -q "\-\-no-companion" "$MOCK_LOG"'
 
 # ---- party-relay.sh --broadcast delegates to party-cli broadcast ----
 > "$MOCK_LOG"

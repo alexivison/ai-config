@@ -3,7 +3,7 @@
 # party-lib.sh is retained only for the role-based transport layer
 # (tmux-companion.sh, tmux-primary.sh).
 #
-# Usage: party.sh [--detached] [--prompt "text"] [--primary AGENT] [--companion AGENT] [--no-companion] [--resume-agent ROLE=ID] [TITLE]
+# Usage: party.sh [--detached] [--prompt "text"] [--primary AGENT] [--companion AGENT] [--resume-agent ROLE=ID] [TITLE]
 #        party.sh --switch | --continue <party-id> | --delete <party-id> | --list | --install-tpm
 set -euo pipefail
 
@@ -35,9 +35,9 @@ PARTY_CLI_CMD=()
 party_usage() {
   cat <<'EOF'
 Usage:
-  party.sh [--detached] [--prompt "text"] [--primary AGENT] [--companion AGENT] [--no-companion] [--resume-agent ROLE=ID] [TITLE]
+  party.sh [--detached] [--prompt "text"] [--primary AGENT] [--companion AGENT] [--resume-agent ROLE=ID] [TITLE]
   party.sh --master [--detached] [--prompt "text"] [--primary AGENT] [--resume-agent ROLE=ID] [TITLE]
-  party.sh --master-id <master-id> [--detached] [--prompt "text"] [--primary AGENT] [--companion AGENT] [--no-companion] [--resume-agent ROLE=ID] [TITLE]
+  party.sh --master-id <master-id> [--detached] [--prompt "text"] [--primary AGENT] [--companion AGENT] [--resume-agent ROLE=ID] [TITLE]
 
   party.sh --promote [party-id]
   party.sh --switch
@@ -88,7 +88,6 @@ _party_master=0
 _party_master_id=""
 _party_primary=""
 _party_companion=""
-_party_no_companion=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -147,7 +146,6 @@ while [[ $# -gt 0 ]]; do
     --prompt) _party_prompt="${2:?--prompt requires a message}"; shift 2 ;;
     --primary) _party_primary="${2:?--primary requires an agent name}"; shift 2 ;;
     --companion) _party_companion="${2:?--companion requires an agent name}"; shift 2 ;;
-    --no-companion) _party_no_companion=1; shift ;;
     --resume-agent) _party_resume_agents+=("${2:?--resume-agent requires ROLE=ID}"); shift 2 ;;
     --master) _party_master=1; shift ;;
     --master-id) _party_master_id="${2:?--master-id requires a session ID}"; shift 2 ;;
@@ -161,12 +159,9 @@ done
 # Remaining positional args after -- (e.g., title from tracker spawn)
 [[ $# -gt 0 && -z "$_party_title" ]] && _party_title="$1"
 
-# Master sessions replace the companion pane with the tracker.
-if [[ "$_party_master" -eq 1 ]]; then
-  _party_no_companion=1
-fi
-
 # --- Start a new session via party-cli ---
+# Master sessions replace the companion pane with the tracker; party-cli start
+# enforces that internally when --master is set.
 _resolve_party_cli || exit 1
 
 start_args=(start --cwd "$PWD")
@@ -174,8 +169,7 @@ start_args=(start --cwd "$PWD")
 [[ "$_party_master" -eq 1 ]]    && start_args+=(--master)
 [[ -n "$_party_master_id" ]]    && start_args+=(--master-id "$_party_master_id")
 [[ -n "$_party_primary" ]]      && start_args+=(--primary "$_party_primary")
-[[ "$_party_no_companion" -eq 0 && -n "$_party_companion" ]] && start_args+=(--companion "$_party_companion")
-[[ "$_party_no_companion" -eq 1 ]] && start_args+=(--no-companion)
+[[ -n "$_party_companion" ]]    && start_args+=(--companion "$_party_companion")
 [[ -n "$_party_prompt" ]]       && start_args+=(--prompt "$_party_prompt")
 for ra in "${_party_resume_agents[@]}"; do
   start_args+=(--resume-agent "$ra")
