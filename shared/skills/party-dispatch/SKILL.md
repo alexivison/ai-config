@@ -222,27 +222,6 @@ When a worker needs guidance or additional work:
 party-cli relay <worker-id> "instruction text"
 ```
 
-**Relay observations, not prescriptions.** The worker is a primary agent
-with its own judgement — give it what it needs to decide, not the decision.
-By default, a relay should carry:
-
-- **What's wrong or what's needed** — one sentence
-- **Pointers** — file:line citations, log excerpts, links, or a path to a
-  findings file. Forward evidence; don't rewrite it as fix instructions.
-- **Constraints / scope** — must not touch X; stay within Y
-- **Done when** — how the worker (and you) will know it's resolved
-
-Only prescribe an approach when one of these is true:
-
-- The worker asked for direction
-- The change is mechanical with a single correct fix (typo, rename, missing
-  null check on a path you already verified)
-- The worker is stuck after 2+ attempts on the same point and a hint will
-  unblock it
-
-When you do prescribe, mark it as `Approach hint:` so authorship of the
-decision stays with the worker.
-
 For broadcasts to all workers:
 
 ```bash
@@ -259,14 +238,10 @@ When a worker completes and opens a PR:
 
 1. **Read the PR**: `gh pr view <number>` and `gh pr diff <number>`
 2. **Check CI status**: `gh pr checks <number>`
-3. **If CI fails**: read the failure logs, capture the relevant excerpts and
-   the failing file:line, and relay those observations to the worker. Let the
-   worker diagnose and choose the fix — don't pre-write it.
+3. **If CI fails**: relay the failing file:line and relevant log excerpts
 4. **Run `/companion-review`** on the PR diff for a structured quality review
-5. **If blocking issues found**: forward the findings file path plus any
-   scope guidance. The findings already contain file:line and a verdict — let
-   the worker triage like any primary agent would. Wait for the worker to
-   push fixes and re-review.
+5. **If blocking issues found**: forward the findings file path. Wait for the
+   worker to push fixes and re-review.
 6. **If review passes and CI is green**: approve and merge the PR
 7. **Update the task list** with the final status (merged, or needs-rework)
 
@@ -278,13 +253,9 @@ is unconditional.
 If a worker appears stuck or reports an error:
 
 1. Read scrollback: `party-cli read <worker-id> --lines 200`
-2. Identify what the worker can't see for itself — a different error
-   elsewhere, a missing constraint, an unread file
-3. Relay the missing observation, not a fix. If the worker has been stuck
-   on the same point for 2+ attempts, an `Approach hint:` is appropriate;
-   before that, more context usually unblocks better than prescription.
-4. If the worker is unrecoverable, note it in the task list and consider
-   spawning a replacement worker
+2. Identify what the worker can't see for itself (different error, missing
+   constraint, unread file) and relay that observation
+3. If unrecoverable, note it and consider spawning a replacement worker
 
 ### Final summary
 
@@ -293,44 +264,6 @@ When all workers have reported back (all tasks completed):
 1. Summarize results: which items succeeded, which failed, PR URLs
 2. List any follow-up items that need attention
 3. Report the final status to the user
-
-### Rules
-
-- **Investigate freely** — Read, Grep, Glob, Bash (read-only commands), and
-  MCP queries are all fine. Gathering context to relay to workers is core
-  orchestration work.
-- **Never edit production code** — Do not use Edit or Write on source files.
-  All code changes must be delegated to a worker via `party-cli relay`.
-  This applies in every scenario: new bugs found during testing, quick
-  one-line fixes, "obvious" changes — no exceptions.
-- **Relay observations, not prescriptions** — Forward the evidence the
-  worker needs (file:line, log excerpts, findings paths, scope) and let it
-  choose the fix. Prescribe only when the worker asks, the change is
-  mechanical with one correct fix, or the worker is stuck after 2+ attempts.
-  Mark prescriptions as `Approach hint:` so authorship stays with the worker.
-- **Review every PR** — No worker PR gets merged without a master review.
-
-## Master Session Mode
-
-Any party session can be promoted to master: `party-cli promote [party-id]`. This replaces the companion pane with a tracker pane and sets `session_type` to `master`. Promotion is non-destructive and works mid-session.
-
-When running in a master session (`session_type == "master"` in manifest):
-- You are an **orchestrator**, not an implementor.
-- **HARD RULE:** Never use Edit or Write on production code. Investigation (Read, Grep, Glob, read-only Bash) is fine — all code changes go to a worker. No exceptions: not for "quick fixes", not for bugs found during testing, not for "obvious" one-liners.
-- There is **no companion pane** — the agent-transport script `tmux-companion.sh` will return `COMPANION_NOT_AVAILABLE`.
-- Skip companion review/plan-review/prompt steps entirely.
-- Use `/party-dispatch` to dispatch any number of tasks to workers (single freeform, batch tickets, or mixed).
-- Monitor workers via the tracker pane (left pane).
-
-**Communication with workers:**
-- `party-cli relay <worker-id> "instruction"` — send a message to a worker's primary pane
-- `party-cli broadcast "message"` — send to all workers
-- `party-cli read <worker-id>` — read the last 50 lines of a worker's primary pane
-- `party-cli read <worker-id> --lines 200` — read more scrollback
-- `party-cli workers` — show all workers and their status
-- Workers report back via `[WORKER:<session-id>]` prefixed messages to your pane
-
-**Worker report-back and PR review obligations** are defined in the "Ongoing Orchestration" section above — follow those rules for every dispatch.
 
 ## Important
 
