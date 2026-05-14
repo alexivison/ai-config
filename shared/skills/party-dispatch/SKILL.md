@@ -222,8 +222,26 @@ When a worker needs guidance or additional work:
 party-cli relay <worker-id> "instruction text"
 ```
 
-Always include investigation context (file paths, line numbers, root cause
-analysis) so the worker can act immediately without re-investigating.
+**Relay observations, not prescriptions.** The worker is a primary agent
+with its own judgement — give it what it needs to decide, not the decision.
+By default, a relay should carry:
+
+- **What's wrong or what's needed** — one sentence
+- **Pointers** — file:line citations, log excerpts, links, or a path to a
+  findings file. Forward evidence; don't rewrite it as fix instructions.
+- **Constraints / scope** — must not touch X; stay within Y
+- **Done when** — how the worker (and you) will know it's resolved
+
+Only prescribe an approach when one of these is true:
+
+- The worker asked for direction
+- The change is mechanical with a single correct fix (typo, rename, missing
+  null check on a path you already verified)
+- The worker is stuck after 2+ attempts on the same point and a hint will
+  unblock it
+
+When you do prescribe, mark it as `Approach hint:` so authorship of the
+decision stays with the worker.
 
 For broadcasts to all workers:
 
@@ -241,13 +259,14 @@ When a worker completes and opens a PR:
 
 1. **Read the PR**: `gh pr view <number>` and `gh pr diff <number>`
 2. **Check CI status**: `gh pr checks <number>`
-3. **If CI fails**: read the failure logs, diagnose the issue, and relay fix
-   instructions to the worker via `party-cli relay` with file paths, line
-   numbers, and root cause analysis
+3. **If CI fails**: read the failure logs, capture the relevant excerpts and
+   the failing file:line, and relay those observations to the worker. Let the
+   worker diagnose and choose the fix — don't pre-write it.
 4. **Run `/companion-review`** on the PR diff for a structured quality review
-5. **If blocking issues found**: relay the findings to the worker with file
-   paths and line numbers so they can fix without re-investigating. Wait for
-   the worker to push fixes and re-review.
+5. **If blocking issues found**: forward the findings file path plus any
+   scope guidance. The findings already contain file:line and a verdict — let
+   the worker triage like any primary agent would. Wait for the worker to
+   push fixes and re-review.
 6. **If review passes and CI is green**: approve and merge the PR
 7. **Update the task list** with the final status (merged, or needs-rework)
 
@@ -259,8 +278,11 @@ is unconditional.
 If a worker appears stuck or reports an error:
 
 1. Read scrollback: `party-cli read <worker-id> --lines 200`
-2. Diagnose the issue from the output
-3. Relay fix instructions with context: `party-cli relay <worker-id> "..."`
+2. Identify what the worker can't see for itself — a different error
+   elsewhere, a missing constraint, an unread file
+3. Relay the missing observation, not a fix. If the worker has been stuck
+   on the same point for 2+ attempts, an `Approach hint:` is appropriate;
+   before that, more context usually unblocks better than prescription.
 4. If the worker is unrecoverable, note it in the task list and consider
    spawning a replacement worker
 
@@ -281,9 +303,11 @@ When all workers have reported back (all tasks completed):
   All code changes must be delegated to a worker via `party-cli relay`.
   This applies in every scenario: new bugs found during testing, quick
   one-line fixes, "obvious" changes — no exceptions.
-- **Relay with context** — When relaying new work to a worker, include your
-  investigation findings (file paths, line numbers, root cause analysis) so
-  the worker can act immediately.
+- **Relay observations, not prescriptions** — Forward the evidence the
+  worker needs (file:line, log excerpts, findings paths, scope) and let it
+  choose the fix. Prescribe only when the worker asks, the change is
+  mechanical with one correct fix, or the worker is stuck after 2+ attempts.
+  Mark prescriptions as `Approach hint:` so authorship stays with the worker.
 - **Review every PR** — No worker PR gets merged without a master review.
 
 ## Master Session Mode
