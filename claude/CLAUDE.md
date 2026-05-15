@@ -67,16 +67,6 @@ When running as a master, use the `party-dispatch` skill. Party-cli injects mast
 - `main` is the source of truth. Reapply only the narrow task delta on top of current `main`; never revive stale branch behavior.
 - Prefer `gwta <branch>` when available; otherwise use `git worktree add ../<repo>-<branch> -b <branch>`. Clean up with `git worktree remove ../<repo>-<branch>` after PR merge.
 
-## Daily Reports
-
-Read today's daily report files in `~/.ai-party/docs/reports/` at session start when they exist:
-
-- `YYYY-MM-DD-daily-sync.md`
-- `YYYY-MM-DD-daily-radar.md`
-
-- **Use it for orientation only** — ticket scope and implementation details come from the ticket itself.
-- Previous reports are available for reference when you need recent context.
-
 ## Stage Bindings
 
 The stage→sub-agent binding contract for Claude lives in `claude/rules/execution-core-claude-internals.md § Stage Bindings`.
