@@ -59,6 +59,7 @@ When running as a master, use the `party-dispatch` skill. Party-cli injects mast
 - Branch naming: `<ISSUE-ID>-<kebab-case-description>` when an issue ID exists.
 - Open draft PRs unless instructed otherwise.
 - Create separate PRs for changes in different services.
+- Before `git push` in a React repo (`react` in `package.json`, or `.jsx`/`.tsx` in the diff), run `npx -y react-doctor@latest . --diff` and resolve findings before retrying. Skip only with explicit user approval.
 
 ## Worktree Isolation
 
