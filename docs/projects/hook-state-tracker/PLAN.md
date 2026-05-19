@@ -405,3 +405,28 @@ These aren't blocking, but to flag in the implementation PR:
 - SKILL.md installation flows that depend on `PARTY_ENV`
 - Cross-host session tracking (`state.json` is local-only; no network sync)
 - Generic non-agent shell pane tracking (could be added later via a shell hook, but not in this plan)
+
+---
+
+## Prior art
+
+### [Herdr](https://github.com/ogulcancelik/herdr) — agent multiplexer for the terminal
+
+Herdr is a directly comparable project: a terminal multiplexer for managing multiple AI agents with per-pane state tracking (`blocked | working | done | idle`). It supports a wider agent matrix than party-cli today — Claude Code, Codex, Pi, Droid, Amp, OpenCode, Grok CLI, Hermes — and crucially, it solves the same "what is each agent doing" tracking problem with a similar dual-mechanism approach.
+
+**Where Herdr's design overlaps with this plan:**
+- Same problem framing: terminal-native, no GUI, persistent sessions, per-agent state at a glance.
+- Same instinct that terminal-output heuristics alone aren't enough → both projects add a structured reporting channel for semantic state.
+- Same target state vocabulary (`blocked | working | done | idle`).
+
+**Where it diverges from this plan:**
+- **Herdr uses a socket API** for agents to report state semantically. This plan uses **file-based hand-off** via `party-cli hook ...` writing `state.json`.
+- Herdr keeps process-name + terminal-output detection as a permanent zero-config fallback. This plan **deletes the heuristic detector entirely** at end of Phase 2.
+
+**Why a different mechanism here.** A socket API needs a long-lived listener process. party-cli is invoke-and-exit (no daemon), so file-based state survives between invocations without us standing up a tracker process. Hooks are also agent-native config — once `party-cli hooks install` runs, the agent's existing config system carries them, no per-agent dial-in code needed. Trade-off: we lose Herdr's zero-config "works for any process" coverage. We accept that, because for the agents we care about (Claude Code, Codex, Pi) we control the installer and can guarantee hooks are present.
+
+**What's worth borrowing later** (out of scope for this plan, but tracked for follow-up):
+- Herdr's broader agent matrix (Droid, Amp, OpenCode, Grok CLI, Hermes) — once the hook installer abstraction is in place, adding new agents is mostly a per-agent `internal/hooks/<agent>.go` file plus a payload-shape mapping in `cmd/hook.go`.
+- The process-name / terminal-output heuristic as a degraded mode for *unrecognized* panes (e.g. the user opens a raw shell pane and we still want to show *something*). Today's plan renders these as `unknown`; Herdr's approach is a reasonable future upgrade.
+
+Worth reading Herdr's [README](https://github.com/ogulcancelik/herdr) and [Architecture docs](https://github.com/ogulcancelik/herdr/blob/main/docs/) before opening the Phase 1 PR — design choices made by another team in the same problem space are cheap lessons.
