@@ -67,7 +67,6 @@ When running as a master, use the `party-dispatch` skill. Party-cli injects mast
 - One session per worktree. Never edit another session's working tree.
 - `main` is the source of truth. Reapply only the narrow task delta on top of current `main`; never revive stale branch behavior.
 - Prefer `gwta <branch>` when available; otherwise use `git worktree add ../<repo>-<branch> -b <branch>`. Clean up with `git worktree remove ../<repo>-<branch>` after PR merge.
-- **NEVER run `./install.sh` from a worktree.** It symlinks `~/.claude → $SCRIPT_DIR/claude` (also `~/.codex`, `~/.pi`). From a worktree, that points the host's home symlinks at the worktree path; once the worktree is removed, the symlinks dangle and the host's agent configs become unreachable until manually restored. Test installer behavior in CI (where host config is disposable) or with unit tests that mock the symlink target — never via a live `./install.sh` invocation from a worker or worktree. The same applies to any other script that mutates `$HOME` based on `$SCRIPT_DIR`.
 
 ## Stage Bindings
 
