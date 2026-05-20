@@ -6,6 +6,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SYMLINKS_ONLY=false
+NO_HOOKS=false
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -14,11 +15,16 @@ while [[ $# -gt 0 ]]; do
             SYMLINKS_ONLY=true
             shift
             ;;
+        --no-hooks)
+            NO_HOOKS=true
+            shift
+            ;;
         -h|--help)
             echo "Usage: ./install.sh [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  --symlinks-only  Only create config symlinks, skip CLI installation"
+            echo "  --no-hooks       Skip the post-symlink 'party-cli hooks install' step"
             echo "  -h, --help       Show this help message"
             exit 0
             ;;
@@ -29,6 +35,12 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Non-TTY (e.g. CI) skips the interactive prompt and skips hooks install
+# automatically. Honour NO_HOOKS even in interactive mode.
+if [[ ! -t 0 ]]; then
+    NO_HOOKS=true
+fi
 
 echo "ai-party installer"
 echo "==================="
@@ -416,11 +428,15 @@ else
 fi
 echo "Agents to check: ${CONFIGURED_AGENTS[*]}"
 echo ""
-read -p "Continue? [Y/n] " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Nn]$ ]]; then
-    echo "Installation cancelled."
-    exit 0
+if [[ -t 0 ]]; then
+    read -p "Continue? [Y/n] " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        echo "Installation cancelled."
+        exit 0
+    fi
+else
+    echo "Non-TTY install detected — proceeding without prompt and skipping hooks install."
 fi
 
 pi_already_setup=false
@@ -434,6 +450,23 @@ fi
 setup_tmux
 setup_party_cli
 setup_fzf
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# HOOKS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if [[ "$SYMLINKS_ONLY" != true && "$NO_HOOKS" != true ]]; then
+    echo ""
+    echo "━━━ hooks ━━━"
+    if command -v party-cli &> /dev/null; then
+        if party-cli hooks install; then
+            echo "✓  party-cli hooks installed"
+        else
+            echo "⚠  party-cli hooks install failed (non-fatal)"
+        fi
+    else
+        echo "⏭  Skipping hooks install (party-cli not on PATH)"
+    fi
+fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━"
