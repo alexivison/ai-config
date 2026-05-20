@@ -240,26 +240,73 @@ Hooks installed:
 | `SubagentStop` | (Activity only; subagent rule applies) | |
 | `Notification` | `blocked` | |
 
+**Uninstall.** Walk `settings.json` (or `settings.local.json`) by the `_party_cli` tag, remove matching entries only, leave the user's other hooks alone, delete `~/.claude/hooks/party-cli-state.sh`.
+
 #### Codex installer details
 
-Codex config lives at `$CODEX_HOME/config.toml` and `$CODEX_HOME/hooks.json`. Beyond writing the hook entries, two upstream constraints have to be respected before hooks actually fire:
+Codex config lives at `$CODEX_HOME/config.toml` (feature flag only) and `$CODEX_HOME/hooks.json` (entries). The `[features] plugin_hooks = true` flag is already present in `codex/config.toml:28-31` and is symlinked via `install.sh` — the installer does NOT touch `config.toml`. It only manages `hooks.json` and the installed script file.
 
-1. **Trust state.** Upstream Codex (`codex-rs/hooks/src/engine/discovery.rs:495-500`) only dispatches hooks tagged `Managed` or `Trusted` (i.e., whose `trusted_hash` in the config matches the on-disk script). An entry without a matching `trusted_hash` lands as `Untrusted` and Codex silently no-ops it. The installer MUST:
-   - Compute the SHA-256 of the installed `party-cli-state.sh` and write it as the `trusted_hash` in `hooks.json`, OR
-   - Mark the entry as `Managed` if Codex's `hooks.json` schema allows it for our use case (check upstream — if `Managed` requires the script to live under a Codex-controlled path, fall back to `trusted_hash`).
-2. **Approvals are bypassed.** party-cli launches Codex with `--dangerously-bypass-approvals-and-sandbox` (`internal/agent/codex.go:52`). That means `PermissionRequest` (the closest analogue to Claude's `Notification`) effectively never fires. The Codex `blocked` mapping must NOT rely on `PermissionRequest`. See Phase 3 / Risk #9 for the resolved `blocked` semantics on Codex.
+Step-by-step procedure (parallel to the Claude six-step recipe above):
 
-`party-cli hooks status codex` MUST surface trust state separately from the version-marker check. The status values become:
+1. Resolve config dir: `$CODEX_HOME` → `~/.codex` (upstream default, see `codex-rs/core/src/config.rs` `codex_home()`).
+2. `mkdir -p $CODEX_HOME/hooks/`, write `party-cli-state.sh` (0755) into it.
+3. Compute `trusted_hash = sha256(party-cli-state.sh)`. Hash is binary SHA-256 hex-encoded; matches the form Codex expects per `codex-rs/hooks/src/engine/discovery.rs:495-500`.
+4. Read `$CODEX_HOME/hooks.json`. If missing, create with `{"version": 1, "hooks": []}`.
+5. Back up to `hooks.json.party-cli.bak` if no backup exists yet.
+6. Merge our hook entries idempotently. Each entry tagged `{"_party_cli": "v1", "trusted_hash": "<hex>"}` so install / status / uninstall can find them by tag and validate trust.
+7. Write atomically (tmp + rename).
 
-- `Current` — script + settings + `trusted_hash` all match.
-- `Outdated` — script or settings version-marker doesn't match.
-- `Untrusted` — entries present but trust hash is missing or stale (Codex won't dispatch them).
+`config.toml` is **not** mutated. The feature flag stays where it already lives (the symlinked repo file). If a user has a non-symlinked `~/.codex/config.toml`, `party-cli hooks status codex` reports the missing `plugin_hooks` flag as part of the `NotInstalled` / `Outdated` value (see status table below) and `party-cli hooks install codex --check` returns non-zero.
+
+Hooks installed:
+
+| Codex event | Action arg | Notes |
+|---|---|---|
+| `SessionStart` | `starting` | parallels Claude `SessionStart` |
+| `UserPromptSubmit` | `working` | turn-start state; same rationale as Claude — see "Turn-start state" above |
+| `PreToolUse` | `tool_start` | conditional state.json flush — see "Hot-path optimisation" |
+| `PostToolUse` | `tool_end` | conditional state.json flush — see "Hot-path optimisation" |
+| `Stop` | `done` | Codex `Stop` payload has no `agent_id` (`codex-rs/hooks/src/lib.rs` ~480-495) — every Stop is treated as top-level. See "Subagent rule" above. |
+| `PermissionRequest` | **NOT INSTALLED** | Closest analogue to Claude `Notification`, but party-cli launches Codex with `--dangerously-bypass-approvals-and-sandbox` (`internal/agent/codex.go:52`), so it never fires. Codex therefore never reports `blocked` — see Phase 3 / Risk #9. |
+| `SubagentStart` / equivalents | **NOT INSTALLED** | Codex's hook surface (`codex-rs/hooks/src/lib.rs:17-28`) does not currently expose a subagent dimension we can act on without an `agent_id` discriminator. |
+
+Hook surface above derived from upstream `codex-rs/hooks/src/lib.rs:17-28`. **Verify the event list against current upstream during Phase 1 dogfood** — the upstream API was still being shaped at the time this plan was written, and event names may have changed.
+
+`hooks.json` entry shape (single example, schema is upstream-defined and Phase 1 must validate against the version of Codex shipped at the time):
+
+```json
+{
+  "version": 1,
+  "hooks": [
+    {
+      "event": "PreToolUse",
+      "command": ["/Users/<user>/.codex/hooks/party-cli-state.sh", "tool_start"],
+      "stdin": "passthrough",
+      "trusted_hash": "<sha256-hex-of-party-cli-state.sh>",
+      "_party_cli": "v1"
+    }
+  ]
+}
+```
+
+Notes on the shape:
+
+- `command` is an argv array — the script path is absolute (no `$PATH` lookup at hook-dispatch time) and the second arg is the `<action>` token consumed by `party-cli hook codex <action>`.
+- `stdin: "passthrough"` is the Codex equivalent of "forward the event JSON payload on stdin". Verify the exact field name in `codex-rs/hooks/src/config.rs` at Phase 1; this plan assumes the field exists in some form because the dumb shell script needs the payload to `exec party-cli hook codex "$1"` with stdin intact.
+- `trusted_hash` is the SHA-256 of the file at `command[0]`. Mismatch → `Modified`. Missing → `Untrusted`. Match → `Trusted`. (See `codex-rs/hooks/src/engine/discovery.rs:495-500`.)
+- `_party_cli` is our find/remove tag; Codex treats unknown keys as opaque. Round-trip preservation gated by the Phase 1 settings.json test (same as Claude — see "install.sh integration"). If round-trip is lossy, the installer falls back to the sidecar lock file `~/.codex/party-cli-hooks.lock.json` (mentioned in the round-trip safety paragraph below).
+
+`party-cli hooks status codex` surfaces trust state separately from the version-marker check. The status values are:
+
+- `Current` — script + `hooks.json` + `trusted_hash` all match; `plugin_hooks = true` present in `config.toml`.
+- `Outdated` — script or settings version-marker doesn't match, OR `plugin_hooks` flag missing/false.
+- `Untrusted` — entries present but `trusted_hash` is missing or empty (Codex won't dispatch them).
 - `Modified` — script on disk doesn't hash to the recorded `trusted_hash` (likely user-edited).
 - `NotInstalled` — neither script nor entries present.
 
-Pi sidecar uses the existing extension surface; see "Pi sidecar contract" below.
+**Uninstall.** Walk `$CODEX_HOME/hooks.json` by the `_party_cli` tag, remove matching entries only, leave the user's other hooks alone, delete the script file `$CODEX_HOME/hooks/party-cli-state.sh`. Do NOT touch `config.toml`'s `plugin_hooks` flag — other users / extensions may rely on Codex hooks generally. Parallels the Claude uninstall paragraph above.
 
-Uninstall walks settings.json by the `_party_cli` tag, removes matching entries only, leaves user's other hooks alone, deletes the script file.
+Pi sidecar uses the existing extension surface; see "Pi sidecar contract" below.
 
 #### `install.sh` integration
 
