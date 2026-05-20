@@ -19,7 +19,7 @@ claude/remote-settings.json
 
 # party-cli hook installer overlays (runtime-managed, never checked in)
 claude/settings.local.json
-claude/settings.local.json.party-cli.bak
+claude/settings.json.party-cli.bak
 claude/party-cli-hooks.lock.json
 claude/hooks/party-cli-state.sh
 codex/hooks.json
