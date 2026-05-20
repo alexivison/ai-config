@@ -275,7 +275,7 @@ non-TTY                  → skips it (assume CI)
 
 - **Hook entries are runtime-managed, not checked in.** `party-cli hooks install` writes to an overlay file that is `.gitignore`d at the repo root:
   - Claude: `~/.claude/settings.local.json` (already supported by Claude as a per-user overlay; precedence is `settings.local.json` > `settings.json`).
-  - Codex: `~/.codex/hooks.json` is the dedicated hooks file in upstream Codex (`config.toml` keeps `[features] hooks = true` only). Add `hooks.json` to `.gitignore` under `codex/`.
+  - Codex: `~/.codex/hooks.json` is the dedicated hooks file in upstream Codex (`config.toml` keeps `[features] plugin_hooks = true` only — matches existing `codex/config.toml:28-31`). Add `hooks.json` to `.gitignore` under `codex/`.
   - Pi: extension config lives at `~/.pi/extensions/`; the activity-sidecar extension itself is checked in via symlink, but any runtime-generated extension state file (e.g., `~/.pi/extensions/.party-cli-installed`) is `.gitignore`d.
 - Acceptance: after `./install.sh && ./install.sh` (idempotent), `git status` inside the repo is clean.
 
@@ -454,7 +454,7 @@ Modify:
 - `internal/sessionactivity/activity.go` — rewrite `Observation` / `Result` shape (most of the file gets simpler or moves out)
 - `internal/tui/tracker.go` + `internal/tui/tracker_actions.go` — state-driven rendering, 7-state dot palette, snippet-from-Activity; drop the `captureRoleSnippet` branch (see Delete list)
 - `internal/tui/style.go` — new dot colors per state
-- `pi/agent/extensions/activity-sidecar.ts` — the actual Pi writer (17k LOC TypeScript file). Rewrites to shell out to `party-cli hook pi <action>` while still populating the Pi-specific carry-through fields (`recent`, `session_file`, `pi_session_id`) on `state.json`. See "Pi sidecar contract" for the consumer migration.
+- `pi/agent/extensions/activity-sidecar.ts` — the actual Pi writer (~548 lines / ~17 KB TypeScript file). Rewrites to shell out to `party-cli hook pi <action>` while still populating the Pi-specific carry-through fields (`recent`, `session_file`, `pi_session_id`) on `state.json`. See "Pi sidecar contract" for the consumer migration.
 - `internal/piactivity/*` — kept as a transitional read-only adapter pointing at `state.json`. Deleted in Phase 3, not Phase 2.
 - `internal/message/message.go` — `readPiActivityOutput` switches to reading `PaneState.Recent` from `state.json` (same join semantics).
 - `internal/session/pi_resume.go` + the cleanup-script string in `internal/session/start.go:385` — point at `state.json` instead of `pi-activity.json`.
