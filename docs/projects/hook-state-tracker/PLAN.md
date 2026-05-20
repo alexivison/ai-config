@@ -109,7 +109,7 @@ party-cli hook <agent> <action> [--session <id>]
 | `tool_start` | `working` | sets `Tool` field; conditional state write (see below) |
 | `tool_end` | `working`  | clears `Tool` field; appends to log only |
 | `done`     | `done`     | from Stop hook |
-| `blocked`  | `blocked`  | from Notification hook |
+| `blocked`  | `blocked`  | from Notification hook — but only when the message indicates a genuine permission/approval prompt. Notifications whose message starts with "Claude is waiting for your input" (the idle-waiting variant, fires after Stop) are treated as informational: they update `LastKind` only and leave `State`/`Activity` alone so the pane stays `done` instead of flipping red. See Risk #5/§ Notification semantics. |
 | `stopped`  | `stopped`  | from SessionEnd / agent process exit |
 
 **Subagent rule (per-agent, not generic).** `agent_id` is Claude-specific; Codex's Stop payload has no equivalent field (`codex-rs/hooks/src/lib.rs` ~480–495). Spell out per agent in `cmd/hook.go`:
@@ -135,7 +135,7 @@ Concretely: the original "only on State change" rule is rejected. Under that rul
 | `PreToolUse:Task` | `"Agent: " + description[:60]` |
 | `PreToolUse:Grep` / `Glob` | `"Search: " + pattern[:60]` |
 | `PostToolUse` | *unchanged* (don't clobber the tool snippet) |
-| `Notification` | `"Notification: " + text[:60]` |
+| `Notification` | `"Notification: " + text[:60]` — except idle-waiting Notifications ("Claude is waiting…"), which do not update Activity (informational only). |
 | `Stop` | `"Said: " + firstline(final_assistant_text)[:60]` — read from `transcript_path` in payload |
 | `SubagentStop` | `"Subagent: " + firstline(result)[:60]` |
 | Codex equivalents | analogous mapping — degraded gracefully where Codex's hook surface is thinner |
@@ -556,7 +556,7 @@ Phase 3 work:
 | 5 | Pi sidecar version skew on user machines without symlinks | Pi sidecar (`pi/agent/extensions/activity-sidecar.ts`) is in-repo and symlinked via `install.sh`, so the cutover ships in the same PR — no cross-repo flag day. Real risk is users on stale config (non-symlink install, or `~/.pi` overridden). Mitigation: `party-cli hooks status pi` reports a sidecar extension-version marker, derived from a constant emitted by the TS extension on `before_agent_start`. Mismatched marker → `Outdated`. |
 | 6 | Streaming-text gap — assistant prose between tool calls is invisible to hooks | Accepted. Renderer shows `…` suffix when `State == working` and `LastKind ∈ {PostToolUse, UserPromptSubmit}`. If this hurts UX after dogfooding, contained recovery is option C below |
 | 7 | Tool arg leakage (Bash command lines, env vars in args) | Truncate at first newline + 60 chars; strip leading `[A-Z_]+=\S+`. Not worse than today |
-| 8 | Stop hook needs to read `transcript_path` for the "Said: …" snippet — file may be large or absent | Read tail only (last ~4KB); if file missing or parse fails, omit the Said snippet — don't fail the hook |
+| 8 | Stop hook needs to read `transcript_path` for the "Said: …" snippet — file may be large or absent | Read tail only (last ~64KB); if file missing or parse fails, omit the Said snippet — don't fail the hook. 64KB (16× the original 4KB) is empirical: real Claude transcripts append many post-message metadata records (attachment, queue-operation, system, last-prompt, custom-title, agent-name, permission-mode, pr-link, bridge-session, agent-color) AFTER the assistant message, pushing it tens of KB before EOF. 4KB undersized in observed ~1MB transcripts; 64KB covers worst case while staying inside the <20ms latency budget. |
 | 9 | Codex / Pi can't report `blocked` | Accepted as an explicit Phase 3 decision (see "Phase 3 — `blocked` polish"). 7-state palette renders 6-of-7 for Codex/Pi; `blocked` slot is reserved for future protocol additions. |
 | 10 | Codex hooks silently no-op if trust state is missing | Installer computes `trusted_hash` (SHA-256 of installed script) and writes it into `hooks.json`; `party-cli hooks status codex` reports `Untrusted` / `Modified` separately from `Current`. See "Codex installer details". |
 | 11 | Subagent suppression is Claude-shaped (Codex Stop has no `agent_id`) | Subagent rule is per-agent, not generic — see "Subagent rule" block. Codex treats every Stop as top-level; Pi has no subagent dimension. |
