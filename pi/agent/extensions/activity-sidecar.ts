@@ -1,15 +1,25 @@
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 
+const PARTY_CLI = "party-cli";
 const PARTY_SESSION = process.env.PARTY_SESSION;
-const DEFAULT_ACTIVITY_FILE = PARTY_SESSION && /^party-[A-Za-z0-9_-]+$/.test(PARTY_SESSION) ? `/tmp/${PARTY_SESSION}/pi-activity.json` : undefined;
-const ACTIVITY_FILE = process.env.PI_ACTIVITY_FILE || DEFAULT_ACTIVITY_FILE;
-const ACTIVITY_ID = process.env.PI_ACTIVITY_ID || PARTY_SESSION;
+const SIDECAR_VERSION = "phase2-v1";
 const RECENT_LIMIT = 40;
 const SNIPPET_LIMIT = 180;
 const HEARTBEAT_MS = 1_500;
-const WRITE_THROTTLE_MS = 100;
+
+type PiHookAction =
+	| "session_start"
+	| "before_agent_start"
+	| "agent_start"
+	| "message_update"
+	| "message_end"
+	| "tool_execution_start"
+	| "tool_execution_end"
+	| "agent_end"
+	| "session_shutdown";
 
 type ActivityPhase = "idle" | "thinking" | "message_update" | "tool" | "done" | "error";
 
@@ -70,6 +80,7 @@ type ActivityState = {
 	source: "pi";
 	id?: string;
 	session_id?: string;
+	pi_session_id?: string;
 	session_file?: string;
 	cwd?: string;
 	updated_at_ms: number;
@@ -257,18 +268,49 @@ function assistantUsage(message: unknown): ActivityUsageSnapshot | undefined {
 	return usageSnapshot((message as Record<string, unknown>).usage);
 }
 
-export default function (pi: ExtensionAPI) {
-	if (!ACTIVITY_FILE) return;
+function validPartySession(value: string | undefined): value is string {
+	return typeof value === "string" && /^party-[A-Za-z0-9_-]+$/.test(value);
+}
 
-	const activityPath = path.resolve(ACTIVITY_FILE);
+function markerPaths(): string[] {
+	const piHome = process.env.PI_HOME || (process.env.HOME ? path.join(process.env.HOME, ".pi") : "");
+	if (!piHome) return [];
+	return [
+		path.join(piHome, "agent", "extensions", ".party-cli-installed"),
+		path.join(piHome, "extensions", ".party-cli-installed"),
+	];
+}
+
+function writeSidecarMarker() {
+	for (const markerPath of markerPaths()) {
+		try {
+			mkdirSync(path.dirname(markerPath), { recursive: true });
+			writeFileSync(markerPath, `${SIDECAR_VERSION}\n`, "utf8");
+		} catch {
+			// Marker writes are best-effort only; never disturb Pi.
+		}
+	}
+}
+
+function promptFromBeforeAgentStart(event: unknown): string | undefined {
+	if (!event || typeof event !== "object") return undefined;
+	const record = event as Record<string, unknown>;
+	for (const key of ["prompt", "input", "message"]) {
+		const value = cleanString(record[key]);
+		if (value) return value;
+	}
+	return undefined;
+}
+
+export default function (pi: ExtensionAPI) {
 	let busy = false;
 	let phase: ActivityPhase = "idle";
 	let snippet = "";
 	let recent: string[] = [];
 	let heartbeat: NodeJS.Timeout | undefined;
-	let pendingWrite: NodeJS.Timeout | undefined;
 	let currentTool = "";
-	let sessionID = ACTIVITY_ID || "";
+	let partySessionID = validPartySession(PARTY_SESSION) ? PARTY_SESSION : "";
+	let piSessionID = "";
 	let sessionFile = "";
 	let cwd = process.cwd();
 	let model: ActivityModel | undefined;
@@ -277,30 +319,7 @@ export default function (pi: ExtensionAPI) {
 	let turn: ActivityTurn | undefined;
 	let tool: ActivityTool | undefined;
 	let usage: ActivityUsage | undefined;
-
-	function restorePreviousState() {
-		try {
-			const state = JSON.parse(readFileSync(activityPath, "utf8")) as ActivityState;
-			if (state.version !== 1 || state.source !== "pi") return;
-			const stateID = state.id || state.session_id || "";
-			if (sessionID && stateID && stateID !== sessionID) return;
-
-			const restoredRecent = (Array.isArray(state.recent) ? state.recent : [])
-				.map((line) => (typeof line === "string" ? safeLine(line) : ""))
-				.filter(Boolean)
-				.slice(-RECENT_LIMIT);
-			recent = restoredRecent;
-			snippet = safeLine(state.snippet || restoredRecent[restoredRecent.length - 1] || "");
-			model = state.model && typeof state.model === "object" ? state.model : model;
-			thinking = state.thinking && typeof state.thinking === "object" ? state.thinking : thinking;
-			contextUsage = state.context && typeof state.context === "object" ? state.context : contextUsage;
-			usage = state.usage && typeof state.usage === "object" ? state.usage : usage;
-		} catch {
-			// Missing or malformed previous sidecars are fine.
-		}
-	}
-
-	restorePreviousState();
+	let lastAction: PiHookAction | undefined;
 
 	function refreshModel(ctx: ExtensionContext) {
 		model = modelState(ctx.model) ?? model;
@@ -344,47 +363,50 @@ export default function (pi: ExtensionAPI) {
 			snippet = clean;
 			if (remember) pushRecent(clean);
 		}
-		scheduleWrite();
 	}
 
-	function writeState() {
-		pendingWrite = undefined;
+	function activityPayload(extra?: Record<string, unknown>): ActivityState & Record<string, unknown> {
+		return {
+			version: 1,
+			source: "pi",
+			...(partySessionID ? { id: partySessionID, session_id: partySessionID } : {}),
+			...(piSessionID ? { pi_session_id: piSessionID } : {}),
+			...(sessionFile ? { session_file: sessionFile } : {}),
+			...(cwd ? { cwd } : {}),
+			updated_at_ms: Date.now(),
+			busy,
+			phase,
+			...(snippet ? { snippet } : {}),
+			...(recent.length > 0 ? { recent } : {}),
+			...(model ? { model } : {}),
+			...(thinking ? { thinking } : {}),
+			...(contextUsage ? { context: contextUsage } : {}),
+			...(turn ? { turn } : {}),
+			...(tool ? { tool } : {}),
+			...(usage ? { usage } : {}),
+			...(extra ?? {}),
+		};
+	}
+
+	function emitHook(action: PiHookAction, extra?: Record<string, unknown>) {
+		lastAction = action;
+		if (!partySessionID) return;
 		try {
-			mkdirSync(path.dirname(activityPath), { recursive: true });
-			const state: ActivityState = {
-				version: 1,
-				source: "pi",
-				...(sessionID ? { id: sessionID, session_id: sessionID } : {}),
-				...(sessionFile ? { session_file: sessionFile } : {}),
-				...(cwd ? { cwd } : {}),
-				updated_at_ms: Date.now(),
-				busy,
-				phase,
-				...(snippet ? { snippet } : {}),
-				...(recent.length > 0 ? { recent } : {}),
-				...(model ? { model } : {}),
-				...(thinking ? { thinking } : {}),
-				...(contextUsage ? { context: contextUsage } : {}),
-				...(turn ? { turn } : {}),
-				...(tool ? { tool } : {}),
-				...(usage ? { usage } : {}),
-			};
-			const tmp = `${activityPath}.${process.pid}.tmp`;
-			writeFileSync(tmp, `${JSON.stringify(state)}\n`, "utf8");
-			renameSync(tmp, activityPath);
+			spawnSync(PARTY_CLI, ["hook", "pi", action], {
+				input: `${JSON.stringify(activityPayload(extra))}\n`,
+				stdio: ["pipe", "ignore", "ignore"],
+				timeout: 1_000,
+			});
 		} catch {
-			// Activity sidecar is best-effort only; never disturb Pi.
+			// Hook delivery is best-effort only; never disturb Pi.
 		}
-	}
-
-	function scheduleWrite() {
-		if (pendingWrite) return;
-		pendingWrite = setTimeout(writeState, WRITE_THROTTLE_MS);
 	}
 
 	function startHeartbeat() {
 		if (heartbeat) return;
-		heartbeat = setInterval(writeState, HEARTBEAT_MS);
+		heartbeat = setInterval(() => {
+			if (lastAction) emitHook(lastAction);
+		}, HEARTBEAT_MS);
 	}
 
 	function stopHeartbeat() {
@@ -402,17 +424,26 @@ export default function (pi: ExtensionAPI) {
 		}
 		if (busy) startHeartbeat();
 		else stopHeartbeat();
-		writeState();
 	}
 
 	pi.on("session_start", (_event, ctx) => {
 		const sessionManager = ctx.sessionManager as SessionManagerLike;
-		sessionID = ACTIVITY_ID || sessionManager.getSessionId?.() || sessionID;
+		piSessionID = sessionManager.getSessionId?.() || piSessionID;
 		sessionFile = sessionManager.getSessionFile?.() || sessionFile;
 		cwd = ctx.cwd || cwd;
 		tool = undefined;
 		refreshMetadata(ctx);
 		setBusy(false, "idle");
+		emitHook("session_start");
+	});
+
+	pi.on("before_agent_start", (event: unknown, ctx) => {
+		writeSidecarMarker();
+		cwd = ctx.cwd || cwd;
+		refreshMetadata(ctx);
+		const prompt = promptFromBeforeAgentStart(event);
+		if (prompt) setSnippet(prompt, "thinking");
+		emitHook("before_agent_start", prompt ? { prompt } : undefined);
 	});
 
 	pi.on("agent_start", (_event, ctx) => {
@@ -420,22 +451,20 @@ export default function (pi: ExtensionAPI) {
 		tool = undefined;
 		refreshMetadata(ctx);
 		setBusy(true, "thinking", "Thinking...");
+		emitHook("agent_start");
 	});
 
 	pi.on("model_select", (event: { model?: unknown }) => {
 		model = modelState(event.model) ?? model;
-		scheduleWrite();
 	});
 
 	pi.on("thinking_level_select", (event: { level?: unknown }) => {
 		const level = cleanString(event.level, 40);
 		if (level) thinking = { level };
-		scheduleWrite();
 	});
 
 	pi.on("context", (_event, ctx) => {
 		refreshContext(ctx);
-		scheduleWrite();
 	});
 
 	pi.on("turn_start", (event: { turnIndex?: unknown; timestamp?: unknown }, ctx) => {
@@ -445,7 +474,6 @@ export default function (pi: ExtensionAPI) {
 			status: "running",
 			started_at_ms: cleanNumber(event.timestamp) ?? Date.now(),
 		};
-		scheduleWrite();
 	});
 
 	pi.on("turn_end", (event: { turnIndex?: unknown; message?: unknown; toolResults?: Array<{ isError?: boolean }> }, ctx) => {
@@ -459,37 +487,30 @@ export default function (pi: ExtensionAPI) {
 			tool_calls: Array.isArray(event.toolResults) ? event.toolResults.length : undefined,
 			errors: Array.isArray(event.toolResults) ? event.toolResults.filter((result) => result?.isError).length : undefined,
 		};
-		scheduleWrite();
 	});
 
 	pi.on("message_update", (event: { message?: unknown; assistantMessageEvent?: { type?: string; delta?: unknown; content?: unknown } }) => {
 		const delta = event.assistantMessageEvent;
 		if (delta?.type === "thinking_delta" || thinkingFromContent((event.message as AgentMessage | undefined)?.content)) {
 			if (!snippet || snippet === "Thinking...") setSnippet("Thinking...", "thinking");
-			return;
-		}
-
-		if (delta?.type === "text_delta" && typeof delta.delta === "string") {
+		} else if (delta?.type === "text_delta" && typeof delta.delta === "string") {
 			setSnippet(lastTextLine(textFromMessage(event.message)) ?? lastTextLine(delta.delta), "message_update", false);
-			return;
-		}
-
-		if (delta?.type === "text_end") {
+		} else if (delta?.type === "text_end") {
 			const text = typeof delta.content === "string" ? delta.content : textFromMessage(event.message);
 			for (const line of nonEmptyLines(text).slice(-RECENT_LIMIT)) pushRecent(line);
 			setSnippet(lastTextLine(text), "message_update");
 		}
+		emitHook("message_update");
 	});
 
 	pi.on("message_end", (event: { message?: unknown }) => {
 		recordAssistantMessage(event.message);
 		const text = textFromMessage(event.message);
-		if (!text) {
-			scheduleWrite();
-			return;
+		if (text) {
+			for (const line of nonEmptyLines(text).slice(-RECENT_LIMIT)) pushRecent(line);
+			setSnippet(lastTextLine(text), "message_update");
 		}
-		for (const line of nonEmptyLines(text).slice(-RECENT_LIMIT)) pushRecent(line);
-		setSnippet(lastTextLine(text), "message_update");
+		emitHook("message_end");
 	});
 
 	pi.on("tool_execution_start", (event: ToolEvent) => {
@@ -503,6 +524,7 @@ export default function (pi: ExtensionAPI) {
 			started_at_ms: Date.now(),
 		};
 		setSnippet(currentTool, "tool");
+		emitHook("tool_execution_start");
 	});
 
 	pi.on("tool_execution_update", () => {
@@ -523,6 +545,7 @@ export default function (pi: ExtensionAPI) {
 		};
 		setSnippet(`${event.isError ? "✗" : "✓"} ${label}`, event.isError ? "error" : "tool");
 		currentTool = "";
+		emitHook("tool_execution_end");
 	});
 
 	pi.on("agent_end", (event: { messages?: unknown[] }, ctx) => {
@@ -535,14 +558,12 @@ export default function (pi: ExtensionAPI) {
 		}
 		refreshMetadata(ctx);
 		setBusy(false, "done", snippet || "Done");
+		emitHook("agent_end");
 	});
 
 	pi.on("session_shutdown", () => {
 		stopHeartbeat();
-		if (pendingWrite) {
-			clearTimeout(pendingWrite);
-			pendingWrite = undefined;
-		}
 		setBusy(false, "idle", snippet);
+		emitHook("session_shutdown");
 	});
 }
