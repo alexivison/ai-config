@@ -23,9 +23,12 @@ import (
 const doneToIdleGrace = 10 * time.Second
 
 // spinnerFrames is the rotating glyph cycle used as the "working" status
-// glyph. The arc sequence (cli-spinners "arc") is a single rotating ring
-// segment that reads cleanly at the baseline next to the "working" word.
-var spinnerFrames = []string{"◜", "◠", "◝", "◞", "◡", "◟"}
+// glyph. The cli-spinners "dots11" sequence rotates a single braille dot
+// through the 8 positions of the 2×4 dot matrix. Single-dot rotation keeps
+// the visual footprint smaller than the other status glyphs (✓ ▲ ■ ○),
+// which is hard to guarantee with partial-circle glyphs that tend to
+// occupy the full cell height in most monospace fonts.
+var spinnerFrames = []string{"⠁", "⠂", "⠄", "⡀", "⢀", "⠠", "⠐", "⠈"}
 
 // trackerMode is the input mode for the unified tracker.
 type trackerMode int
