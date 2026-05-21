@@ -49,10 +49,10 @@ Total focused engineering: ~17 days. Realistic calendar to flipping the default:
 
 Lives at `internal/tracker/daemon/`. Entry point: `daemon.Run(ctx context.Context, store *state.Store, client *tmux.Client) error`. Concerns:
 
-1. **Snapshot aggregator** (`snapshot.go`) — wraps the existing `tui.NewLiveSessionFetcher` data-gathering logic but produces a client-neutral snapshot: rows do not carry `IsCurrent`, and there is no global `CurrentSessionDetail`. fsnotify watcher on the resolved state root with manual recursive expansion where needed. 3s tmux `ListSessions` poll for liveness (state files linger after `tmux kill-session` — file events alone do not surface session death; see Agent 2 finding §5). On any event: recompute a `TrackerSnapshot`, normalize the global cursor if its row vanished, fan out to all clients.
-2. **Client registry** (`registry.go`) — `map[clientID]*conn`. Each conn carries: origin tmux session, terminal geometry, last-acked/observed snapshot seq, bounded send channel (cap 4), monotonic per-client sequence.
+1. **Snapshot aggregator** (`snapshot.go`) — wraps a new neutral snapshot seam extracted from `tui.NewLiveSessionFetcher`: rows do not carry `IsCurrent`, and there is no global `CurrentSessionDetail`. The existing embedded fetcher becomes a thin projection wrapper that applies `current SessionInfo` locally. fsnotify watcher on the resolved state root with manual recursive expansion where needed. 3s tmux `ListSessions` poll for liveness (state files linger after `tmux kill-session` — file events alone do not surface session death; see Agent 2 finding §5). On any event: recompute a neutral `TrackerSnapshot`, normalize the global cursor if its row vanished, fan out to all clients.
+2. **Client registry** (`registry.go`) — `map[clientID]*conn`. Each conn carries: origin tmux session pinned from hello, terminal geometry from hello/latest resize, last-acked/observed snapshot seq, bounded send channel (cap 4), monotonic per-client sequence.
 3. **Global cursor + observation sink** (`cursor.go`) — owns the `selected SessionID`. Owns `markSessionObserved` writeback: clients send "I observed X at T for snapshot seq S", daemon coalesces multiple observers into one `state.UpdateSessionState` call per (sessionID, tick).
-4. **Action executor** (`actions.go`) — server-side implementation of the seven `TrackerActions` methods (`tracker_actions.go:31-39`). Each RPC carries the requesting client's origin session + geometry; Delete also carries the captured next-attach target when deleting the origin session. The executor validates IDs, verifies peer UID, then invokes `session.Service`/`message.Service` with those parameters.
+4. **Action executor** (`actions.go`) — server-side implementation of the seven `TrackerActions` methods (`tracker_actions.go:31-39`). The executor derives origin session and geometry from the connection registry, not from per-RPC client claims. Action frames carry only action payload (target/text/captured next target); the executor validates IDs, verifies peer UID, then invokes `session.Service`/`message.Service` with the pinned origin context.
 
 ### What stays on the client
 
@@ -112,9 +112,9 @@ If `supported_max < got`, the client is newer than the daemon and enters replace
 
 **Client → daemon: events**
 - `{"type":"key","key":"j"}` — shared-cursor navigation only (`j`/`k`; add top/bottom keys only if embedded mode gets matching keybindings and tests)
-- `{"type":"resize","width":120,"height":40}` — on `tea.WindowSizeMsg`
+- `{"type":"resize","width":120,"height":40}` — on `tea.WindowSizeMsg`; daemon updates the connection-pinned geometry used by later Spawn/Continue actions
 - `{"type":"observed","seq":42,"session_id":"party-1741230000","at":"2026-05-21T12:00:00.500Z"}` — sent after each snapshot render; also acts as the snapshot ack for `last_acked_seq`
-- `{"type":"action","id":"<uuid>","kind":"spawn","origin_session":"party-...","origin_width":120,"origin_height":40,"target_session":"party-master","master_session":"party-master","next_attach_session":"","text":"worker title"}` — modal actions. Fields unused by a kind are empty. Delete-current-session sets `next_attach_session` to the client-captured survivor.
+- `{"type":"action","id":"<uuid>","kind":"spawn","target_session":"party-master","master_session":"party-master","next_attach_session":"","text":"worker title"}` — modal actions. Fields unused by a kind are empty. Origin session and geometry are intentionally absent; daemon uses the values pinned to this connection at hello/resize time. Delete-current-session sets `next_attach_session` to the client-captured survivor.
 - `{"type":"manifest_request","id":"<uuid>","session":"party-1741230001"}`
 - `{"type":"stats_request","id":"<uuid>"}`
 - `{"type":"bye"}`
@@ -125,7 +125,7 @@ If `supported_max < got`, the client is newer than the daemon and enters replace
 - `{"type":"stats_response","id":"<uuid>","uptime_ms":1234,"client_count":25,"last_snapshot_at":"2026-05-21T12:00:00Z","last_error":"","snapshot_count":99,"fsnotify_event_count":120}`
 - `{"type":"error","detail":"..."}` — out-of-band errors
 
-Per Agent 3 finding §2: only `Attach`, `Continue`, `Spawn`, and Delete-current need origin geometry/context. `Relay`/`Broadcast`/`ManifestJSON` do not. The protocol carries origin uniformly for simplicity — daemon ignores it where unused.
+Per Agent 3 finding §2: only `Attach`, `Continue`, `Spawn`, and Delete-current need origin geometry/context. `Relay`/`Broadcast`/`ManifestJSON` do not. Origin context is connection-pinned from hello/latest resize; if a future protocol version adds origin fields for diagnostics, the daemon must reject any value that differs from the pinned connection metadata.
 
 ### Election / spawn-on-demand
 
@@ -199,17 +199,17 @@ Startup:
 9. `tea.WindowSizeMsg` → forward `resize` to daemon.
 10. Daemon socket EOF or `tracker.alive` stale: close, re-elect. If election fails N times: fall back to embedded.
 
-The existing `TrackerModel` (`internal/tui/tracker.go:89`) is refactored: snapshot computation extracted to `internal/tui/snapshot.go` (already nearly there with `NewLiveSessionFetcher`). Render funcs (`viewSessions`, `renderStatusBar`, `renderSessionRow`, etc.) made into pure functions taking `TrackerSnapshot + RenderState`. Client model holds the daemon snapshot + client-local `RenderState`, marks `IsCurrent` locally, and calls renderers directly. Fallback must call an explicit embedded launcher that ignores `PARTY_TRACKER_MODE` so `party-cli tracker client` cannot recursively launch another client.
+The existing `TrackerModel` (`internal/tui/tracker.go:89`) is refactored in two steps: Phase 1 extracts snapshot computation from `NewLiveSessionFetcher` (`internal/tui/tracker_actions.go:140-181`) into `internal/tui/snapshot.go` as a neutral builder plus embedded projection wrapper; Phase 2 makes render funcs (`viewSessions`, `renderStatusBar`, `renderSessionRow`, etc.) pure functions taking `TrackerSnapshot + RenderState`. Client model holds the daemon snapshot + client-local `RenderState`, marks `IsCurrent` locally, and calls renderers directly. Fallback must call an explicit embedded launcher that ignores `PARTY_TRACKER_MODE` so `party-cli tracker client` cannot recursively launch another client.
 
 ### Origin-pane semantics
 
 Per Agent 3 finding §1 and "Red flags" §1, §2, §3:
 
-Every action RPC includes `origin_session`. Server-side:
+Action origin is **connection-pinned**, not trusted per RPC. The daemon records `origin_session` from the hello frame after peer-UID validation, updates width/height from resize frames, and passes only those pinned values into action execution. Server-side:
 
-- **Attach** wraps the existing `tmux run-shell -t <origin_session> "switch-client -t <target>"` pattern.
-- **Continue** and **Spawn** additionally use `origin_width`/`origin_height` to override `tmux.Client.currentClientSize` (`internal/tmux/lifecycle.go:74-99`). The current function reads `TMUX_PANE` from process env — fine for embedded mode, useless from a detached daemon. Refactor with explicit option structs: `StartOpts` and `SpawnOpts` gain `ClientWidth`/`ClientHeight`; `ContinueWithOpts(ctx, sessionID, ContinueOpts)` is added while existing `Continue(ctx, sessionID)` delegates with zero opts; tmux gets `NewSessionWithSize` or `NewSessionOpts` while `NewSession` stays as the compatibility wrapper.
-- **Delete** RPC carries `target_session`, `master_session` (for worker/ghost cleanup), and, when `target_session == origin_session`, the client-captured `next_attach_session`. The client must capture `next_attach_session` *at keypress time* (when cursor + snapshot are consistent), before dispatching Delete. Re-resolving `next` after Delete returns is incorrect — a `j` keypress between Delete-issued and Delete-returned would move the cursor and produce the wrong Attach target. The daemon performs the delete-current handoff as one server-side action (switch the origin client to the captured survivor, then kill/delete the target) before replying; otherwise the tmux session being killed can terminate the client before it sends a follow-up Attach RPC.
+- **Attach** wraps the existing `tmux run-shell -t <pinned origin_session> "switch-client -t <target>"` pattern.
+- **Continue** and **Spawn** use the connection's latest pinned width/height to override `tmux.Client.currentClientSize` (`internal/tmux/lifecycle.go:74-99`). The current function reads `TMUX_PANE` from process env — fine for embedded mode, useless from a detached daemon. Refactor with explicit option structs: `StartOpts` and `SpawnOpts` gain `ClientWidth`/`ClientHeight`; `ContinueWithOpts(ctx, sessionID, ContinueOpts)` is added while existing `Continue(ctx, sessionID)` delegates with zero opts; tmux gets `NewSessionWithSize` or `NewSessionOpts` while `NewSession` stays as the compatibility wrapper.
+- **Delete** RPC carries `target_session`, `master_session` (for worker/ghost cleanup), and, when `target_session == pinned origin_session`, the client-captured `next_attach_session`. The client must capture `next_attach_session` *at keypress time* (when cursor + snapshot are consistent), before dispatching Delete. Re-resolving `next` after Delete returns is incorrect — a `j` keypress between Delete-issued and Delete-returned would move the cursor and produce the wrong Attach target. The daemon performs the delete-current handoff as one server-side action (switch the origin client to the captured survivor, then kill/delete the target) before replying; otherwise the tmux session being killed can terminate the client before it sends a follow-up Attach RPC.
 
 ### Cursor model
 
@@ -217,7 +217,7 @@ Global cursor, per Agent 1 finding §4:
 
 - `j`/`k` keypresses move the daemon-owned `selected SessionID`. Daemon broadcasts updated `selected` in the next snapshot to all clients. Do not add `g`/`G` in daemon mode unless embedded mode gets the same keybindings and tests in the same phase.
 - Mode (relay/broadcast/spawn) is client-local. Entering relay mode in pane A does not change pane B's view.
-- `Enter` (in normal mode) sends `action attach target_session=selected origin_session=<client's PARTY_SESSION>`. The target is the global selection; the origin is the requesting client.
+- `Enter` (in normal mode) sends `action attach target_session=selected`. The target is the global selection; the origin is the requesting connection's pinned `origin_session`.
 
 This means: two users (or one user in two panes) navigating simultaneously share the cursor. If both press `j` at the same instant, last-write-wins; daemon serializes keypresses through one goroutine.
 
@@ -275,7 +275,7 @@ Bubble Tea client tested through existing `Model.Update`/`Model.View` pattern (A
 
 **Files to create:**
 - `internal/tracker/daemon/daemon.go` — `Daemon` struct, `Run(ctx)` constructor
-- `internal/tracker/daemon/snapshot.go` — fsnotify aggregator with debounce + recursive watch; produces client-neutral snapshots
+- `internal/tracker/daemon/snapshot.go` — fsnotify aggregator with debounce + recursive watch; consumes the neutral TUI snapshot seam and broadcasts client-neutral snapshots
 - `internal/tracker/daemon/server.go` — UDS listener, peer-UID validation, per-client accept goroutine, dispatch
 - `internal/tracker/daemon/election.go` — split-lock election + spawn-on-demand
 - `internal/tracker/daemon/socketpath.go` — state-root namespace + path-length fallback
@@ -290,8 +290,11 @@ Bubble Tea client tested through existing `Model.Update`/`Model.View` pattern (A
 **Files to modify:**
 - `go.mod` — add `github.com/fsnotify/fsnotify` (and promote `golang.org/x/sys` if peer-credential helpers need a direct dependency)
 - `cmd/root.go:78-99` — register `newTrackerCmd(o.store, o.client, o.repoRoot)`
+- `internal/tui/tracker_actions.go:140-181` — extract the hardcoded `current SessionInfo` projection from `NewLiveSessionFetcher` into a neutral builder (new `internal/tui/snapshot.go` is acceptable); keep `NewLiveSessionFetcher` as the embedded wrapper that applies `CurrentSessionDetail` and `IsCurrent` locally
 
 **Tests:**
+- Neutral snapshot seam test: daemon-facing builder returns ordered rows with `IsCurrent == false` for every row and zero `CurrentSessionDetail`; embedded `NewLiveSessionFetcher(current)` still marks exactly the current row and fills the header detail
+- Protocol DTO test: marshalled daemon snapshot contains no `current` object and no `is_current` field
 - Snapshot recompute fires ≥1 time after a burst of `state.json` writes settles. Phrased as "at least one recompute within 100ms of the last write," not "one recompute per write" — macOS fsnotify coalesces aggressively and would otherwise flake
 - Manifest remove and `state.json` remove both recompute so deleted sessions disappear
 - `.tmp`/`.lock`/`.jsonl*` events are ignored
@@ -338,9 +341,9 @@ Bubble Tea client tested through existing `Model.Update`/`Model.View` pattern (A
 - `internal/tmux/lifecycle.go:74-99` — add `NewSessionWithSize`/`NewSessionOpts`; `currentClientSize` uses the explicit override when non-zero and otherwise preserves the `TMUX_PANE` probe
 
 **Tests:**
-- Attach RPC routes through `run-shell -t <origin_session>`; mock asserts the exact tmux args
-- Continue with explicit `ClientWidth=200`/`Height=60` skips the `TMUX_PANE` probe
-- Spawn with explicit geometry sizes the new worker to the requesting client; spawn with no override falls back to tmux defaults
+- Attach RPC routes through `run-shell -t <pinned origin_session>` from the connection metadata; mock asserts the exact tmux args and a mismatched/forged per-RPC origin field is rejected if present
+- Continue with pinned `ClientWidth=200`/`Height=60` skips the `TMUX_PANE` probe
+- Spawn with pinned geometry sizes the new worker to the requesting client; spawn with no override falls back to tmux defaults
 - Delete-current RPC includes captured `next_attach_session`; daemon switches to that target and deletes the original session even if cursor moves before Delete returns
 - Delete ghost worker RPC carries `master_session` and still removes the orphan from the master's worker list
 - Relay round-trip: client sends action, daemon executes `message.Service.Relay`, client receives action_result
@@ -403,10 +406,11 @@ Bubble Tea client tested through existing `Model.Update`/`Model.View` pattern (A
 | 16 | Conflict with in-flight `party-cli-refactor` or `pi-third-agent` | Coordinate via PLAN status updates; daemon scaffolding (Phase 1) is additive — touches no files those plans modify. Phase 3 touches `internal/session/service.go`, which `party-cli-refactor` Phase 4 (tasks M6 + M7, Start/Continue launch unification) also touches; sequence: this plan's Phase 3 starts only after `party-cli-refactor` Phase 4 lands |
 | 17 | TODO files (`~/.claude/todos/`) and resume IDs (`/tmp/<party-id>/`) live outside the watched root (Agent 2 "Red flags" §7) | Daemon watches `claudetodos.BaseDir()` for TODO overlay refreshes (small extra watch); resume IDs only read at session-start, not in steady-state snapshot, so no extra watch needed |
 | 18 | `mode == trackerModeManifest` does synchronous `actions.ManifestJSON` on keypress (Agent 1 "Red flags" §6) | Becomes RPC `manifest_request` → `manifest_response`. Client shows spinner on `m` press until response arrives |
-| 19 | Cursor + `current.ID` coupling: relay/broadcast gating uses *client's* session, not the highlighted row (Agent 1 §4, "Red flags" §2) | Mode is client-local. Daemon broadcasts the global cursor; each client derives its own current row from `origin_session` and gates relay/broadcast/spawn locally |
-| 20 | Delete-current kills the client before it can send a follow-up Attach, or cursor moves and Attach lands on wrong target | Client captures the resolved `next` target at keypress time and includes it in the Delete RPC. Daemon performs switch-to-next + delete as one action. Test delays Delete while issuing `j`; assert Attach target matches captured `next`, not post-`j` selection |
-| 21 | Global snapshot accidentally leaks per-client fields (`Current`, `IsCurrent`) so panes render another pane as current | Wire DTO omits per-client fields; client projection sets `IsCurrent` and header locally; two-client integration test asserts different current rows from one snapshot |
-| 22 | Multiple `PARTY_STATE_ROOT` values collide on one `$XDG_RUNTIME_DIR` socket | Socket namespace includes a hash of the resolved state root; tests assert two roots get separate sockets/daemons |
+| 19 | Cursor + `current.ID` coupling: relay/broadcast gating uses *client's* session, not the highlighted row (Agent 1 §4, "Red flags" §2) | Mode is client-local. Daemon broadcasts the global cursor; each client derives its own current row from connection-pinned `origin_session` and gates relay/broadcast/spawn locally |
+| 20 | Delete-current kills the client before it can send a follow-up Attach, or cursor moves and Attach lands on wrong target | Client captures the resolved `next` target at keypress time and includes it in the Delete RPC. Daemon performs switch-to-next + delete as one action using the connection-pinned origin. Test delays Delete while issuing `j`; assert Attach target matches captured `next`, not post-`j` selection |
+| 21 | Global snapshot accidentally leaks per-client fields (`Current`, `IsCurrent`) so panes render another pane as current | Phase 1 extracts a neutral snapshot seam from `NewLiveSessionFetcher`; wire DTO omits per-client fields; client projection sets `IsCurrent` and header locally; tests assert daemon snapshots/DTOs have no `Current`/`IsCurrent` and two clients render different current rows from one snapshot |
+| 22 | Forged action frame claims another pane as `origin_session` to attach/delete/spawn from the wrong place | Origin session and geometry are connection-pinned from hello/latest resize after peer-UID validation. Action frames do not carry origin fields; if future/legacy frames include them, daemon rejects mismatches before dispatching actions |
+| 23 | Multiple `PARTY_STATE_ROOT` values collide on one `$XDG_RUNTIME_DIR` socket | Socket namespace includes a hash of the resolved state root; tests assert two roots get separate sockets/daemons |
 
 ## Rollback / migration
 
