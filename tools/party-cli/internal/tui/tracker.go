@@ -1156,19 +1156,6 @@ func (s SessionRow) displayTitle() string {
 	return s.ID
 }
 
-// currentPrimaryAgent returns the agent driving the current session, by
-// looking up the IsCurrent row in the snapshot. Used for chrome that
-// matches per-row agent identity (pane title, etc.). Empty when the
-// current row is missing or has no agent set.
-func (tm TrackerModel) currentPrimaryAgent() string {
-	for _, row := range tm.sessions {
-		if row.IsCurrent && row.PrimaryAgent != "" {
-			return row.PrimaryAgent
-		}
-	}
-	return ""
-}
-
 func (tm TrackerModel) currentSessionType() string {
 	if tm.current.SessionType != "" {
 		return tm.current.SessionType
@@ -1237,23 +1224,18 @@ func (tm TrackerModel) syncInputFrameCache() TrackerModel {
 }
 
 func (tm TrackerModel) trackerPaneTitle() string {
-	style := paneTitleStyle
-	if agent := tm.currentPrimaryAgent(); agent != "" {
-		if fg := agentIdentityStyle(agent).GetForeground(); fg != nil {
-			style = style.Foreground(fg)
-		}
-	}
+	glyph := sessionRoleIcon(tm.currentSessionType()) + " "
 	if title := tm.currentTitle(); title != "" {
 		text := title
 		if tm.current.ID != "" {
 			text = title + " (" + tm.current.ID + ")"
 		}
-		return style.Render(text)
+		return paneTitleStyle.Render(glyph + text)
 	}
 	if tm.current.ID != "" {
-		return style.Render(tm.current.ID)
+		return paneTitleStyle.Render(glyph + tm.current.ID)
 	}
-	return paneTitleStyle.Render("Party Tracker")
+	return paneTitleStyle.Render(glyph + "Party Tracker")
 }
 
 func (tm TrackerModel) currentTitle() string {
