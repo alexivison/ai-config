@@ -719,21 +719,6 @@ func truncateTitleForStatus(title string, budget int) string {
 	return ansi.Truncate(title, budget, "…")
 }
 
-// identityStyle returns the color for an active session's dot when it is
-// not currently blinking.
-func identityStyle(sessionType string) lipgloss.Style {
-	switch sessionType {
-	case "master":
-		return masterGlyphStyle
-	case "worker":
-		return workerGlyphStyle
-	case "standalone":
-		return standaloneGlyphStyle
-	default:
-		return sessionTitleStyle
-	}
-}
-
 // workerIndent is the horizontal offset applied to worker session boxes so
 // they sit beneath the master. The first 3 cells hold the tree trunk
 // (`│` / `├──┬` / `└──┬`) that connects siblings back to the master.
@@ -767,13 +752,7 @@ func (tm TrackerModel) renderSessionRow(row SessionRow, idx int, innerW int) str
 
 	title := row.displayTitle()
 
-	titleStyle := sessionTitleStyle
-	switch {
-	case row.IsCurrent:
-		titleStyle = currentSessionTitleStyle
-	case selected:
-		titleStyle = selectedSessionTitleStyle
-	}
+	titleStyle := titleStyleForRow(row.PrimaryAgent, selected, row.IsCurrent)
 
 	statusSuffix := ""
 	statusSuffixWidth := 0
@@ -1176,6 +1155,19 @@ func (s SessionRow) displayTitle() string {
 	return s.ID
 }
 
+// currentPrimaryAgent returns the agent driving the current session, by
+// looking up the IsCurrent row in the snapshot. Used for chrome that
+// matches per-row agent identity (pane title, etc.). Empty when the
+// current row is missing or has no agent set.
+func (tm TrackerModel) currentPrimaryAgent() string {
+	for _, row := range tm.sessions {
+		if row.IsCurrent && row.PrimaryAgent != "" {
+			return row.PrimaryAgent
+		}
+	}
+	return ""
+}
+
 func (tm TrackerModel) currentSessionType() string {
 	if tm.current.SessionType != "" {
 		return tm.current.SessionType
@@ -1245,8 +1237,10 @@ func (tm TrackerModel) syncInputFrameCache() TrackerModel {
 
 func (tm TrackerModel) trackerPaneTitle() string {
 	style := paneTitleStyle
-	if sessionType := tm.currentSessionType(); sessionType != "" {
-		style = style.Foreground(identityStyle(sessionType).GetForeground())
+	if agent := tm.currentPrimaryAgent(); agent != "" {
+		if fg := agentIdentityStyle(agent).GetForeground(); fg != nil {
+			style = style.Foreground(fg)
+		}
 	}
 	if title := tm.currentTitle(); title != "" {
 		text := title

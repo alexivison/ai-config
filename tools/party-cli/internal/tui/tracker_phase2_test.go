@@ -101,6 +101,40 @@ func TestActivityDotSteadyAcrossBlinkPhases(t *testing.T) {
 	}
 }
 
+// TestTitleStyleForRowUsesAgentColor pins per-row title color to the agent
+// identity, with Bold for current and selected rows. State and active /
+// inactive must not affect the title color.
+func TestTitleStyleForRowUsesAgentColor(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]lipgloss.Color{
+		"claude": lipgloss.Color("#CC785C"),
+		"codex":  lipgloss.Color("#1A73E8"),
+		"pi":     lipgloss.Color("#A371F7"),
+	}
+	for agent, want := range cases {
+		for _, selected := range []bool{false, true} {
+			for _, current := range []bool{false, true} {
+				style := titleStyleForRow(agent, selected, current)
+				got, ok := style.GetForeground().(lipgloss.Color)
+				if !ok {
+					t.Errorf("agent %q selected=%v current=%v: foreground is not lipgloss.Color", agent, selected, current)
+					continue
+				}
+				if got != want {
+					t.Errorf("agent %q selected=%v current=%v: color = %q, want %q", agent, selected, current, got, want)
+				}
+				if (selected || current) && !style.GetBold() {
+					t.Errorf("agent %q selected=%v current=%v: expected Bold", agent, selected, current)
+				}
+				if !selected && !current && style.GetBold() {
+					t.Errorf("agent %q steady row: must not be Bold", agent)
+				}
+			}
+		}
+	}
+}
+
 // TestAgentIconColors pins each PrimaryAgent value to its truecolor brand
 // hex so the activity icon stays recognisable across the tracker.
 func TestAgentIconColors(t *testing.T) {

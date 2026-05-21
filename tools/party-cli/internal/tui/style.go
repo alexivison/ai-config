@@ -29,9 +29,6 @@ var (
 
 	// Divider color — matches gh-dash's rendered border (GitHub border.muted).
 	DividerBorder = palette.DividerBorder
-
-	// party-cli-specific exception: gold for master identity text only.
-	gold = palette.MasterRole
 )
 
 // tmuxInactiveBorder is the exact hex used by tmux's `pane-border-style`
@@ -68,15 +65,10 @@ var (
 
 // Tracker styles.
 var (
-	sessionTitleStyle         = lipgloss.NewStyle()
-	selectedSessionTitleStyle = lipgloss.NewStyle().Bold(true)
-	currentSessionTitleStyle  = lipgloss.NewStyle().Foreground(Accent).Bold(true)
-	masterGlyphStyle          = lipgloss.NewStyle().Foreground(gold)
-	workerGlyphStyle          = lipgloss.NewStyle().Foreground(palette.WorkerRole)
-	standaloneGlyphStyle      = lipgloss.NewStyle().Foreground(palette.StandaloneRole)
-	stoppedGlyphStyle         = lipgloss.NewStyle().Foreground(Muted)
-	currentIndicatorStyle     = lipgloss.NewStyle().Foreground(Accent)
-	currentSessionStyle       = lipgloss.NewStyle().Bold(true)
+	sessionTitleStyle     = lipgloss.NewStyle()
+	stoppedGlyphStyle     = lipgloss.NewStyle().Foreground(Muted)
+	currentIndicatorStyle = lipgloss.NewStyle().Foreground(Accent)
+	currentSessionStyle   = lipgloss.NewStyle().Bold(true)
 	// Tree trunks and non-selected box borders share the same muted color
 	// as tmux's inactive pane border and the tracker header separators so
 	// the whole chrome reads as one layer.
@@ -118,6 +110,18 @@ func agentIdentityStyle(agent string) lipgloss.Style {
 	default:
 		return sessionTitleStyle
 	}
+}
+
+// titleStyleForRow returns the title style for a session row: agent-identity
+// color (matching the activity icon), with Bold applied for the current and
+// selected rows. State and active/inactive do not affect color — only
+// PrimaryAgent does.
+func titleStyleForRow(agent string, selected, isCurrent bool) lipgloss.Style {
+	base := agentIdentityStyle(agent)
+	if isCurrent || selected {
+		return base.Bold(true)
+	}
+	return base
 }
 
 // Status bar and key badge styles.
