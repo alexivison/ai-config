@@ -660,10 +660,11 @@ func stateGlyph(state string, spinnerFrame int) string {
 	}
 }
 
-// statusSeparator is the literal string placed between the truncated title
-// and the trailing state word. Kept in one place so the width budget and
-// the rendered line stay in sync.
-const statusSeparator = " - "
+// statusSeparator is the literal gap between the truncated title and the
+// trailing state glyph + word. The state glyph itself already visually
+// separates the two sides, so the separator is plain whitespace. Kept in
+// one place so the width budget and the rendered line stay in sync.
+const statusSeparator = "  "
 
 // statusWord returns the literal state word displayed at the end of a row's
 // title line. Starting renders as "idle (started)" so the user sees a

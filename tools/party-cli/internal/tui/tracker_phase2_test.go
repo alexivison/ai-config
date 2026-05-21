@@ -722,9 +722,9 @@ func TestActivityDotStyleAgentBased(t *testing.T) {
 	}
 }
 
-// TestRenderSessionRowSeparatorIsDim verifies the ' - ' literal between the
-// title and the status word renders in the same faint/meta style used for
-// the path/ID line, not the (potentially bold) title color. Forces a
+// TestRenderSessionRowSeparatorIsDim verifies the whitespace gap between
+// the title and the status word renders in the same faint/meta style used
+// for the path/ID line, not the (potentially bold) title color. Forces a
 // TrueColor profile so styles emit ANSI segments we can match on.
 func TestRenderSessionRowSeparatorIsDim(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.TrueColor)
@@ -749,7 +749,7 @@ func TestRenderSessionRowSeparatorIsDim(t *testing.T) {
 
 	// Cross-check: the old behaviour rendered the separator with titleStyle
 	// (sessionTitleStyle has no foreground/faint), which would emit nothing
-	// styled. Confirm we're NOT emitting the bare " - " sans styling.
+	// styled. Confirm we're NOT emitting the bare whitespace sans styling.
 	bareSeparator := sessionTitleStyle.Render(statusSeparator)
 	if wantSeparator == bareSeparator {
 		t.Fatalf("metaTextStyle render must differ from titleStyle render under TrueColor; both produced %q", wantSeparator)
@@ -799,8 +799,9 @@ func TestRenderSessionRowAppendsStatusWord(t *testing.T) {
 		}
 		tm := TrackerModel{cursor: -1, sessions: []SessionRow{row}}
 		got := tm.renderSessionRow(row, 0, 60)
-		if !strings.Contains(got, "AI Party - "+want) {
-			t.Errorf("state %q: expected %q in title line, got:\n%s", state, "AI Party - "+want, got)
+		want := "AI Party" + statusSeparator + want
+		if !strings.Contains(got, want) {
+			t.Errorf("state %q: expected %q in title line, got:\n%s", state, want, got)
 		}
 	}
 }
@@ -853,8 +854,9 @@ func TestRenderSessionRowTitleFitsWithoutEllipsis(t *testing.T) {
 	got := tm.renderSessionRow(row, 0, 60)
 	titleLine := strings.SplitN(got, "\n", 2)[0]
 
-	if !strings.Contains(titleLine, "AI Party - "+spinnerFrames[0]+" working") {
-		t.Fatalf("expected full title + status; got:\n%s", titleLine)
+	want := "AI Party" + statusSeparator + spinnerFrames[0] + " working"
+	if !strings.Contains(titleLine, want) {
+		t.Fatalf("expected full title + status %q; got:\n%s", want, titleLine)
 	}
 	if strings.Contains(titleLine, "AI Party…") || strings.Contains(titleLine, "AI Part…") {
 		t.Fatalf("title should not be truncated at innerW=60; got:\n%s", titleLine)
