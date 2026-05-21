@@ -8,16 +8,16 @@
 
 ## Why now
 
-At 5–10 master sessions with ~2–3 workers each, the tracker spawns 15–30 Bubble Tea processes. Each polls tmux + scans `~/.party-state/` independently, each holds its own cursor (so navigation drifts between panes), and each calls `markSessionObserved` on its own current session every refresh tick. That's the N×N pattern this refactor collapses to 1×N.
+**Scope: consumer-side aggregation only.** This daemon reads `state.json` files — it does not touch the per-hook fork-exec of `party-cli` that produces them. Hooks remain invoke-and-exit, writing the same `state.json` format via atomic-rename + flock exactly as today. The `hook-state-tracker/PLAN.md` ingestion model is unchanged; this PR extends it with an aggregator on the read side.
 
-The previous decision in `docs/projects/hook-state-tracker/PLAN.md:600-604` argued against a daemon on the **hook-ingestion** side, where atomic-rename + flock is simpler than introducing a long-lived process. That reasoning still holds: hooks remain invoke-and-exit, writing `state.json` exactly as today. This daemon is on the **consumer** side — a different problem.
+At 5–10 master sessions with ~2–3 workers each, the tracker spawns 15–30 Bubble Tea processes. Each polls tmux + scans `~/.party-state/` independently, each holds its own cursor (so navigation drifts between panes), and each calls `markSessionObserved` on its own current session every refresh tick. That's the N×N pattern this refactor collapses to 1×N.
 
 ## Phases
 
 | Phase | Deliverable | Effort | Depends on | Status |
 |-------|-------------|--------|------------|--------|
-| 1 | Daemon scaffolding: `party-cli tracker --daemon`, UDS server, fsnotify snapshot loop, election via flock | 5d | hook-state-tracker complete | ⏳ |
-| 2 | Client mode: `party-cli tracker --client`, snapshot protocol, render-only TUI extracted from `TrackerModel` | 4d | Phase 1 | ⏳ |
+| 1 | Daemon scaffolding: `party-cli tracker daemon`, UDS server, fsnotify snapshot loop, election via flock | 5d | hook-state-tracker complete | ⏳ |
+| 2 | Client mode: `party-cli tracker client`, snapshot protocol, render-only TUI extracted from `TrackerModel`, detach-cursor toggle | 4d | Phase 1 | ⏳ |
 | 3 | Action RPC: Attach/Continue/Relay/Broadcast/Spawn/Delete/ManifestJSON over the wire with origin-pane + client geometry | 4d | Phase 2 | ⏳ |
 | 4 | Lifecycle hardening: stale-socket cleanup, watchdog, version handshake, graceful shutdown, reconnect with embedded fallback | 3d | Phase 3 | ⏳ |
 | 5 | Dogfood + flip default `PARTY_TRACKER_MODE=daemon` | 2 calendar weeks | Phase 4 | ⏳ |
@@ -27,7 +27,7 @@ Total focused engineering: ~17 days. Realistic calendar to flipping the default:
 
 ## Definition of Done
 
-- [ ] Running 10 master sessions with workers (~25 panes): total RSS for trackers drops from ~150 MB (current, 25 × ~6 MB) to under 40 MB (1 daemon + 25 thin clients)
+- [ ] Running 10 master sessions with workers (~25 panes): per-tracker RSS drops from ~6 MB (current) to ~1–1.5 MB (thin clients) — total resident set across tracker processes drops from ~150 MB to under 40 MB including the 1 daemon. The process count itself does not change (each pane still hosts a Bubble Tea program); what drops is per-process cost (no fsnotify watcher, no aggregation, no tmux probe per pane)
 - [ ] Selection cursor stays in sync across all tracker panes (press `j` in any pane → all panes update)
 - [ ] All existing tracker actions work via the daemon: Attach jumps from the requesting pane, Continue/Spawn create sessions sized to the requesting client (`currentClientSize` no longer degrades silently), Relay/Broadcast/Delete/ManifestJSON behave identically to embedded mode
 - [ ] Daemon crash → next client trigger respawns within 2 seconds
@@ -116,12 +116,13 @@ Per Agent 3 finding §2: only `Attach`, `Continue`, `Spawn`, `Delete` need origi
 Lockfile: `<socket_dir>/tracker.pid` (sibling of the socket). PID file format: text PID + newline.
 
 **Client connect flow:**
-1. `net.Dial("unix", socketPath)`. On success, send hello, proceed.
-2. On `ENOENT` or `ECONNREFUSED`: enter election.
-3. Election: open `tracker.pid` with `O_CREATE|O_RDWR`, attempt `LOCK_EX|LOCK_NB`.
-   - **Lock acquired:** read PID, check if alive (`kill -0`). If dead or empty, fork `party-cli tracker --daemon --socket <path>` with `setsid`, redirect stdout/stderr to `<socket_dir>/tracker.log` (append, rotated by external logrotate or daemon at 10MB). Wait for daemon to bind socket (poll `Dial` with 50ms backoff, max 2s). Write daemon PID. Release lock.
+1. Check `exec.LookPath("party-cli")`. If absent, skip election entirely → immediate embedded fallback with a one-line stderr. This prevents `setsid + fork(go run .)` from `config/resolve.go:21-28` (the `go run` compile alone takes seconds and blows past the dial-backoff budget across all clients simultaneously).
+2. `net.Dial("unix", socketPath)`. On success, send hello, proceed.
+3. On `ENOENT` or `ECONNREFUSED`: enter election.
+4. Election: open `tracker.pid` with `O_CREATE|O_RDWR`, attempt `LOCK_EX|LOCK_NB`.
+   - **Lock acquired:** read PID, check if alive (`kill -0`). If dead or empty, fork `party-cli tracker daemon --socket <path>` with `setsid`, redirect stdout/stderr to `<socket_dir>/tracker.log` (append, rotated by external logrotate or daemon at 10MB). Wait for daemon to bind socket (poll `Dial` with 50ms backoff, max 2s). Write daemon PID. Release lock.
    - **Lock contested:** another client is electing. Wait up to 2s polling `Dial`.
-4. After election attempt, retry `Dial` with backoff 50/100/200/400/800 ms (5 attempts). On final failure, fall back to embedded mode, write fault marker.
+5. After election attempt, retry `Dial` with backoff 50/100/200/400/800 ms (5 attempts). On final failure, fall back to embedded mode, write fault marker.
 
 **Daemon startup:**
 1. Acquire `tracker.pid` lock (`LOCK_EX|LOCK_NB`). On failure, exit code 2 (another daemon owns it).
@@ -178,7 +179,7 @@ Every action RPC includes `origin_session`. Server-side:
 
 - **Attach** wraps the existing `tmux run-shell -t <origin_session> "switch-client -t <target>"` pattern.
 - **Continue** and **Spawn** additionally use `origin_width`/`origin_height` to override `tmux.Client.currentClientSize` (`internal/tmux/lifecycle.go:74-99`). The current function reads `TMUX_PANE` from process env — fine for embedded mode, useless from a detached daemon. Refactor: `currentClientSize` accepts an optional `(width, height)` override; `session.Service.Start`/`Continue` accept `ClientWidth`/`ClientHeight` in their opts struct.
-- **Delete** that targets the requesting client's current session chains an Attach to a survivor (`tracker.go:391-393`). In daemon mode this becomes two sequential RPCs from the client: `Delete` → on success → `Attach(next)`. Daemon does not orchestrate the chain to keep the protocol stateless per action.
+- **Delete** that targets the requesting client's current session chains an Attach to a survivor (`tracker.go:391-393`). In daemon mode this becomes two sequential RPCs from the client: `Delete` → on success → `Attach(next)`. Daemon does not orchestrate the chain to keep the protocol stateless per action. **Race-prevention requirement:** the client must capture the resolved next-target *at keypress time* (when cursor + snapshot are consistent) and stash it in the action future, *before* dispatching the Delete RPC. Re-resolving `next` after Delete returns is incorrect — a `j` keypress between Delete-issued and Delete-returned would move the cursor and produce the wrong Attach target. This preserves the synchronous-in-keypress semantic of today's `tracker.go:391-393`.
 
 ### Cursor model
 
@@ -188,7 +189,9 @@ Global cursor, per Agent 1 finding §4:
 - Mode (relay/broadcast/spawn) is client-local. Entering relay mode in pane A does not change pane B's view.
 - `Enter` (in normal mode) sends `action attach target=selected origin_session=<client's PARTY_SESSION>`. The target is the global selection; the origin is the requesting client.
 
-This means: two users (or one user in two panes) navigating simultaneously share the cursor. If both press `j` at the same instant, last-write-wins; daemon serializes keypresses through one goroutine. A future "detach cursor" toggle is deferred (see "Deferred to implementation time").
+This means: two users (or one user in two panes) navigating simultaneously share the cursor. If both press `j` at the same instant, last-write-wins; daemon serializes keypresses through one goroutine.
+
+**Detach-cursor toggle (Phase 2 design, not deferred):** a `c` keybinding flips the client into "detached cursor" mode. Detached clients render their own local cursor and ignore the daemon's `selected` broadcasts; in detached mode, `selected` is advisory. State lives entirely client-side — the protocol does not change beyond treating the broadcasted `selected` as a hint rather than authoritative. Land this in Phase 2 while the protocol is still fluid; expensive to retrofit if shared-cursor assumptions get baked into client mental models. Concretely useful for: cross-referencing two workers, watching one worker while spawning another, comparing state across rows.
 
 ### Spawn-site changes
 
@@ -209,11 +212,13 @@ func (s *Service) resolveTrackerLaunchCmd() (string, error) {
     if os.Getenv("PARTY_TRACKER_MODE") == "embedded" {
         return base, nil
     }
-    return base + " tracker --client", nil
+    return base + " tracker client", nil
 }
 ```
 
 All three sites call the new resolver. `cmd/root.go:73-75` (the no-args TUI fallback) stays — shell invocations of `party-cli` still launch embedded mode, used for ad-hoc inspection.
+
+**Runtime mode flips.** The tracker *process itself* (in `cmd/tracker.go`) also reads `PARTY_TRACKER_MODE` at startup. Effect: toggling the env in a shell + `tmux respawn-pane -t <tracker>` becomes a valid runtime flip path. Without this, the only way to flip mode mid-session is "delete and recreate the session" — too coarse to be useful for fallback-on-daemon-problem. Two reads, both cheap; the runtime read is what makes the fallback story actually usable.
 
 ### Test infrastructure
 
@@ -232,7 +237,7 @@ Bubble Tea client tested through existing `Model.Update`/`Model.View` pattern (A
 
 - Daemon stderr → `<socket_dir>/tracker.log`, append. Internal rotation at 10 MB to `.1` (one-deep, like `state.jsonl.1` precedent at `hookstate.go:289-293`).
 - Structured logging via `log/slog`. JSON output. Fields: `client_id`, `origin_session`, `protocol`, `seq`, `duration_ms`, `err`.
-- `party-cli tracker --status` subcommand: dials daemon, requests `{type:"stats"}`, prints `{uptime, client_count, last_snapshot_at, last_error, snapshot_count, fsnotify_event_count}`, exits. Useful for diagnosing whether the daemon is alive without attaching a client.
+- `party-cli tracker status` subcommand: dials daemon, requests `{type:"stats"}`, prints `{uptime, client_count, last_snapshot_at, last_error, snapshot_count, fsnotify_event_count}`, exits. Useful for diagnosing whether the daemon is alive without attaching a client.
 
 ## Sequenced rollout
 
@@ -249,14 +254,14 @@ Bubble Tea client tested through existing `Model.Update`/`Model.View` pattern (A
 - `internal/tracker/testharness/inproc.go`
 - `internal/tracker/testharness/uds.go`
 - `internal/tracker/testharness/fakes.go`
-- `cmd/tracker.go` — parent cobra command with `--daemon` and `--status` flags
+- `cmd/tracker.go` — parent cobra command + `daemon`, `client`, `status` subcommands (matches `party-cli hooks {install,status,uninstall}` pattern in `cmd/hooks.go`)
 
 **Files to modify:**
 - `go.mod` — add `github.com/fsnotify/fsnotify`
 - `cmd/root.go:78-99` — register `newTrackerCmd(o.store, o.client)`
 
 **Tests:**
-- Snapshot recompute on `state.json` MOVED_TO event
+- Snapshot recompute fires ≥1 time after a burst of `state.json` writes settles. Phrased as "at least one recompute within 100ms of the last write," not "one recompute per write" — macOS FSEvents (which fsnotify backs onto) coalesces aggressively and would otherwise flake
 - `.tmp`/`.lock`/`.jsonl*` events are ignored
 - Subdir CREATE triggers nested watch
 - Election: two would-be daemons → exactly one survives
@@ -273,7 +278,7 @@ Bubble Tea client tested through existing `Model.Update`/`Model.View` pattern (A
 **Files to modify:**
 - `internal/tui/tracker.go` — split `applySnapshot`/`updateSnippetActivity`/`preserveLastSnippets`/`markSessionObserved` from the rendering path. Snapshot-apply logic moves daemon-side; render funcs become pure
 - `internal/tui/app.go:17-24` — `Launch()` reads `PARTY_TRACKER_MODE`. Default `embedded` (Phase 2); switches to `daemon` at Phase 5
-- `cmd/tracker.go` — `--client` flag wires up the client model
+- `cmd/tracker.go` — `client` subcommand wires up the client model; also has the detach-cursor toggle (`c` keybinding) per the Cursor model design section
 
 **Tests:**
 - Client connects, receives 3 snapshots, renders the third
@@ -322,9 +327,9 @@ Bubble Tea client tested through existing `Model.Update`/`Model.View` pattern (A
 
 - Use daemon mode personally for 1 week.
 - Add `PARTY_TRACKER_MODE=daemon` to `install.sh setup_party_cli` as the default; allow opt-out via `PARTY_TRACKER_MODE=embedded` in `~/.config/party-cli/config.toml`.
-- Write `docs/projects/tracker-daemon/README.md`: how to debug (`tracker --status`, log location, fault file), how to disable, how to restart (`tracker --restart` Phase 6 candidate).
+- Write `docs/projects/tracker-daemon/README.md`: how to debug (`tracker status`, log location, fault file), how to disable, how to restart (`tracker restart` Phase 6 candidate).
 - Update top-level `README.md` to mention the daemon as the default tracker substrate.
-- Surface in commit summary that this reverses `hook-state-tracker/PLAN.md:600-604` on the consumer side only.
+- Cross-link in commit summary: this PR extends `hook-state-tracker/PLAN.md` with a consumer-side aggregator; the hook-ingestion path is unchanged.
 
 ### Phase 6 — Remove embedded mode (1d, after one release of soak)
 
@@ -337,49 +342,50 @@ Bubble Tea client tested through existing `Model.Update`/`Model.View` pattern (A
 
 | # | Risk | Mitigation |
 |---|------|------------|
-| 1 | Reverses anti-daemon principle from `hook-state-tracker/PLAN.md:600-604` | Document in PR description: that decision was about hook *ingestion*; this is consumer-side; embedded mode remains as fallback for the lifetime of Phase 5 + one release |
+| 1 | Reviewer mis-reads this as reversing the anti-daemon principle from `hook-state-tracker/PLAN.md:600-604` | Frame as additive: this is a consumer-side aggregator for the same file-based state contract. The hook-ingestion model (invoke-and-exit, atomic-rename, flock) is unchanged. Make this explicit in the PR description, the "Why now" section header, and Phase 5 commit summary |
 | 2 | UDS socket lifecycle bugs (stale sockets, election races, restart corruption) | flock-based election + try-connect-then-unlink-rebind protocol; concurrent-spawn integration test in Phase 1 |
 | 3 | Daemon crash leaves clients stuck | Watchdog `tracker.alive` file with 15s stale threshold; client reconnects with backoff; fallback to embedded after N failures |
 | 4 | Version skew during upgrade | Protocol version in hello; daemon rejects incompatible clients with explicit `supported` list; client falls back to embedded |
 | 5 | `currentClientSize` silently degrades for daemon-spawned sessions (Agent 3 "Red flags" §1) | Pass `ClientWidth`/`ClientHeight` in every Spawn/Continue RPC; `currentClientSize` accepts override; integration test asserts new session is sized to requester |
-| 6 | New attack surface: UDS socket | Per-user socket at user-only path, mode 0600; validate peer credentials via `SO_PEERCRED` (Linux) / `LOCAL_PEERCRED` (macOS); treat protocol input as untrusted, bound message size at 1 MB |
+| 6 | New attack surface: UDS socket | Per-user socket at user-only path, mode 0600; validate peer UID matches our own via `SO_PEERCRED` (Linux, returns `struct ucred {pid,uid,gid}`) / `getpeereid` (macOS, returns uid+gid); treat protocol input as untrusted; bound message size at 1 MB |
 | 7 | No multi-process test harness exists (Agent 5 "Red flags" §1) | Build `internal/tracker/testharness/` as a Phase 1 deliverable, mandatory for Phases 2–4 |
 | 8 | fsnotify event noise from `.tmp`/`.lock`/`.jsonl*` files (Agent 2 "Red flags" §1, §3, §4) | Filter by basename; 50ms debounce; tested in `snapshot_test.go` |
 | 9 | tmux liveness still requires polling because state files linger after `kill-session` (Agent 2 §5) | Keep 3s `ListSessions` poll daemon-side — but once per daemon, not per pane. Net cost drops ~N× |
 | 10 | Picker (`cmd/picker.go`) and `cmd/sessions.go` JSON bypass the daemon (Agent 4 §7, §9) | Out of scope. They continue reading state files directly. Daemon is purely additive |
-| 11 | Cold-start `go run .` fallback (`config/resolve.go:21-28`) doubles compile cost in daemon mode | Document in `install.sh`: daemon mode requires installed `party-cli` binary; uninstalled mode prints a one-line warning and stays embedded |
-| 12 | Snapshot fan-out blocking on slow client | Bounded per-client send channel (capacity 4); on overflow, drop oldest non-current frame; daemon goroutine never blocks |
+| 11 | Cold-start `go run .` fallback (`config/resolve.go:21-28`) blows past the 1.55 s dial-backoff budget in daemon mode (multi-second Go compile alone exhausts it across all clients simultaneously) | Client checks `exec.LookPath("party-cli")` **before** entering election (step 1 of Client connect flow). If absent → skip election → immediate embedded fallback with one-line stderr. Never trigger `setsid + fork(go run .)` from the election path |
+| 12 | Snapshot fan-out blocking on slow client; redundant broadcasts under sustained hook bursts | Bounded per-client send channel (capacity 4); on overflow, drop oldest non-current frame; daemon goroutine never blocks. Additionally: hash the serialized snapshot before broadcasting; if identical to last broadcast, skip the fan-out entirely. Under tool-storm (~20 Hz debounce ticks) this saves ~25 clients × ~5 KB × 20 Hz ≈ 2.5 MB/s on UDS plus matching client-side decode + render cost |
 | 13 | `markSessionObserved` ownership confusion (daemon vs. client) | Daemon owns the write; clients send `observed` events; daemon coalesces by (session_id, tick) before one write per session per refresh |
 | 14 | Pane SIGHUP on tmux session-close doesn't notify daemon of dead clients (Agent 4 §5) | Daemon detects via socket EOF + periodic `tmux list-clients` reconciliation; clients whose origin session is gone are reaped |
 | 15 | Fallback to embedded silently hides daemon failures | When fallback triggers, write one-line stderr to client pane + fault file at `<socket_dir>/tracker.fault` with timestamp + reason |
-| 16 | Conflict with in-flight `party-cli-refactor` or `pi-third-agent` | Coordinate via PLAN status updates; daemon scaffolding (Phase 1) is additive — touches no files those plans modify. Phase 3 touches `internal/session/service.go` which `party-cli-refactor` also touches; sequence: this plan starts only after `party-cli-refactor` reaches Phase X stable |
+| 16 | Conflict with in-flight `party-cli-refactor` or `pi-third-agent` | Coordinate via PLAN status updates; daemon scaffolding (Phase 1) is additive — touches no files those plans modify. Phase 3 touches `internal/session/service.go`, which `party-cli-refactor` Phase 4 (tasks M6 + M7, Start/Continue launch unification) also touches; sequence: this plan's Phase 3 starts only after `party-cli-refactor` Phase 4 lands |
 | 17 | TODO files (`~/.claude/todos/`) and resume IDs (`/tmp/<party-id>/`) live outside the watched root (Agent 2 "Red flags" §7) | Daemon watches `~/.claude/todos/` for TODO overlay refreshes (small extra watch); resume IDs only read at session-start, not in steady-state snapshot, so no extra watch needed |
 | 18 | `mode == trackerModeManifest` does synchronous `actions.ManifestJSON` on keypress (Agent 1 "Red flags" §6) | Becomes RPC `manifest_request` → `manifest_response`. Client shows spinner on `m` press until response arrives |
 | 19 | Cursor + `current.ID` coupling: relay/broadcast gating uses *client's* session, not the highlighted row (Agent 1 §4, "Red flags" §2) | Mode is client-local. Daemon broadcasts the global cursor; each client gates relay/broadcast based on its own `origin_session`'s session_type, sent in hello and refreshed on snapshot |
+| 20 | Delete→Attach chain race: cursor moves between the two RPCs and Attach lands on wrong target | Client captures the resolved `next` target at keypress time and stashes it in the action future *before* dispatching Delete. Never re-resolve `next` after Delete returns. Tested with an in-proc daemon that delays Delete response while the test issues `j` keypresses; assert the Attach target matches the captured `next`, not the post-`j` selection |
 
 ## Deferred to implementation time
 
 - Whether to switch the wire format from line-delimited JSON to length-prefixed JSON or protobuf — measure first; JSON is fine until profiling shows otherwise
 - Exact watchdog cadence beyond the 5s baseline
-- Whether to expose `party-cli tracker --inspect` (full internal state dump) in addition to `--status`
+- Whether to expose `party-cli tracker inspect` (full internal state dump) in addition to `status`
 - Whether to support multiple concurrent daemons on the same host scoped to different `PARTY_STATE_ROOT` values (out of scope for v1; XDG keys socket name implicitly)
-- Whether to add a "detach cursor" client-side toggle for users who want to navigate independently. Defer until users ask
 - Log rotation: ship in v1 (10 MB → `.1`), or punt to external logrotate
-- Whether the `--restart` admin command lands in Phase 5 or Phase 6
+- Whether the `restart` admin subcommand lands in Phase 5 or Phase 6
 
 ## Out of scope
 
-- `cmd/picker.go` migration to daemon (it stays file-backed; SketchyBar consumes its JSON)
+- `cmd/picker.go` migration to daemon (it stays file-backed; SketchyBar consumes its JSON). Note: the picker has its own scaling concern — it captures 500 lines of scrollback per session preview (`internal/picker/picker.go:287, 350`), which already hits tmux hard when scrolling fast through many sessions. This PR does not address that; a separate effort would.
 - `cmd/sessions.go` JSON output migration (used by SketchyBar; remains file-backed)
 - Web dashboard, menubar app, or any non-tmux client — the daemon makes these possible later, but they are separate projects
 - Adding new tracker UI actions (promote, kill, read, report) — separate work, would extend the action RPC surface
 - Replacing the file-based hook → `state.json` pipeline — this daemon consumes it
 - Running the daemon as a systemd or launchd service — auto-spawn-on-demand via flock is simpler and sufficient
 - Cross-user daemon sharing — per-user only
+- **Hook-side fork-exec cost.** Every hook event (PreToolUse / PostToolUse / Stop / SessionStart / UserPromptSubmit) shells out to `party-cli hook <agent> <event>` via `tools/party-cli/internal/hooks/assets/party-cli-state.sh:5`. That's a `/bin/sh` fork + `exec` of the full `party-cli` binary + Go runtime startup + JSON parse + flock + atomic rename per event. At dozens of events/min per agent × N agents this is a real bottleneck on the *agent's* hot path (each PreToolUse delays the tool call). This PR does not address it — a sibling "hook daemon" effort would. They are orthogonal: this daemon **consumes** `state.json`; a hook daemon would **produce** it. Distinct processes, distinct sockets, distinct failure modes
 
 ## Prior art
 
-- **`docs/projects/hook-state-tracker/PLAN.md`** — defines the file-based state pipeline this daemon consumes. The "Why a different mechanism here" section (lines 600–604) argues against a daemon for *hook* ingestion. That reasoning still holds; this daemon is on the *consumer* side and addresses N×N tracker scaling, a problem hook-state-tracker does not address.
+- **`docs/projects/hook-state-tracker/PLAN.md`** — defines the file-based state pipeline this daemon consumes. Its "Why a different mechanism here" section (lines 600–604) argues against a daemon for hook *ingestion*; this PR is additive to that contract on the consumer side and leaves the ingestion model untouched.
 - **`internal/state/store.go` and `internal/state/hookstate.go`** — atomic write via temp + `os.Rename`, lock-free reads. The daemon's snapshot aggregator depends on this contract.
 - **`tmux run-shell -t <session> "switch-client -t <target>"`** in `internal/tui/tracker_actions.go:68-71` — the existing daemon-safe pattern for `switch-client`. Generalized to all origin-pane-bound actions in this plan.
 - **`TrackerActions` interface** (`internal/tui/tracker_actions.go:31-39`) — the existing seam for action injection. The daemon implements one variant; the client a stub variant.
