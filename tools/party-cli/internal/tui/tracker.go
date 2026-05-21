@@ -23,10 +23,9 @@ import (
 const doneToIdleGrace = 10 * time.Second
 
 // spinnerFrames is the rotating glyph cycle used as the "working" status
-// glyph. The dense-braille sequence fills the cell (unlike upper-only
-// sparse braille), so the spinner reads as continuous motion centered
-// next to the "working" word.
-var spinnerFrames = []string{"⣷", "⣯", "⣟", "⡿", "⢿", "⣻", "⣽", "⣾"}
+// glyph. The arc sequence (cli-spinners "arc") is a single rotating ring
+// segment that reads cleanly at the baseline next to the "working" word.
+var spinnerFrames = []string{"◜", "◠", "◝", "◞", "◡", "◟"}
 
 // trackerMode is the input mode for the unified tracker.
 type trackerMode int
@@ -661,10 +660,11 @@ func stateGlyph(state string, spinnerFrame int) string {
 }
 
 // statusSeparator is the literal gap between the truncated title and the
-// trailing state glyph + word. The state glyph itself already visually
-// separates the two sides, so the separator is plain whitespace. Kept in
-// one place so the width budget and the rendered line stay in sync.
-const statusSeparator = "  "
+// trailing state glyph + word. A single space keeps the status close to
+// the title without crowding it; the state glyph itself already provides
+// visual separation. Kept in one place so the width budget and the
+// rendered line stay in sync.
+const statusSeparator = " "
 
 // statusWord returns the literal state word displayed at the end of a row's
 // title line. Starting renders as "idle (started)" so the user sees a
@@ -1251,20 +1251,21 @@ func (tm TrackerModel) currentTitle() string {
 	}
 }
 
-// sessionRoleIcon returns the meta-row glyph for a session's role. Master
-// sessions get a king, workers get a pawn, standalone sessions get a knight.
-// Unknown or empty roles fall back to the king so masters with a missing
-// SessionType stay visible.
+// sessionRoleIcon returns the meta-row letter for a session's role. Master
+// sessions get "M", workers get "W", standalone sessions get "S". Unknown
+// or empty roles fall back to "M" so masters with a missing SessionType
+// stay visible. Letters read more reliably than chess pieces in monospace
+// fonts.
 func sessionRoleIcon(sessionType string) string {
 	switch sessionType {
 	case "master":
-		return "♚"
+		return "M"
 	case "worker":
-		return "♟"
+		return "W"
 	case "standalone":
-		return "♞"
+		return "S"
 	default:
-		return "♚"
+		return "M"
 	}
 }
 
