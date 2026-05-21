@@ -565,6 +565,22 @@ func TestRenderSessionRowSeparatorIsDim(t *testing.T) {
 	}
 }
 
+// TestDividerLineStyleMatchesTmuxInactiveBorder pins the tracker's title
+// separator to tmux's pane-border-style hex (#373e47 in dotfiles/.tmux.conf)
+// so the two lines render as a single continuous rule.
+func TestDividerLineStyleMatchesTmuxInactiveBorder(t *testing.T) {
+	t.Parallel()
+
+	got, ok := dividerLineStyle.GetForeground().(lipgloss.Color)
+	if !ok {
+		t.Fatalf("dividerLineStyle foreground is not lipgloss.Color: %T", dividerLineStyle.GetForeground())
+	}
+	const want = lipgloss.Color("#373e47")
+	if got != want {
+		t.Fatalf("dividerLineStyle foreground = %q, want tmux inactive border %q", got, want)
+	}
+}
+
 // TestRenderSessionRowAppendsStatusWord checks the basic appearance: each
 // state renders the literal word at the end of the title line.
 func TestRenderSessionRowAppendsStatusWord(t *testing.T) {
