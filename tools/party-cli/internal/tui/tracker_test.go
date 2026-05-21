@@ -215,11 +215,14 @@ func TestTrackerViewShowsHierarchy(t *testing.T) {
 			t.Fatalf("did not expect agent marker %q in snippet view (should be stripped), got:\n%s", marker, view)
 		}
 	}
-	if !strings.Contains(view, "⚔ party-1230") {
-		t.Fatalf("expected ⚔ icon on master metadata row, got:\n%s", view)
+	if !strings.Contains(view, "♚ party-1230") {
+		t.Fatalf("expected ♚ icon on master metadata row, got:\n%s", view)
 	}
-	if !strings.Contains(view, "⚔ party-1231") {
-		t.Fatalf("expected ⚔ icon on worker metadata row, got:\n%s", view)
+	if !strings.Contains(view, "♟ party-1231") {
+		t.Fatalf("expected ♟ icon on worker metadata row, got:\n%s", view)
+	}
+	if !strings.Contains(view, "♞ party-1236") {
+		t.Fatalf("expected ♞ icon on standalone metadata row, got:\n%s", view)
 	}
 	if !strings.Contains(view, "┃") {
 		t.Fatalf("expected worker tree connector in view, got:\n%s", view)
@@ -471,7 +474,7 @@ func TestTrackerRenderSessionRowSelectedRowTintCoversStyledLines(t *testing.T) {
 	selectedDot := renderTrackerANSI(selectedRowStyle.Inherit(agentIdentityStyle("claude")), "\U000f06c4")
 	selectedGap := renderTrackerANSI(selectedRowStyle, " ")
 	selectedSnippetBar := renderTrackerANSI(selectedRowStyle.Inherit(snippetBarStyle), "|")
-	selectedMeta := renderTrackerANSI(selectedRowStyle.Inherit(metaTextStyle), "⚔ "+row.ID)
+	selectedMeta := renderTrackerANSI(selectedRowStyle.Inherit(metaTextStyle), "♟ "+row.ID)
 
 	for i, line := range lines {
 		if gotW := ansi.StringWidth(line); gotW != innerW {
@@ -531,7 +534,7 @@ func TestTrackerRenderSessionRowKeepsFullLayoutAtNarrowWidth(t *testing.T) {
 	if !strings.Contains(lines[1], selectedSnippetBar) {
 		t.Fatalf("selected snippet line missing tinted snippet bar\n%q", lines[1])
 	}
-	if !strings.Contains(lines[2], "⚔") {
+	if !strings.Contains(lines[2], "♟") {
 		t.Fatalf("selected narrow row missing metadata line\n%q", lines[2])
 	}
 }

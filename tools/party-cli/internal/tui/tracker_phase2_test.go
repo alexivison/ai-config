@@ -103,25 +103,54 @@ func TestActivityDotSteadyAcrossBlinkPhases(t *testing.T) {
 
 // TestTitleStyleForRowIsNeutral pins per-row title styling to no foreground
 // color (agent identity is already carried by the leading activity icon, so
-// the title stays neutral) and Bold only when the row is current or
-// selected. State and active/inactive must not affect the title style.
+// the title stays neutral). The current row (active pane) gets
+// Bold+Underline, the cursor-selected row gets Bold only, both-true keeps
+// current's combination, and a steady row stays plain.
 func TestTitleStyleForRowIsNeutral(t *testing.T) {
 	t.Parallel()
 
+	cases := []struct {
+		selected, current   bool
+		wantBold, wantUnder bool
+	}{
+		{selected: false, current: false, wantBold: false, wantUnder: false},
+		{selected: true, current: false, wantBold: true, wantUnder: false},
+		{selected: false, current: true, wantBold: true, wantUnder: true},
+		{selected: true, current: true, wantBold: true, wantUnder: true},
+	}
 	for _, agent := range []string{"claude", "codex", "pi", "unknown"} {
-		for _, selected := range []bool{false, true} {
-			for _, current := range []bool{false, true} {
-				style := titleStyleForRow(agent, selected, current)
-				if _, isNoColor := style.GetForeground().(lipgloss.NoColor); !isNoColor {
-					t.Errorf("agent %q selected=%v current=%v: title must have no foreground, got %#v", agent, selected, current, style.GetForeground())
-				}
-				if (selected || current) && !style.GetBold() {
-					t.Errorf("agent %q selected=%v current=%v: expected Bold", agent, selected, current)
-				}
-				if !selected && !current && style.GetBold() {
-					t.Errorf("agent %q steady row: must not be Bold", agent)
-				}
+		for _, tc := range cases {
+			style := titleStyleForRow(agent, tc.selected, tc.current)
+			if _, isNoColor := style.GetForeground().(lipgloss.NoColor); !isNoColor {
+				t.Errorf("agent %q selected=%v current=%v: title must have no foreground, got %#v", agent, tc.selected, tc.current, style.GetForeground())
 			}
+			if got := style.GetBold(); got != tc.wantBold {
+				t.Errorf("agent %q selected=%v current=%v: Bold = %v, want %v", agent, tc.selected, tc.current, got, tc.wantBold)
+			}
+			if got := style.GetUnderline(); got != tc.wantUnder {
+				t.Errorf("agent %q selected=%v current=%v: Underline = %v, want %v", agent, tc.selected, tc.current, got, tc.wantUnder)
+			}
+		}
+	}
+}
+
+// TestSessionRoleIconPerType pins the meta-row chess glyph for each
+// session role: master → king, worker → pawn, standalone → knight, and
+// unknown / empty falls back to the king so masters with a missing
+// SessionType stay visible.
+func TestSessionRoleIconPerType(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]string{
+		"master":     "♚",
+		"worker":     "♟",
+		"standalone": "♞",
+		"":           "♚",
+		"unknown":    "♚",
+	}
+	for sessionType, want := range cases {
+		if got := sessionRoleIcon(sessionType); got != want {
+			t.Errorf("sessionRoleIcon(%q) = %q, want %q", sessionType, got, want)
 		}
 	}
 }
@@ -227,12 +256,13 @@ func TestSpinnerAdvancesOnSpinnerTick(t *testing.T) {
 }
 
 // TestSpinnerFramesAreBaselineAligned pins the spinner frames to the
-// vertically centered set so the working glyph reads on the same baseline
-// as the trailing "working" word.
+// dense-braille 8-frame set so the working glyph fills the cell (vs the
+// upper-only sparse braille that floats above the baseline) and reads as
+// continuous motion at ~10fps.
 func TestSpinnerFramesAreBaselineAligned(t *testing.T) {
 	t.Parallel()
 
-	want := []string{"◐", "◓", "◑", "◒"}
+	want := []string{"⣷", "⣯", "⣟", "⡿", "⢿", "⣻", "⣽", "⣾"}
 	if len(spinnerFrames) != len(want) {
 		t.Fatalf("spinnerFrames length = %d, want %d", len(spinnerFrames), len(want))
 	}
@@ -407,7 +437,7 @@ func TestDoneToIdleObservedTransition(t *testing.T) {
 	}
 }
 
-// TestDoneToIdleGraceWindow verifies the 5s grace window: a "done" pane
+// TestDoneToIdleGraceWindow verifies the grace window: a "done" pane
 // must stay done until at least doneToIdleGrace has elapsed since the
 // most recent hook event. Without the grace, the per-session tracker
 // pane (which refreshes ~1s) clobbers the cyan glyph before anyone sees
@@ -419,7 +449,7 @@ func TestDoneToIdleGraceWindow(t *testing.T) {
 		wantState string
 	}{
 		{name: "within_grace", sinceLast: 1 * time.Second, wantState: "done"},
-		{name: "past_grace", sinceLast: 6 * time.Second, wantState: "idle"},
+		{name: "past_grace", sinceLast: 11 * time.Second, wantState: "idle"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -20,13 +20,13 @@ import (
 // auto-flips it to idle. The tracker refresh tick runs ~1s, so without a
 // grace window the user (and any other tracker pane) almost never sees the
 // post-Stop green glyph.
-const doneToIdleGrace = 5 * time.Second
+const doneToIdleGrace = 10 * time.Second
 
 // spinnerFrames is the rotating glyph cycle used as the "working" status
-// glyph. The filled-half-circle sequence is baseline-aligned (no upper-
-// only dots), so the spinner sits vertically centered next to the
-// "working" word rather than floating above it.
-var spinnerFrames = []string{"◐", "◓", "◑", "◒"}
+// glyph. The dense-braille sequence fills the cell (unlike upper-only
+// sparse braille), so the spinner reads as continuous motion centered
+// next to the "working" word.
+var spinnerFrames = []string{"⣷", "⣯", "⣟", "⡿", "⢿", "⣻", "⣽", "⣾"}
 
 // trackerMode is the input mode for the unified tracker.
 type trackerMode int
@@ -821,9 +821,9 @@ func (tm TrackerModel) renderSessionRow(row SessionRow, idx int, innerW int) str
 		lines = append(lines, overlayLine)
 	}
 
-	// Meta: ⚔ id and folder/path, left-aligned with a 2-space gap.
+	// Meta: role glyph + id and folder/path, left-aligned with a 2-space gap.
 	available := innerW - lipgloss.Width(contPrefix)
-	idText := "⚔ " + row.ID
+	idText := sessionRoleIcon(row.SessionType) + " " + row.ID
 	metaPath := ""
 	metaContent := metaTextStyle.Render(idText)
 	if p := shortHomePath(row.Cwd); p != "" {
@@ -1265,6 +1265,23 @@ func (tm TrackerModel) currentTitle() string {
 		return tm.current.Manifest.Title
 	default:
 		return ""
+	}
+}
+
+// sessionRoleIcon returns the meta-row glyph for a session's role. Master
+// sessions get a king, workers get a pawn, standalone sessions get a knight.
+// Unknown or empty roles fall back to the king so masters with a missing
+// SessionType stay visible.
+func sessionRoleIcon(sessionType string) string {
+	switch sessionType {
+	case "master":
+		return "♚"
+	case "worker":
+		return "♟"
+	case "standalone":
+		return "♞"
+	default:
+		return "♚"
 	}
 }
 
