@@ -1251,21 +1251,21 @@ func (tm TrackerModel) currentTitle() string {
 	}
 }
 
-// sessionRoleIcon returns the meta-row letter for a session's role. Master
-// sessions get "M", workers get "W", standalone sessions get "S". Unknown
-// or empty roles fall back to "M" so masters with a missing SessionType
-// stay visible. Letters read more reliably than chess pieces in monospace
-// fonts.
+// sessionRoleIcon returns the meta-row glyph for a session's role.
+// Adventuring-party iconography: masters get crossed swords, workers get
+// a hammer-and-pick, standalone sessions get a Maltese cross. Unknown or
+// empty roles fall back to the master glyph so masters with a missing
+// SessionType stay visible.
 func sessionRoleIcon(sessionType string) string {
 	switch sessionType {
 	case "master":
-		return "M"
+		return "⚔"
 	case "worker":
-		return "W"
+		return "⚒"
 	case "standalone":
-		return "S"
+		return "✠"
 	default:
-		return "M"
+		return "⚔"
 	}
 }
 

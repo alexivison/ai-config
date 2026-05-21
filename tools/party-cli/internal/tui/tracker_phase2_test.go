@@ -134,18 +134,18 @@ func TestTitleStyleForRowIsNeutral(t *testing.T) {
 	}
 }
 
-// TestSessionRoleIconPerType pins the meta-row letter for each session
-// role: master → M, worker → W, standalone → S, and unknown / empty
-// falls back to M so masters with a missing SessionType stay visible.
+// TestSessionRoleIconPerType pins the meta-row glyph for each session
+// role: master → ⚔, worker → ⚒, standalone → ✠, and unknown / empty
+// falls back to ⚔ so masters with a missing SessionType stay visible.
 func TestSessionRoleIconPerType(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]string{
-		"master":     "M",
-		"worker":     "W",
-		"standalone": "S",
-		"":           "M",
-		"unknown":    "M",
+		"master":     "⚔",
+		"worker":     "⚒",
+		"standalone": "✠",
+		"":           "⚔",
+		"unknown":    "⚔",
 	}
 	for sessionType, want := range cases {
 		if got := sessionRoleIcon(sessionType); got != want {
