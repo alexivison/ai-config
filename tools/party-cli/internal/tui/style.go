@@ -91,22 +91,34 @@ var (
 	selectedRowStyle       = lipgloss.NewStyle().Background(palette.SelectedRowBg)
 )
 
-// dimActivityStyle renders the activity dot's "blink off" half — a muted
-// grey that the identity-coloured dot alternates with while the agent is
-// generating.
+// 7-state status styles. The activity icon now carries the agent identity
+// (see agentIdentityStyle); the per-state foreground here drives the new
+// status glyph and word. Standard ANSI codes so the terminal theme picks
+// the actual hue.
 var (
-	dimActivityStyle = lipgloss.NewStyle().Foreground(palette.ActivityDim)
+	workingGlyphStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
+	blockedGlyphStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
+	doneGlyphStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
+	idleGlyphStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 )
 
-// 7-state activity dot styles. Glyph choice and animation live in
-// tracker.go (activityGlyph / activityDotStyle); these styles only carry
-// the per-state foreground / weight. Colors are standard ANSI codes so
-// the terminal theme picks the actual hue.
-var (
-	blockedGlyphStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
-	doneGlyphStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("14"))
-	idleGlyphStyle    = lipgloss.NewStyle().Foreground(palette.Muted)
-)
+// agentIdentityStyle returns the activity-icon style for an agent. The icon
+// always carries the agent identity (Claude coral / Codex blue / Pi purple)
+// regardless of session role, so a glance at the dot identifies the engine
+// driving the row. Unknown agents fall back to the muted session-title
+// style so the row still renders.
+func agentIdentityStyle(agent string) lipgloss.Style {
+	switch agent {
+	case "claude":
+		return lipgloss.NewStyle().Foreground(palette.ClaudeColor)
+	case "codex":
+		return lipgloss.NewStyle().Foreground(palette.CodexColor)
+	case "pi":
+		return lipgloss.NewStyle().Foreground(palette.PiColor)
+	default:
+		return sessionTitleStyle
+	}
+}
 
 // Status bar and key badge styles.
 var (

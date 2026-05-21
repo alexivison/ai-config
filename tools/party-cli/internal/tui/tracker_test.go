@@ -193,9 +193,9 @@ func TestTrackerViewShowsHierarchy(t *testing.T) {
 			t.Fatalf("expected title icon %q in view, got:\n%s", needle, view)
 		}
 	}
-	// Sessions without a recognized agent fall back to \u25cf as the activity glyph.
-	if !strings.Contains(view, "\u25cf no-agent") {
-		t.Fatalf("expected \u25cf fallback glyph for agentless session, got:\n%s", view)
+	// Sessions without a recognized agent fall back to '\u25cb' as the activity glyph.
+	if !strings.Contains(view, "\u25cb no-agent") {
+		t.Fatalf("expected \u25cb fallback glyph for agentless session, got:\n%s", view)
 	}
 	for _, needle := range []string{"party-1231", "/tmp/fix-auth"} {
 		if !strings.Contains(view, needle) {
@@ -468,7 +468,7 @@ func TestTrackerRenderSessionRowSelectedRowTintCoversStyledLines(t *testing.T) {
 	}
 
 	selectedTree := renderTrackerANSI(selectedRowStyle.Inherit(treeGutterStyle), "┣━ ")
-	selectedDot := renderTrackerANSI(selectedRowStyle.Inherit(workerGlyphStyle), "\U000f06c4")
+	selectedDot := renderTrackerANSI(selectedRowStyle.Inherit(agentIdentityStyle("claude")), "\U000f06c4")
 	selectedGap := renderTrackerANSI(selectedRowStyle, " ")
 	selectedSnippetBar := renderTrackerANSI(selectedRowStyle.Inherit(snippetBarStyle), "|")
 	selectedMeta := renderTrackerANSI(selectedRowStyle.Inherit(metaTextStyle), "⚔ "+row.ID)
