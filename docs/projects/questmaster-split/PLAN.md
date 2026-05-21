@@ -118,7 +118,7 @@ Each numbered item is one commit, reviewable in isolation.
 
 6. **Switch version to `runtime/debug.ReadBuildInfo()`** in `cmd/root.go`. Replace `var Version = "dev"` with a function that pulls from `BuildInfo.Main.Version` when present, fallback to `"dev"`. Works automatically with `go install github.com/alexivison/questmaster@v0.1.0`.
 
-7. **Write standalone `tools/party-cli/README.md`** — what questmaster is, who it's for, prerequisites (Go 1.25.x-capable toolchain, tmux, chosen agent CLIs, and any retained agent-transport/party-dispatch assumptions), install (`go install github.com/alexivison/questmaster@latest`), optional `qm` symlink command, usage examples (start/spawn/relay/broadcast/status), the tracker TUI with a screenshot or asciinema link, and config schema. Don't make the parent dotfiles repo a dependency; if examples assume companion skills from that repo, document them as optional prerequisites. Note: still describes the binary as `party-cli` here; gets rewritten in Phase 2 step 14.
+7. **Write standalone `tools/party-cli/README.md`** — what questmaster is, who it's for, prerequisites (Go 1.25.x-capable toolchain, tmux, chosen agent CLIs, and any retained agent-transport/party-dispatch assumptions), install (`go install github.com/alexivison/questmaster@latest`), optional `qm` symlink command, usage examples (start/spawn/relay/broadcast/status), the tracker TUI with a screenshot or asciinema link, and config schema. Don't make the parent dotfiles repo a dependency; if examples assume companion skills from that repo, document them as optional prerequisites. Note: still describes the binary as `party-cli` here; gets rewritten in Phase 2 step 12.
 
 8. **Add inert OSS scaffolding** inside `tools/party-cli/`:
    - `.github/workflows/ci.yml` — `go build -buildvcs=false ./... && go vet ./... && go test ./...` on Ubuntu and macOS, Go 1.25.x.
@@ -156,7 +156,7 @@ This phase has two distinct halves: (a) get the code into the new repo via filte
     git clone --no-local /path/to/ai-party /tmp/questmaster-staging
     cd /tmp/questmaster-staging
     git filter-repo \
-      --path tools/party-cli \
+      --path tools/party-cli/ \
       --path-rename tools/party-cli/: \
       --mailmap /tmp/questmaster.mailmap \
       --replace-message /tmp/questmaster-message-replacements.txt
@@ -224,7 +224,15 @@ This phase has two distinct halves: (a) get the code into the new repo via filte
 
 12. **Update `tools/party-cli/README.md`** (now at repo root) to say `questmaster` throughout and explain that `qm` is an optional symlink, not something `go install` creates. Include Go 1.25.x prerequisite, the agent-transport/party-dispatch runtime assumption (or its removal), and the migration note: "Upgrading from `party-cli`? Run `questmaster hooks install` once — it auto-migrates state dirs and hook files. Restart existing party-cli tmux sessions after migration."
 
-13. **Create empty `alexivison/questmaster` repo** on GitHub. At creation time configure:
+13. **Validate in a private staging repo before any public content push/tag**:
+    ```
+    cd /tmp/questmaster-staging
+    git remote add staging git@github.com:alexivison/questmaster-staging.git
+    git push -u staging HEAD:main
+    ```
+    Required gate: GitHub CI green, secret scanning/dependabot alerts reviewed, history hygiene commands from step 10 pass in a fresh staging clone, and `go build/test/vet` passes in GitHub Actions. If using a temporary staging tag to exercise tag-triggered CI, delete it before public release. Do **not** push commits, tags, or releases to `alexivison/questmaster` until this gate is green.
+
+14. **Create empty `alexivison/questmaster` repo** on GitHub. Creating the empty public repo before step 13 is acceptable only if it stays empty (no commits, tags, releases, packages, generated README, or generated LICENSE). Configure:
     - Description: e.g. *"A fantasy-themed orchestration harness for AI coding agents — runs your party of Claude / Codex / Pi sessions in tmux"*
     - Topics: `tmux`, `cli`, `tui`, `ai-agents`, `claude-code`, `codex`, `bubbletea`, `orchestration`, `agent-harness`
     - Discussions: **off** for v0.1 (enable later if there's interest)
@@ -234,29 +242,38 @@ This phase has two distinct halves: (a) get the code into the new repo via filte
     - Dependabot alerts + secret scanning: **on** (free for public repos)
     - Social preview image: optional, defer to v0.2
 
-14. **Push staging branch to `main`**:
+15. **Push verified staging branch to public `main`** only after step 13 is green:
     ```
     cd /tmp/questmaster-staging
     git remote add origin git@github.com:alexivison/questmaster.git
     git push -u origin HEAD:main
+
+    # Verify the public module path before tagging.
+    tmpbin="$(mktemp -d)"
+    GOBIN="$tmpbin" go install github.com/alexivison/questmaster@$(git rev-parse HEAD)
+    "$tmpbin/questmaster" version
     ```
 
-15. **Tag `v0.1.0`** and cut the first GitHub Release:
+16. **Tag `v0.1.0`** and cut the first GitHub Release:
     ```
     git tag -a v0.1.0 -m "questmaster v0.1.0 — initial public release"
-    git push --tags
+    git push origin v0.1.0
+
+    tmpbin="$(mktemp -d)"
+    GOBIN="$tmpbin" go install github.com/alexivison/questmaster@v0.1.0
+    "$tmpbin/questmaster" version  # must print v0.1.0, not dev
     ```
     Release body: short paragraph on what questmaster is + a one-liner install (`go install github.com/alexivison/questmaster@v0.1.0`) + link to README sections (Features, Quickstart, Configuration). The CHANGELOG.md "Unreleased" section becomes "v0.1.0" with the same content.
 
-16. **Enable branch protection** on `main` (require PR + green CI + linear history).
+17. **Enable branch protection** on `main` (require PR + green CI + linear history).
 
 ### Phase 3 — dotfiles repo updates (only after v0.1.0 release exists on GitHub)
 
 Each numbered item is one commit. After this phase, the dotfiles repo no longer contains questmaster source — only references the published binary.
 
-17. **Delete `tools/party-cli/`** and replace with a stub `tools/README.md` (or `tools/party-cli/README.md`): *"Moved to https://github.com/alexivison/questmaster — see the dotfiles `install.sh` for how it's wired up."*
+18. **Delete `tools/party-cli/`** and replace with a stub `tools/README.md` (or `tools/party-cli/README.md`): *"Moved to https://github.com/alexivison/questmaster — see the dotfiles `install.sh` for how it's wired up."*
 
-18. **Update installers** (`install.sh:121-127, 348-385, 460-467` and `install:106-120`):
+19. **Update installers** (`install.sh:121-127, 348-385, 460-467` and `install:106-120`):
     - Replace `make -C "$SCRIPT_DIR/tools/party-cli" install` with:
       ```
       GOBIN="$HOME/.local/bin" go install github.com/alexivison/questmaster@v0.1.0
@@ -269,20 +286,20 @@ Each numbered item is one commit. After this phase, the dotfiles repo no longer 
     - **Force-run migration**: after install, run `questmaster hooks install` unconditionally so the migration algorithm fires.
     - Add fallback error message: *"Install Go 1.25.x (or enable Go toolchain auto-download) or download a binary from https://github.com/alexivison/questmaster/releases"*.
 
-19. **Update shell wrappers**:
+20. **Update shell wrappers**:
     - `claude/hooks/lib/party-cli.sh` → rename to `claude/hooks/lib/questmaster.sh`. Drop the `go run` fallback (lines 29-34). Replace `party-cli` invocations with `questmaster` (or `qm`).
     - `claude/hooks/{companion-gate,companion-guard,companion-trace,pr-gate}.sh` — update the `source` path to the renamed lib and update invocations.
     - `session/party.sh`, `session/party-relay.sh` — update invocations. Filename rename is optional (leave as-is for muscle memory, or rename to `session/quest.sh` / `session/quest-relay.sh` for consistency — decide at commit time).
 
-20. **Update TypeScript extensions** `pi/agent/extensions/{activity-sidecar,ask-user}.ts` — `const PARTY_CLI = "party-cli"` → `const QUESTMASTER = "questmaster"`, marker paths `.party-cli-installed` → `.questmaster-installed`, and sidecar version constant to match `QuestmasterSidecarVersion`.
+21. **Update TypeScript extensions** `pi/agent/extensions/{activity-sidecar,ask-user}.ts` — `const PARTY_CLI = "party-cli"` → `const QUESTMASTER = "questmaster"`, marker paths `.party-cli-installed` → `.questmaster-installed`, and sidecar version constant to match `QuestmasterSidecarVersion`.
 
-21. **Update test mocks** — `claude/hooks/tests/test-*.sh` and `tests/test-*.sh` that mock the binary by name. Sweep all `mock_party_cli` style helpers.
+22. **Update test mocks** — `claude/hooks/tests/test-*.sh` and `tests/test-*.sh` that mock the binary by name. Sweep all `mock_party_cli` style helpers.
 
-22. **Update docs** — sweep `README.md`, `claude/CLAUDE.md`, `codex/AGENTS.md`, `claude/rules/execution-core-claude-internals.md`, `shared/skills/party-dispatch/SKILL.md`, `docs/pi-companion.md`. Replace command references and link to the new repo.
+23. **Update docs** — sweep `README.md`, `claude/CLAUDE.md`, `codex/AGENTS.md`, `claude/rules/execution-core-claude-internals.md`, `shared/skills/party-dispatch/SKILL.md`, `docs/pi-companion.md`. Replace command references and link to the new repo.
 
-23. **Trim `go-tests` job from `.github/workflows/ci.yml`** — that job now lives in the new repo. Keep `shell-tests`.
+24. **Trim `go-tests` job from `.github/workflows/ci.yml`** — that job now lives in the new repo. Keep `shell-tests`.
 
-24. **Delete this planning directory** `docs/projects/questmaster-split/` and the historical `docs/projects/party-cli-refactor/` once the migration is complete and verified.
+25. **Delete this planning directory** `docs/projects/questmaster-split/` and the historical `docs/projects/party-cli-refactor/` once the migration is complete and verified.
 
 ## Acceptance criteria and verification gates
 
@@ -299,7 +316,7 @@ Phase 2 is releasable only when:
 - `rg -n "github.com/anthropics/ai-party/tools/party-cli|~/Code/ai-party|/Users/aleksi|legalon" .` in the new repo has no hits.
 - `rg -n "party-cli" .` shows only intentional legacy-migration/compatibility references documented in code comments/tests/README.
 - `questmaster hooks install --dry-run` reports the expected migration actions on synthetic legacy homes for Claude, Codex, Pi, state dirs, and config dirs; real `hooks install` is idempotent on a second run.
-- Private staging repo CI/secret scanning is green before pushing/tagging the public `alexivison/questmaster` repo.
+- Private staging repo CI/history/secret-scanning gate from step 13 is green before any public content push/tag. If the empty public repo was created earlier, it had no commits, tags, releases, packages, generated README, or generated LICENSE before the gate passed.
 
 Phase 3 is complete only when:
 - Dotfiles installer works from a clean temp `$HOME`, installs `questmaster`, creates `qm`, replaces stale `party-cli` with the compatibility shim, and runs `questmaster hooks install`.
@@ -310,10 +327,10 @@ Phase 3 is complete only when:
 ## Risk and rollback
 
 - **Phase 1 is fully reversible and non-breaking.** Every commit leaves `install.sh` working with the existing `party-cli` binary name. Can be merged to `main` at any time without breaking anything.
-- **Phase 2 is fully reversible until step 14** (`git push`). The filter-repo run is non-destructive (works on a clone); the binary rename happens entirely inside the staging clone. If the split goes wrong, `rm -rf /tmp/questmaster-staging` and start over.
-- **Public push/tag is the point of no return for consumers.** Validate the filtered history, `go install`, release notes, and CI in a private staging repo before creating/pushing the public `alexivison/questmaster` repo or tag.
-- **Recommended safety step:** push first to a **private** `alexivison/questmaster-staging` repo to validate CI on GitHub before pushing to the real public `alexivison/questmaster`. Delete the staging repo afterward.
-- **Phase 3 is the only point where the dotfiles repo's `install.sh` changes from `party-cli` to `questmaster`.** Between v0.1.0 release (Phase 2) and Phase 3 commit 18, the dotfiles repo still builds and uses the old `party-cli`. They co-exist cleanly. Phase 3 can be deferred indefinitely.
+- **Phase 2 is fully reversible until step 15** (public `git push` to `alexivison/questmaster`). The filter-repo run is non-destructive (works on a clone); the binary rename happens entirely inside the staging clone. If the split goes wrong before public content is pushed, `rm -rf /tmp/questmaster-staging` and start over.
+- **Public content push/tag is the point of no return for consumers.** Validate filtered history, release notes, CI, and secret scanning in the private staging repo (step 13) before public content push/tag. Creating the empty public repo before that gate is acceptable only if it remains empty.
+- **Private staging cleanup:** delete `alexivison/questmaster-staging` after the public repo is pushed, tagged, released, and verified.
+- **Phase 3 is the only point where the dotfiles repo's `install.sh` changes from `party-cli` to `questmaster`.** Between v0.1.0 release (Phase 2) and Phase 3 commit 19, the dotfiles repo still builds and uses the old `party-cli`. They co-exist cleanly. Phase 3 can be deferred indefinitely.
 - **Don't delete `tools/party-cli/` from this repo until** the new repo has a tagged release AND `go install github.com/alexivison/questmaster@v0.1.0` works on a clean machine.
 - **Active legacy tmux sessions are not live-migrated.** The state copy is one-time; existing sessions may keep old `PARTY_STATE_ROOT` env and old hook config until restarted/continued. Document this and keep the temporary `party-cli` compatibility shim as rollback insurance.
 - **The migration code (Phase 2 step 11c) is the highest-risk single piece** because it mutates user state on disk. Mandatory: write tests for it (golden-file comparisons for managed-block detection, JSON/TOML malformed cases, and synthetic old/new state dirs) and ship a `--dry-run` flag.
@@ -323,7 +340,7 @@ Phase 3 is complete only when:
 These don't block starting; decide when reached.
 
 - **TUI demo for README.** Asciinema cast vs. GIF vs. static screenshot. GIF is highest-effort, highest-conversion. Asciinema is lightweight and embeddable.
-- **Whether to rename `session/party.sh` → `session/quest.sh`** (and `party-relay.sh` → `quest-relay.sh`) in Phase 3 step 19. Pure aesthetics; muscle memory argues for leaving filenames alone.
+- **Whether to rename `session/party.sh` → `session/quest.sh`** (and `party-relay.sh` → `quest-relay.sh`) in Phase 3 step 20. Pure aesthetics; muscle memory argues for leaving filenames alone.
 - **CHANGELOG.md format.** Recommend Keep-a-Changelog style. Auto-generated from commits via tooling is overkill for v0.1.
 
 ## Reference: agent research summaries
