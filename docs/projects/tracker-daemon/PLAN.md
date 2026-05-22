@@ -70,7 +70,7 @@ The split is: snapshot data + selection cursor + observation writeback go daemon
 
 The daemon must not broadcast any field whose value differs by pane. Today `TrackerSnapshot.Current` and `SessionRow.IsCurrent` are computed from the embedded process's `current SessionInfo`; in daemon mode that becomes a client projection step.
 
-- Daemon snapshots contain the ordered rows, hook-derived activity state, liveness, TODO overlay, and the global `selected` ID. They do **not** contain `CurrentSessionDetail`, and every wire row omits `is_current`.
+- Daemon snapshots contain the ordered rows, hook-derived activity state, liveness, and the global `selected` ID. They do **not** contain `CurrentSessionDetail`, and every wire row omits `is_current`.
 - Each client owns `origin_session` from `discoverSessionID`, marks its own row as current before rendering, and derives `CurrentSessionDetail` from that row (falling back to its locally resolved `SessionInfo` only when the row is absent).
 - Relay/Broadcast/Spawn gating uses the client's projected origin row, not the highlighted row and not a daemon-global `Current` value.
 - If the daemon's selected row disappears after a snapshot recompute, it moves `selected` to the nearest surviving row by the stable rendered order; if no rows survive, `selected` becomes empty. Detached-cursor clients keep their local cursor.
@@ -176,7 +176,6 @@ Watch the resolved state root, not a hardcoded `~/.party-state/`.
 - `<session-dir>/state.json` create/write/rename/remove → recompute snapshot
 - `<state-root>/<party-id>.json` create/write/rename/remove → recompute snapshot (manifest changed or deleted)
 - `*.tmp`, `*.lock`, `*.jsonl*` → ignore
-- Claude TODO files under `claudetodos.BaseDir()` (`*.json` create/write/rename/remove) → recompute snapshot so overlays update without waiting for unrelated state changes
 - All else → ignore
 
 **Coalescing:** 50ms debounce on the recompute pipeline. Multiple events in the window collapse to one snapshot pass.
@@ -299,7 +298,6 @@ Bubble Tea client tested through existing `Model.Update`/`Model.View` pattern (A
 - Manifest remove and `state.json` remove both recompute so deleted sessions disappear
 - `.tmp`/`.lock`/`.jsonl*` events are ignored
 - Subdir create triggers nested watch
-- TODO overlay file changes trigger recompute
 - Socket path namespace differs for two `PARTY_STATE_ROOT` values even when `XDG_RUNTIME_DIR` is shared
 - Election: three clients racing → exactly one daemon; the spawn lock never prevents the daemon from acquiring its lifetime pid lock
 - Stale socket from killed daemon → next election succeeds after unlink-rebind
@@ -404,7 +402,7 @@ Bubble Tea client tested through existing `Model.Update`/`Model.View` pattern (A
 | 14 | Pane SIGHUP on tmux session-close doesn't notify daemon of dead clients (Agent 4 §5) | Daemon detects via socket EOF + periodic `tmux list-clients` reconciliation; clients whose origin session is gone are reaped |
 | 15 | Fallback to embedded silently hides daemon failures | When fallback triggers, write one-line stderr to client pane + fault file at `<socket_dir>/tracker.fault` with timestamp + reason |
 | 16 | Conflict with in-flight `party-cli-refactor` or `pi-third-agent` | Coordinate via PLAN status updates; daemon scaffolding (Phase 1) is additive — touches no files those plans modify. Phase 3 touches `internal/session/service.go`, which `party-cli-refactor` Phase 4 (tasks M6 + M7, Start/Continue launch unification) also touches; sequence: this plan's Phase 3 starts only after `party-cli-refactor` Phase 4 lands |
-| 17 | TODO files (`~/.claude/todos/`) and resume IDs (`/tmp/<party-id>/`) live outside the watched root (Agent 2 "Red flags" §7) | Daemon watches `claudetodos.BaseDir()` for TODO overlay refreshes (small extra watch); resume IDs only read at session-start, not in steady-state snapshot, so no extra watch needed |
+| 17 | External task-summary files and resume IDs (`/tmp/<party-id>/`) live outside the watched root (Agent 2 "Red flags" §7) | The tracker no longer consumes external task-summary files; resume IDs are only read at session-start, not in steady-state snapshots, so no extra watch is needed |
 | 18 | `mode == trackerModeManifest` does synchronous `actions.ManifestJSON` on keypress (Agent 1 "Red flags" §6) | Becomes RPC `manifest_request` → `manifest_response`. Client shows spinner on `m` press until response arrives |
 | 19 | Cursor + `current.ID` coupling: relay/broadcast gating uses *client's* session, not the highlighted row (Agent 1 §4, "Red flags" §2) | Mode is client-local. Daemon broadcasts the global cursor; each client derives its own current row from connection-pinned `origin_session` and gates relay/broadcast/spawn locally |
 | 20 | Delete-current kills the client before it can send a follow-up Attach, or cursor moves and Attach lands on wrong target | Client captures the resolved `next` target at keypress time and includes it in the Delete RPC. Daemon performs switch-to-next + delete as one action using the connection-pinned origin. Test delays Delete while issuing `j`; assert Attach target matches captured `next`, not post-`j` selection |
