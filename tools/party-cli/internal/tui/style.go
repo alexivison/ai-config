@@ -6,7 +6,7 @@ import (
 	"github.com/alexivison/questmaster/internal/palette"
 )
 
-// Semantic color tokens — mirrors scry's vocabulary (~/Code/scry/internal/ui/theme/theme.go).
+// Semantic color tokens shared across TUI chrome and status views.
 // All use standard ANSI codes so the terminal theme decides actual RGB.
 var (
 	// Diff semantics.
