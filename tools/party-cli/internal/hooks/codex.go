@@ -211,6 +211,9 @@ func (c *CodexInstaller) mergeHooks() error {
 	if err != nil {
 		return err
 	}
+	if c.codexHooksCurrent(doc) {
+		return nil
+	}
 	if err := c.backupIfNeeded(); err != nil {
 		return err
 	}
@@ -328,6 +331,13 @@ func (c *CodexInstaller) codexEntriesCurrent(entries []map[string]interface{}) b
 	}
 	doc, err := c.loadHooks()
 	if err != nil {
+		return false
+	}
+	return c.codexHooksCurrent(doc)
+}
+
+func (c *CodexInstaller) codexHooksCurrent(doc map[string]interface{}) bool {
+	if len(c.taggedEntries(doc)) != len(codexEvents) {
 		return false
 	}
 	hooks, _ := doc["hooks"].(map[string]interface{})

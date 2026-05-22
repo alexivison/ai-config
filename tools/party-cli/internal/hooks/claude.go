@@ -190,23 +190,17 @@ func (c *ClaudeInstaller) mergeSettings() error {
 	if err != nil {
 		return err
 	}
+	if !c.mergeOurEntries(settings) {
+		return nil
+	}
 	if err := c.backupIfNeeded(); err != nil {
 		return err
 	}
-	c.mergeOurEntries(settings)
 	updated, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encode settings: %w", err)
 	}
 	updated = append(updated, '\n')
-	// Idempotency short-circuit: if a re-install would produce the same
-	// byte payload (modulo trailing newline) skip the write so file
-	// mtime stays stable across repeated installs.
-	if existing, err := os.ReadFile(c.settingsPath()); err == nil {
-		if bytesEqualWithOptionalNewline(existing, updated) {
-			return nil
-		}
-	}
 	return atomicWrite(c.settingsPath(), updated)
 }
 
@@ -229,12 +223,14 @@ func (c *ClaudeInstaller) backupIfNeeded() error {
 // mergeOurEntries appends a party-cli entry block for each event that
 // does not already have one. Existing entries — canonical hooks (e.g.
 // session-cleanup.sh, worktree-guard.sh, primary-state.sh) and prior
-// party-cli installs — are preserved.
-func (c *ClaudeInstaller) mergeOurEntries(settings map[string]interface{}) {
+// party-cli installs — are preserved. It reports whether settings changed.
+func (c *ClaudeInstaller) mergeOurEntries(settings map[string]interface{}) bool {
+	changed := false
 	hooks, _ := settings["hooks"].(map[string]interface{})
 	if hooks == nil {
 		hooks = map[string]interface{}{}
 		settings["hooks"] = hooks
+		changed = true
 	}
 	for _, e := range claudeEvents {
 		existing, _ := hooks[e.Event].([]interface{})
@@ -242,7 +238,9 @@ func (c *ClaudeInstaller) mergeOurEntries(settings map[string]interface{}) {
 			continue
 		}
 		hooks[e.Event] = append(existing, c.buildEntry(e))
+		changed = true
 	}
+	return changed
 }
 
 // removeFromSettings drops only party-cli inner hooks (matched by
@@ -416,13 +414,6 @@ func atomicWrite(path string, data []byte) error {
 		return err
 	}
 	return nil
-}
-
-func bytesEqualWithOptionalNewline(a, b []byte) bool {
-	if len(a) == len(b) {
-		return string(a) == string(b)
-	}
-	return false
 }
 
 // ScriptHash exposes a sha256 of the rendered script for the named
