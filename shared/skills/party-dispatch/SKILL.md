@@ -79,13 +79,13 @@ tmux display-message -p '#{session_name}'
 Check if already a master by reading the manifest:
 
 ```bash
-jq -r '.session_type' ~/.party-state/<session-name>.json
+jq -r '.session_type' ~/.questmaster-state/<session-name>.json
 ```
 
 If not already a master, promote:
 
 ```bash
-party-cli promote <session-name>
+questmaster promote <session-name>
 ```
 
 This replaces the companion pane with the tracker and sets `session_type=master`.
@@ -96,7 +96,7 @@ If already a master, this is a no-op.
 Spawn each item as a **detached worker session** registered with the master:
 
 ```bash
-party-cli spawn <session-name> "<title>" --prompt "<prompt>"
+questmaster spawn <session-name> "<title>" --prompt "<prompt>"
 ```
 
 The `<title>` becomes the worker session's window name.
@@ -124,7 +124,7 @@ Run /<skill> on this issue.
 Work in the repo at <absolute-cwd>.
 
 When done, report completion to the master:
-party-cli report "done: <one-line summary> | PR: <url or 'none'>"
+questmaster report "done: <one-line summary> | PR: <url or 'none'>"
 ```
 
 **For file-based items:**
@@ -135,7 +135,7 @@ Run /task-workflow on the task file at: <absolute-path>
 Read the file first to understand the scope, then execute the workflow.
 
 When done, report completion to the master:
-party-cli report "done: <one-line summary> | PR: <url or 'none'>"
+questmaster report "done: <one-line summary> | PR: <url or 'none'>"
 ```
 
 **For freeform tasks:**
@@ -148,7 +148,7 @@ references files, use absolute paths.
 
 ```
 When done, report completion to the master:
-party-cli report "done: <one-line summary> | PR: <url or 'none'>"
+questmaster report "done: <one-line summary> | PR: <url or 'none'>"
 ```
 
 Workers that don't receive this instruction will silently finish without
@@ -156,7 +156,7 @@ notifying the master.
 
 For small deliverables where the answer itself matters (a joke, title, short
 diagnosis, one-line recommendation), tell the worker to include the actual
-deliverable in the `party-cli report` message rather than a placeholder summary.
+deliverable in the `questmaster report` message rather than a placeholder summary.
 
 **Short prompts** (under 400 characters total): pass inline via `--prompt`.
 
@@ -168,7 +168,7 @@ cat > /tmp/party-prompt-N.md <<'PROMPT_EOF'
 <full prompt text>
 PROMPT_EOF
 
-party-cli spawn <session-name> "<title>" --prompt "$(cat /tmp/party-prompt-N.md)"
+questmaster spawn <session-name> "<title>" --prompt "$(cat /tmp/party-prompt-N.md)"
 ```
 
 ### Step 5 — Create tracker and report
@@ -185,7 +185,7 @@ worker session name, item ID, and current status:
 Then report to the user:
 
 - All dispatched workers (session names and items)
-- How to check on workers: `party-cli read <worker-id>`
+- How to check on workers: `questmaster read <worker-id>`
 - How to switch between them: use the tracker or tmux session picker
 - Point to the task list for live tracking
 
@@ -198,9 +198,9 @@ their entire lifecycle. The master is an orchestrator, never an implementor.
 
 ### Monitoring workers
 
-- **Check status**: `party-cli workers` to see all workers and their state
-- **Read scrollback**: `party-cli read <worker-id>` (default 50 lines)
-  or `party-cli read <worker-id> --lines 200` for deeper history
+- **Check status**: `questmaster workers` to see all workers and their state
+- **Read scrollback**: `questmaster read <worker-id>` (default 50 lines)
+  or `questmaster read <worker-id> --lines 200` for deeper history
 - **Watch tracker pane**: the left pane shows real-time worker status
 
 ### Handling worker reports
@@ -219,13 +219,13 @@ report arrives:
 When a worker needs guidance or additional work:
 
 ```bash
-party-cli relay <worker-id> "instruction text"
+questmaster relay <worker-id> "instruction text"
 ```
 
 For broadcasts to all workers:
 
 ```bash
-party-cli broadcast "message"
+questmaster broadcast "message"
 ```
 
 ### Reviewing worker PRs (MANDATORY)
@@ -252,7 +252,7 @@ is unconditional.
 
 If a worker appears stuck or reports an error:
 
-1. Read scrollback: `party-cli read <worker-id> --lines 200`
+1. Read scrollback: `questmaster read <worker-id> --lines 200`
 2. Identify what the worker can't see for itself (different error, missing
    constraint, unread file) and relay that observation
 3. If unrecoverable, note it and consider spawning a replacement worker
