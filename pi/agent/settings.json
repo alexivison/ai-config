@@ -1,5 +1,13 @@
 {
   "extensions": [
     "extensions/ask-user.ts"
+  ],
+  "defaultThinkingLevel": "xhigh",
+  "editorPaddingX": 1,
+  "hideThinkingBlock": true,
+  "packages": [
+    "npm:pi-tool-display",
+    "npm:@samfp/pi-memory",
+    "npm:pi-schedule-prompt"
   ]
 }
