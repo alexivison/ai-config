@@ -370,7 +370,7 @@ Drop:
 - `PrimaryActive bool`
 - `PrimaryActiveOverride *bool`
 - `Snippet` derivation from terminal capture (replaced by Activity)
-- `TodoOverlay` derivation that depends on snippet, if any
+- Any legacy terminal-capture-only derivations
 
 Add:
 - `State string`
