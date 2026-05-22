@@ -5,16 +5,20 @@ tmux-capture-*.txt
 
 # Pi local settings
 pi/agent/settings.json
+pi/agent/keybindings.json
+pi/agent/npm/
 
 # Codex CLI runtime artifacts
 codex/.tmp/
 codex/cache/
 codex/plugins/
 codex/installation_id
+codex/goals_*.sqlite*
 
 # Claude Code local artifacts
 /.claude/scheduled_tasks.lock
 claude/.last-cleanup
+claude/keybindings.json
 claude/remote-settings.json
 
 # party-cli hook installer overlays (runtime-managed, never checked in)
