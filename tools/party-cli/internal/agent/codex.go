@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/anthropics/ai-party/tools/party-cli/internal/config"
-	"github.com/anthropics/ai-party/tools/party-cli/internal/tmux"
+	"github.com/alexivison/questmaster/internal/config"
+	"github.com/alexivison/questmaster/internal/tmux"
 )
 
 const codexMasterPrompt = `This is a master session. You are an orchestrator, not an implementor.

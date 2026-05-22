@@ -3,7 +3,7 @@ package tui
 import (
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/anthropics/ai-party/tools/party-cli/internal/palette"
+	"github.com/alexivison/questmaster/internal/palette"
 )
 
 // Semantic color tokens — mirrors scry's vocabulary (~/Code/scry/internal/ui/theme/theme.go).
