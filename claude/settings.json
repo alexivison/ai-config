@@ -81,6 +81,15 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/party-cli-state.sh starting",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "PreToolUse": [
@@ -117,6 +126,15 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/party-cli-state.sh tool_start",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "Stop": [
@@ -125,6 +143,15 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/primary-state.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/party-cli-state.sh done",
             "timeout": 5
           }
         ]
@@ -150,6 +177,15 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/party-cli-state.sh stopped",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "SubagentStart": [
@@ -169,6 +205,15 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/agent-trace-stop.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/party-cli-state.sh subagent_stop",
             "timeout": 5
           }
         ]
@@ -196,6 +241,37 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/skill-marker.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/party-cli-state.sh tool_end",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/party-cli-state.sh working",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/party-cli-state.sh blocked",
             "timeout": 5
           }
         ]
