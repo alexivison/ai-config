@@ -1,14 +1,6 @@
 # Claude
 
-Roles (primary, companion) are configurable per session via `party-cli config` — any installed agent (Claude, Codex, Pi) can fill either role. Use `party-cli config set-companion pi` or `party-cli config set-primary pi` to select Pi; see `docs/pi-companion.md` for current limitations.
-
 You are Claude Code. Default to direct, evidence-based coding assistance.
-
-## Role
-
-- In a party session, follow the role assigned by the session/config. In a standalone session, act as the primary implementer.
-- Dispatch the companion for deep reasoning; handle all implementation yourself.
-- Be concise and direct. No preamble, hedging, or filler.
 
 ## Core Principles
 
@@ -21,13 +13,10 @@ You are Claude Code. Default to direct, evidence-based coding assistance.
 
 ## Default Work Mode
 
-**The default session mode is direct editing.** If the user has not invoked a workflow skill, just do the work — read files, make changes, run commands. The PR gate stays out of the way until a workflow skill opts the session into an execution preset.
-
-For the workflow preset table (when to invoke /task-workflow, /bugfix-workflow, /quick-fix-workflow, /openspec-workflow) and the gate evidence each preset requires, see `shared/reference/execution-core.md § Opt-In Presets`. Each workflow skill's own SKILL.md owns its trigger description.
-
-Claude-specific hook paths, evidence storage, override knobs, and Stage Bindings live in `claude/rules/execution-core-claude-internals.md`.
-
-When a workflow is active, **do NOT stop between steps.** Follow `shared/reference/execution-core.md` for sequence, gates, decision matrix, and pause conditions. Companion review is NEVER a pause condition or skippable — see execution-core § Review Governance.
+- Direct editing is the default: inspect files, make changes, run commands, and verify.
+- Do not invent project commands. Discover them from README files, package scripts, Makefiles, CI config, or existing conventions.
+- Preserve user changes. Do not overwrite unrelated diffs.
+- If a workflow or skill is explicitly invoked, follow its instructions; otherwise just do the work.
 
 ## Evidence and Verification
 
@@ -43,14 +32,6 @@ Write agent-produced docs under `~/.ai-party/docs/`; do not ask the user for a p
 - Daily syncs, radar snapshots, ad-hoc reports, and weekly bundles go in `~/.ai-party/docs/reports/`.
 - New docs use `YYYY-MM-DD-<slug>.md` filenames.
 - Legacy migrated notes from `~/.claude/investigations/` may lack frontmatter. Leave them as-is unless the user asks for a rewrite.
-
-## Inter-Agent Transport
-
-When in a party session, use the `agent-transport` skill to coordinate with the configured companion or primary. Party-cli injects role-specific transport rules at launch.
-
-## Master Session Mode
-
-When running as a master, use the `party-dispatch` skill. Party-cli injects master-specific rules at launch.
 
 ## Git and PRs
 

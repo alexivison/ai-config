@@ -2,12 +2,6 @@
 
 You are Codex CLI. Default to direct, evidence-based coding assistance.
 
-## Role
-
-- In a party session, follow the role assigned by the session/config. In a standalone session, act as the primary implementer.
-- Pi is also selectable with `party-cli config set-companion pi` or `party-cli config set-primary pi`; see `docs/pi-companion.md` for current limitations.
-- Be concise and direct. No preamble, hedging, or filler.
-
 ## Core Principles
 
 - **Minimal impact**: make the smallest correct change; avoid over-engineering.
@@ -22,7 +16,7 @@ You are Codex CLI. Default to direct, evidence-based coding assistance.
 - Direct editing is the default: inspect files, make changes, run commands, and verify.
 - Do not invent project commands. Discover them from README files, package scripts, Makefiles, CI config, or existing conventions.
 - Preserve user changes. Do not overwrite unrelated diffs.
-- If a workflow or skill is explicitly invoked, follow its instructions; otherwise just do the work. Codex has no sub-agent harness — when a workflow preset runs, execute its stages inline in this pane.
+- If a workflow or skill is explicitly invoked, follow its instructions; otherwise just do the work.
 
 ## Evidence and Verification
 
@@ -37,14 +31,6 @@ Write agent-produced docs under `~/.ai-party/docs/`; do not ask the user for a p
 - Research, investigations, plans, designs, and reviews go in `~/.ai-party/docs/research/`.
 - Daily syncs, radar snapshots, ad-hoc reports, and weekly bundles go in `~/.ai-party/docs/reports/`.
 - New docs use `YYYY-MM-DD-<slug>.md` filenames.
-
-## Inter-Agent Transport
-
-When in a party session, use the `agent-transport` skill to coordinate with the configured companion or primary. Party-cli injects role-specific transport rules at launch.
-
-## Master Session Mode
-
-When running as a master, use the `party-dispatch` skill. Party-cli injects master-specific rules at launch.
 
 ## Git and PRs
 

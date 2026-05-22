@@ -6,7 +6,7 @@ Claude's hook chain is the concrete implementation behind the shared execution-c
 
 - `skill-marker.sh` writes `execution-preset = <name>` when a workflow skill is invoked.
 - `pr-gate.sh` reads the latest preset and enforces the required evidence set at the current committed `diff_hash`.
-- Operators can override the required evidence types with `cfg.Evidence.Required` in `~/.config/party-cli/config.toml`.
+- Claude hooks read evidence overrides from the `party-cli` config: `cfg.Evidence.Required` in `~/.config/party-cli/config.toml`.
 
 ## Evidence Plumbing
 
