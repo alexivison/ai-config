@@ -1,5 +1,11 @@
 {
   "extensions": [
     "extensions/ask-user.ts"
+  ],
+  "packages": [
+    "npm:pi-tool-display",
+    "npm:@samfp/pi-memory",
+    "npm:pi-lean-ctx",
+    "npm:pi-schedule-prompt"
   ]
 }

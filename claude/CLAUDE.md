@@ -84,3 +84,14 @@ After ANY user correction: identify the pattern, write a preventive rule, save t
 
 - Main agent handles all implementation (code, tests, fixes).
 - Sub-agents for context preservation only (investigation, verification).
+
+<!-- lean-ctx -->
+## lean-ctx — Additive Context Compression
+
+LeanCTX is available as optional MCP/CLI tooling. Prefer it for large or repetitive context, but native tools remain valid.
+- Use `ctx_read`, `ctx_search`, `ctx_tree`, and `ctx_shell` for compressed reads/searches/listings/shell output.
+- Use native Edit/Write/StrReplace normally.
+- Existing memory systems stay primary; do not use LeanCTX memory/agent tools unless the user explicitly asks.
+
+Full rules: @rules/lean-ctx.md
+<!-- /lean-ctx -->

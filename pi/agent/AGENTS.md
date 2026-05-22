@@ -60,3 +60,10 @@ When running as a master, use the `party-dispatch` skill. Party-cli injects mast
 - One session per worktree. Never edit another session's working tree.
 - `main` is the source of truth. Reapply only the narrow task delta on top of current `main`; never revive stale branch behavior.
 - Prefer `gwta <branch>` when available; otherwise use `git worktree add ../<repo>-<branch> -b <branch>`. Clean up with `git worktree remove ../<repo>-<branch>` after PR merge.
+
+<!-- lean-ctx -->
+## lean-ctx — Additive Context Compression
+
+LeanCTX is available as optional `ctx_*` tools through the Pi package. Use it for large or repetitive context, but keep Pi built-ins available.
+Full rules: `~/.pi/rules/lean-ctx.md`
+<!-- /lean-ctx -->
