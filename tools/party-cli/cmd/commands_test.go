@@ -42,6 +42,16 @@ func setupStore(t *testing.T) *state.Store {
 	return store
 }
 
+func prependStubPartyCLIToPath(t *testing.T) {
+	t.Helper()
+	binDir := t.TempDir()
+	stubPath := filepath.Join(binDir, "party-cli")
+	if err := os.WriteFile(stubPath, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("write party-cli stub: %v", err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
 func createManifest(t *testing.T, store *state.Store, id, title, cwd, sessionType string) {
 	t.Helper()
 	m := state.Manifest{
